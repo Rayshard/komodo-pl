@@ -4,9 +4,6 @@ extern crate lazy_static;
 mod lexer;
 mod utils;
 
-use lexer::token::{Token, TokenType};
-use utils::Position;
-
 fn main() {
     let args: Vec<String> =std::env::args().collect();
 

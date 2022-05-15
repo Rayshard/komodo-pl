@@ -1,8 +1,9 @@
 use crate::utils::Position;
 use regex::Regex;
+use serde_json;
 
 pub mod token {
-    use super::Position;
+    use super::*;
 
     #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum TokenType<'a> {
@@ -12,6 +13,22 @@ pub mod token {
         Minus,
         Asterisk,
         ForwardSlash,
+        EndOfFile,
+    }
+
+    impl<'a> TokenType<'a> {
+        pub fn to_json(&self) -> serde_json::Value {
+            match self {
+                TokenType::IntLit(value) => serde_json::json!({ "IntLit": value }),
+                TokenType::Invalid(value) => serde_json::json!({ "Invalid": value }),
+                TokenType::Plus => serde_json::json!("Plus"),
+                TokenType::Minus => serde_json::json!("Minus"),
+                TokenType::Asterisk => serde_json::json!("Asterisk"),
+                TokenType::ForwardSlash => serde_json::json!("ForwardSlash"),
+                TokenType::EndOfFile => serde_json::json!("EndOfFile"),
+                _ => unimplemented!(),
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -28,6 +45,14 @@ pub mod token {
                 start: start,
                 end: end,
             }
+        }
+
+        pub fn to_json(&self) -> serde_json::Value {
+            serde_json::json!({
+                "type": self.r#type.to_json(),
+                "start": self.start.to_json(),
+                "end": self.end.to_json(),
+            })
         }
     }
 }
@@ -109,13 +134,13 @@ pub fn lex(text: &str) -> Vec<Token> {
         }
     }
 
+    tokens.push(Token::new(TokenType::EndOfFile, position, position));
     return tokens;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn test_all_patterns_have_start_of_line_character() {
@@ -135,57 +160,155 @@ mod tests {
     }
 
     #[test]
-    fn test_lex_int_lit() {
-        assert_eq!(
-            lex("123"),
-            vec![Token::new(
-                TokenType::IntLit("123"),
-                Position::new(1, 1),
-                Position::new(1, 4)
-            )],
-        );
-    }
-
-    #[test]
-    fn test_lex_symbols() {
-        let symbols = HashMap::from([
-            ("+", TokenType::Plus),
-            ("-", TokenType::Minus),
-            ("*", TokenType::Asterisk),
-            ("/", TokenType::ForwardSlash),
-        ]);
-
-        for (symbol, token_type) in symbols.iter() {
-            assert_eq!(
-                lex(symbol),
-                vec![Token::new(
-                    *token_type,
-                    Position::new(1, 1),
-                    Position::new(1, symbol.chars().count() + 1)
-                )],
-            );
-        }
-    }
-
-    #[test]
-    fn test_lex_invalid() {
-        assert_eq!(
-            lex("~"),
-            vec![Token::new(
-                TokenType::Invalid("~"),
-                Position::new(1, 1),
-                Position::new(1, 2)
-            )],
-        );
-    }
-
-    #[test]
     fn test_lex_whitespace() {
         todo!()
     }
 
     #[test]
     fn test_lex_token_positions() {
-        todo!()
+        assert_eq!(
+            lex("123+  \n -\n\n5   "),
+            vec![
+                Token::new(
+                    TokenType::IntLit("123"),
+                    Position::new(1, 1),
+                    Position::new(1, 4)
+                ),
+                Token::new(
+                    TokenType::Plus,
+                    Position::new(1, 4),
+                    Position::new(1, 5)
+                ),
+                Token::new(
+                    TokenType::Minus,
+                    Position::new(2, 2),
+                    Position::new(2, 3)
+                ),
+                Token::new(
+                    TokenType::IntLit("5"),
+                    Position::new(4, 1),
+                    Position::new(4, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(4, 5),
+                    Position::new(4, 5)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_int_lit() {
+        assert_eq!(
+            lex("123"),
+            vec![
+                Token::new(
+                    TokenType::IntLit("123"),
+                    Position::new(1, 1),
+                    Position::new(1, 4)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 4),
+                    Position::new(1, 4)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_invalid() {
+        assert_eq!(
+            lex("~"),
+            vec![
+                Token::new(
+                    TokenType::Invalid("~"),
+                    Position::new(1, 1),
+                    Position::new(1, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 2),
+                    Position::new(1, 2)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_plus() {
+        assert_eq!(
+            lex("+"),
+            vec![
+                Token::new(
+                    TokenType::Plus,
+                    Position::new(1, 1),
+                    Position::new(1, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 2),
+                    Position::new(1, 2)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_minus() {
+        assert_eq!(
+            lex("-"),
+            vec![
+                Token::new(
+                    TokenType::Minus,
+                    Position::new(1, 1),
+                    Position::new(1, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 2),
+                    Position::new(1, 2)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_asterisk() {
+        assert_eq!(
+            lex("*"),
+            vec![
+                Token::new(
+                    TokenType::Asterisk,
+                    Position::new(1, 1),
+                    Position::new(1, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 2),
+                    Position::new(1, 2)
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_lex_forward_slash() {
+        assert_eq!(
+            lex("/"),
+            vec![
+                Token::new(
+                    TokenType::ForwardSlash,
+                    Position::new(1, 1),
+                    Position::new(1, 2)
+                ),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(1, 2),
+                    Position::new(1, 2)
+                )
+            ]
+        );
     }
 }

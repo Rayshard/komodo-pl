@@ -1,3 +1,5 @@
+use serde_json;
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Position {
     pub line: usize,
@@ -10,5 +12,12 @@ impl Position {
             line: line,
             column: column,
         }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "line": self.line,
+            "column": self.column,
+        })
     }
 }
