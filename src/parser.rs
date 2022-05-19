@@ -35,18 +35,25 @@ impl<'a> TokenStream<'a> {
 }
 
 pub fn parse(tokens: Vec<Token>) -> Box<dyn Node> {
+    let left = Box::new(Expression::IntLit {
+        value: String::from("123"),
+        span: Span::new(Position::new(1, 1), Position::new(1, 2)),
+        ts_type: None,
+    });
+
+    let right = Box::new(Expression::IntLit {
+        value: String::from("123"),
+        span: Span::new(Position::new(1, 4), Position::new(1, 5)),
+        ts_type: None,
+    });
+
+    let span = Span::new(left.get_span().start, right.get_span().end);
+
     Box::new(Expression::Binop {
-        left: Box::new(Expression::IntLit {
-            value: String::from("123"),
-            span: Span::new(Position::new(1, 1), Position::new(1, 2)),
-            ts_type: None,
-        }),
+        left: left,
         op: String::from("+"),
-        right: Box::new(Expression::IntLit {
-            value: String::from("123"),
-            span: Span::new(Position::new(1, 4), Position::new(1, 5)),
-            ts_type: None,
-        }),
+        right: right,
+        span: span,
         ts_type: None,
     })
 }

@@ -2,7 +2,7 @@ use crate::utils::{Position, Span};
 use core::fmt::Debug;
 
 pub trait Node {
-    fn get_span(&self) -> Span;
+    fn get_span(&self) -> &Span;
     fn get_node_type(&self) -> NodeType;
     fn get_ts_type(&self) -> &Option<String>;
 }
@@ -31,6 +31,7 @@ pub enum Expression {
         left: Box<Expression>,
         op: String,
         right: Box<Expression>,
+        span: Span,
         ts_type: Option<String>,
     },
     IntLit {
@@ -41,10 +42,10 @@ pub enum Expression {
 }
 
 impl Node for Expression {
-    fn get_span(&self) -> Span {
+    fn get_span(&self) -> &Span {
         match self {
-            Expression::Binop { left, right, .. } => Span::new(left.get_span().start, right.get_span().end),
-            Expression::IntLit { span, .. } => *span,
+            Expression::Binop { span, .. } => span,
+            Expression::IntLit { span, .. } => span,
         }
     }
 
