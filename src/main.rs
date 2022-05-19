@@ -2,7 +2,9 @@
 extern crate lazy_static;
 
 mod lexer;
+mod parser;
 mod utils;
+mod ast;
 
 fn main() {
     let args: Vec<String> =std::env::args().collect();
@@ -16,5 +18,7 @@ fn main() {
         .expect(&format!("Unable to open file: {}", input_file_path));
 
     let tokens = lexer::lex(&input);
-    println!("{:#?}", tokens);
+    let node  = parser::parse(tokens);
+
+    println!("{:#?}", node);
 }
