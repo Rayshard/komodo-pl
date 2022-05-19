@@ -21,3 +21,25 @@ impl Position {
         })
     }
 }
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Span {
+    pub start: Position,
+    pub end: Position,
+}
+
+impl Span {
+    pub fn new(start: Position, end: Position) -> Span {
+        Span {
+            start: start,
+            end: end,
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "start": self.start.to_json(),
+            "end": self.end.to_json(),
+        })
+    }
+}
