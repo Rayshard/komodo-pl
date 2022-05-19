@@ -1,6 +1,6 @@
 use crate::ast::{Expression, Node, NodeType};
 use crate::lexer::token::{Token, TokenType};
-use crate::utils::Position;
+use crate::utils::{Position, Span};
 use std::cmp;
 
 struct TokenStream<'a> {
@@ -38,13 +38,13 @@ pub fn parse(tokens: Vec<Token>) -> Box<dyn Node> {
     Box::new(Expression::Binop {
         left: Box::new(Expression::IntLit {
             value: String::from("123"),
-            pos: Position::new(1, 1),
+            span: Span::new(Position::new(1, 1), Position::new(1, 2)),
             ts_type: None,
         }),
         op: String::from("+"),
         right: Box::new(Expression::IntLit {
             value: String::from("123"),
-            pos: Position::new(1, 1),
+            span: Span::new(Position::new(1, 4), Position::new(1, 5)),
             ts_type: None,
         }),
         ts_type: None,

@@ -1,8 +1,8 @@
-use crate::utils::Position;
+use crate::utils::{Position, Span};
 use core::fmt::Debug;
 
 pub trait Node {
-    fn get_position(&self) -> &Position;
+    fn get_span(&self) -> Span;
     fn get_node_type(&self) -> NodeType;
     fn get_ts_type(&self) -> &Option<String>;
 }
@@ -35,16 +35,16 @@ pub enum Expression {
     },
     IntLit {
         value: String,
-        pos: Position,
+        span: Span,
         ts_type: Option<String>,
     },
 }
 
 impl Node for Expression {
-    fn get_position(&self) -> &Position {
+    fn get_span(&self) -> Span {
         match self {
-            Expression::Binop { left, .. } => left.get_position(),
-            Expression::IntLit { pos, .. } => pos,
+            Expression::Binop { left, right, .. } => Span::new(left.get_span().start, right.get_span().end),
+            Expression::IntLit { span, .. } => *span,
         }
     }
 

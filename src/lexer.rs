@@ -1,4 +1,4 @@
-use crate::utils::Position;
+use crate::utils::{Position, Span};
 use regex::Regex;
 use serde_json;
 
@@ -34,24 +34,21 @@ pub mod token {
     #[derive(Debug, PartialEq)]
     pub struct Token<'a> {
         pub r#type: TokenType<'a>,
-        pub start: Position,
-        pub end: Position,
+        pub span: Span,
     }
 
     impl<'a> Token<'a> {
         pub fn new(r#type: TokenType, start: Position, end: Position) -> Token {
             Token {
                 r#type: r#type,
-                start: start,
-                end: end,
+                span: Span::new(start, end),
             }
         }
 
         pub fn to_json(&self) -> serde_json::Value {
             serde_json::json!({
                 "type": self.r#type.to_json(),
-                "start": self.start.to_json(),
-                "end": self.end.to_json(),
+                "span": self.span.to_json(),
             })
         }
     }
