@@ -60,7 +60,7 @@ pub mod token {
 use token::{Token, TokenType};
 
 lazy_static! {
-    static ref RE_WHITESPACE: Regex = Regex::new(r"^((\s+)|[\n])").unwrap();
+    static ref RE_WHITESPACE: Regex = Regex::new(r"^([ \t\r\f]+|[\n])").unwrap();
     static ref PATTERNS: Vec<(Regex, fn(&str) -> TokenType)> = vec![
         (Regex::new(r"^[0-9]+").unwrap(), |text| {
             TokenType::IntLit(text)
@@ -97,7 +97,12 @@ pub fn lex(text: &str) -> Vec<Token> {
                     )
                 }
             }
+
             offset += re_match.as_str().len();
+        }
+
+        if offset >= text.len() {
+            break;
         }
 
         //Find best match
@@ -130,7 +135,7 @@ pub fn lex(text: &str) -> Vec<Token> {
                     _ => position = token_end,
                 };
             }
-            None => panic!("'{}' did not match any pattern!", &text[offset..offset + 1]),
+            None => panic!("'{}' did not match any pattern!", text[offset..].len()),
         }
     }
 
@@ -161,7 +166,21 @@ mod tests {
 
     #[test]
     fn test_lex_whitespace() {
-        todo!()
+        assert_eq!(
+            lex("+ +\n +\t+\r\n +"),
+            vec![
+                Token::new(TokenType::Plus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(TokenType::Plus, Position::new(1, 3), Position::new(1, 4)),
+                Token::new(TokenType::Plus, Position::new(2, 2), Position::new(2, 3)),
+                Token::new(TokenType::Plus, Position::new(2, 4), Position::new(2, 5)),
+                Token::new(TokenType::Plus, Position::new(3, 2), Position::new(3, 3)),
+                Token::new(
+                    TokenType::EndOfFile,
+                    Position::new(3, 3),
+                    Position::new(3, 3)
+                )
+            ]
+        );
     }
 
     #[test]
@@ -174,16 +193,8 @@ mod tests {
                     Position::new(1, 1),
                     Position::new(1, 4)
                 ),
-                Token::new(
-                    TokenType::Plus,
-                    Position::new(1, 4),
-                    Position::new(1, 5)
-                ),
-                Token::new(
-                    TokenType::Minus,
-                    Position::new(2, 2),
-                    Position::new(2, 3)
-                ),
+                Token::new(TokenType::Plus, Position::new(1, 4), Position::new(1, 5)),
+                Token::new(TokenType::Minus, Position::new(2, 2), Position::new(2, 3)),
                 Token::new(
                     TokenType::IntLit("5"),
                     Position::new(4, 1),
@@ -241,11 +252,7 @@ mod tests {
         assert_eq!(
             lex("+"),
             vec![
-                Token::new(
-                    TokenType::Plus,
-                    Position::new(1, 1),
-                    Position::new(1, 2)
-                ),
+                Token::new(TokenType::Plus, Position::new(1, 1), Position::new(1, 2)),
                 Token::new(
                     TokenType::EndOfFile,
                     Position::new(1, 2),
@@ -260,11 +267,7 @@ mod tests {
         assert_eq!(
             lex("-"),
             vec![
-                Token::new(
-                    TokenType::Minus,
-                    Position::new(1, 1),
-                    Position::new(1, 2)
-                ),
+                Token::new(TokenType::Minus, Position::new(1, 1), Position::new(1, 2)),
                 Token::new(
                     TokenType::EndOfFile,
                     Position::new(1, 2),
