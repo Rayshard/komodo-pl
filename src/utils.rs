@@ -1,4 +1,5 @@
 use serde_json;
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Position {
@@ -41,5 +42,23 @@ impl Span {
             "start": self.start.to_json(),
             "end": self.end.to_json(),
         })
+    }
+}
+
+pub trait Error {
+    fn get_span(&self) -> Span;
+    fn get_message(&self) -> String;
+}
+
+impl fmt::Display for dyn Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let span = self.get_span();
+
+        fmt.write_str(format!(
+            "Error ({}, {}): {}",
+            span.start.line,
+            span.start.column,
+            self.get_message()
+        ))
     }
 }

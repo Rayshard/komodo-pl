@@ -1,7 +1,7 @@
 use crate::ast::{Expression, Node, NodeKind, NodeMeta};
 use crate::lexer::token::{Token, TokenKind};
-use crate::utils::{Position, Span};
-use std::cmp;
+use crate::utils::{Position, Span, Error};
+use std::{cmp, fmt};
 
 struct TokenStream {
     tokens: Vec<Token>,
@@ -54,6 +54,20 @@ pub enum ParseError {
     UnexpectedToken(Token),
 }
 
+impl Error for ParseError {
+    fn get_span(&self) -> Span {
+        match self {
+            ParseError::UnexpectedToken(token) => token.span
+        }
+    }
+
+    fn get_message(&self) -> String {
+        match self {
+            ParseError::UnexpectedToken(token) => format!("Encountered unexpected token: {:?}", token.kind)
+        }
+    }
+}
+
 fn parse_atom(stream: &mut TokenStream) -> Result<Expression, ParseError> {
     let stream_start = stream.get_offset();
     let token = stream.read();
@@ -67,11 +81,11 @@ fn parse_atom(stream: &mut TokenStream) -> Result<Expression, ParseError> {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<Box<dyn Node>, ParseError> {
+pub fn parse(tokens: Vec<Token>) -> Result<Box<dyn Node>, Box<dyn Error>> {
     let mut stream = TokenStream::new(tokens);
     
     match parse_atom(&mut stream) {
         Ok(node) => Ok(Box::new(node)),
-        Err(e) => Err(e)
+        Err(e) => Err(Box::new(e))
     }
 }

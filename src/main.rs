@@ -6,6 +6,8 @@ mod parser;
 mod utils;
 mod ast;
 
+use utils::Error;
+
 fn main() {
     let args: Vec<String> =std::env::args().collect();
 
@@ -21,7 +23,7 @@ fn main() {
 
     match parser::parse(tokens) {
         Ok(node) => println!("{:#?}", node),
-        Err(e) => println!("ERROR: {:#?}", e)
+        Err(e) => println!("{}", e)
     };
     
 }
