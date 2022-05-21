@@ -5,10 +5,10 @@ use serde_json;
 pub mod token {
     use super::*;
 
-    #[derive(Debug, Copy, Clone, PartialEq)]
-    pub enum TokenType<'a> {
-        Invalid(&'a str),
-        IntLit(&'a str),
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum TokenKind {
+        Invalid(String),
+        IntLit(String),
         Plus,
         Minus,
         Asterisk,
@@ -16,63 +16,63 @@ pub mod token {
         EndOfFile,
     }
 
-    impl<'a> TokenType<'a> {
+    impl TokenKind {
         pub fn to_json(&self) -> serde_json::Value {
             match self {
-                TokenType::IntLit(value) => serde_json::json!({ "IntLit": value }),
-                TokenType::Invalid(value) => serde_json::json!({ "Invalid": value }),
-                TokenType::Plus => serde_json::json!("Plus"),
-                TokenType::Minus => serde_json::json!("Minus"),
-                TokenType::Asterisk => serde_json::json!("Asterisk"),
-                TokenType::ForwardSlash => serde_json::json!("ForwardSlash"),
-                TokenType::EndOfFile => serde_json::json!("EndOfFile"),
+                TokenKind::IntLit(value) => serde_json::json!({ "IntLit": value }),
+                TokenKind::Invalid(value) => serde_json::json!({ "Invalid": value }),
+                TokenKind::Plus => serde_json::json!("Plus"),
+                TokenKind::Minus => serde_json::json!("Minus"),
+                TokenKind::Asterisk => serde_json::json!("Asterisk"),
+                TokenKind::ForwardSlash => serde_json::json!("ForwardSlash"),
+                TokenKind::EndOfFile => serde_json::json!("EndOfFile"),
                 _ => unimplemented!(),
             }
         }
     }
 
-    #[derive(Debug, PartialEq)]
-    pub struct Token<'a> {
-        pub r#type: TokenType<'a>,
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct Token {
+        pub kind: TokenKind,
         pub span: Span,
     }
 
-    impl<'a> Token<'a> {
-        pub fn new(r#type: TokenType, start: Position, end: Position) -> Token {
+    impl Token {
+        pub fn new(kind: TokenKind, start: Position, end: Position) -> Token {
             Token {
-                r#type: r#type,
+                kind: kind,
                 span: Span::new(start, end),
             }
         }
 
         pub fn to_json(&self) -> serde_json::Value {
             serde_json::json!({
-                "type": self.r#type.to_json(),
+                "kind": self.kind.to_json(),
                 "span": self.span.to_json(),
             })
         }
     }
 }
 
-use token::{Token, TokenType};
+use token::*;
 
 lazy_static! {
     static ref RE_WHITESPACE: Regex = Regex::new(r"^([ \t\r\f]+|[\n])").unwrap();
-    static ref PATTERNS: Vec<(Regex, fn(&str) -> TokenType)> = vec![
+    static ref PATTERNS: Vec<(Regex, fn(&str) -> TokenKind)> = vec![
         (Regex::new(r"^[0-9]+").unwrap(), |text| {
-            TokenType::IntLit(text)
+            TokenKind::IntLit(text.to_string())
         }),
         (Regex::new(r"^(\+|-|\*|/)").unwrap(), |text| {
             match text {
-                "+" => TokenType::Plus,
-                "-" => TokenType::Minus,
-                "*" => TokenType::Asterisk,
-                "/" => TokenType::ForwardSlash,
+                "+" => TokenKind::Plus,
+                "-" => TokenKind::Minus,
+                "*" => TokenKind::Asterisk,
+                "/" => TokenKind::ForwardSlash,
                 _ => unimplemented!(),
             }
         }),
         (Regex::new(r"^[\s\S]").unwrap(), |text| {
-            TokenType::Invalid(text)
+            TokenKind::Invalid(text.to_string())
         }),
     ];
 }
@@ -103,7 +103,7 @@ pub fn lex(text: &str) -> Vec<Token> {
         }
 
         //Find best match
-        let mut best_match: Option<(regex::Match, &fn(&str) -> TokenType)> = None;
+        let mut best_match: Option<(regex::Match, &fn(&str) -> TokenKind)> = None;
 
         for (re, func) in PATTERNS.iter() {
             if let Some(re_match) = re.find(&text[offset..]) {
@@ -119,24 +119,22 @@ pub fn lex(text: &str) -> Vec<Token> {
         match best_match {
             Some((re_match, func)) => {
                 let re_match_text = re_match.as_str();
-                let token_type = func(re_match.as_str());
+                let token_kind = func(re_match.as_str());
                 let token_end = Position::new(
                     position.line,
                     position.column + re_match_text.chars().count(),
                 );
 
-                tokens.push(Token::new(token_type, position, token_end));
+                tokens.push(Token::new(token_kind, position, token_end));
                 offset += re_match_text.len();
 
-                match token_type {
-                    _ => position = token_end,
-                };
+                position = token_end;
             }
             None => panic!("'{}' did not match any pattern!", text[offset..].len()),
         }
     }
 
-    tokens.push(Token::new(TokenType::EndOfFile, position, position));
+    tokens.push(Token::new(TokenKind::EndOfFile, position, position));
     return tokens;
 }
 
@@ -166,13 +164,13 @@ mod tests {
         assert_eq!(
             lex("+ +\n +\t+\r\n +"),
             vec![
-                Token::new(TokenType::Plus, Position::new(1, 1), Position::new(1, 2)),
-                Token::new(TokenType::Plus, Position::new(1, 3), Position::new(1, 4)),
-                Token::new(TokenType::Plus, Position::new(2, 2), Position::new(2, 3)),
-                Token::new(TokenType::Plus, Position::new(2, 4), Position::new(2, 5)),
-                Token::new(TokenType::Plus, Position::new(3, 2), Position::new(3, 3)),
+                Token::new(TokenKind::Plus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(TokenKind::Plus, Position::new(1, 3), Position::new(1, 4)),
+                Token::new(TokenKind::Plus, Position::new(2, 2), Position::new(2, 3)),
+                Token::new(TokenKind::Plus, Position::new(2, 4), Position::new(2, 5)),
+                Token::new(TokenKind::Plus, Position::new(3, 2), Position::new(3, 3)),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(3, 3),
                     Position::new(3, 3)
                 )
@@ -186,19 +184,19 @@ mod tests {
             lex("123+  \n -\n\n5   "),
             vec![
                 Token::new(
-                    TokenType::IntLit("123"),
+                    TokenKind::IntLit("123".to_string()),
                     Position::new(1, 1),
                     Position::new(1, 4)
                 ),
-                Token::new(TokenType::Plus, Position::new(1, 4), Position::new(1, 5)),
-                Token::new(TokenType::Minus, Position::new(2, 2), Position::new(2, 3)),
+                Token::new(TokenKind::Plus, Position::new(1, 4), Position::new(1, 5)),
+                Token::new(TokenKind::Minus, Position::new(2, 2), Position::new(2, 3)),
                 Token::new(
-                    TokenType::IntLit("5"),
+                    TokenKind::IntLit("5".to_string()),
                     Position::new(4, 1),
                     Position::new(4, 2)
                 ),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(4, 5),
                     Position::new(4, 5)
                 )
@@ -212,12 +210,12 @@ mod tests {
             lex("123"),
             vec![
                 Token::new(
-                    TokenType::IntLit("123"),
+                    TokenKind::IntLit("123".to_string()),
                     Position::new(1, 1),
                     Position::new(1, 4)
                 ),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 4),
                     Position::new(1, 4)
                 )
@@ -231,12 +229,12 @@ mod tests {
             lex("~"),
             vec![
                 Token::new(
-                    TokenType::Invalid("~"),
+                    TokenKind::Invalid("~".to_string()),
                     Position::new(1, 1),
                     Position::new(1, 2)
                 ),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 2),
                     Position::new(1, 2)
                 )
@@ -249,9 +247,9 @@ mod tests {
         assert_eq!(
             lex("+"),
             vec![
-                Token::new(TokenType::Plus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(TokenKind::Plus, Position::new(1, 1), Position::new(1, 2)),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 2),
                     Position::new(1, 2)
                 )
@@ -264,9 +262,9 @@ mod tests {
         assert_eq!(
             lex("-"),
             vec![
-                Token::new(TokenType::Minus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(TokenKind::Minus, Position::new(1, 1), Position::new(1, 2)),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 2),
                     Position::new(1, 2)
                 )
@@ -280,12 +278,12 @@ mod tests {
             lex("*"),
             vec![
                 Token::new(
-                    TokenType::Asterisk,
+                    TokenKind::Asterisk,
                     Position::new(1, 1),
                     Position::new(1, 2)
                 ),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 2),
                     Position::new(1, 2)
                 )
@@ -299,12 +297,12 @@ mod tests {
             lex("/"),
             vec![
                 Token::new(
-                    TokenType::ForwardSlash,
+                    TokenKind::ForwardSlash,
                     Position::new(1, 1),
                     Position::new(1, 2)
                 ),
                 Token::new(
-                    TokenType::EndOfFile,
+                    TokenKind::EndOfFile,
                     Position::new(1, 2),
                     Position::new(1, 2)
                 )

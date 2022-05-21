@@ -18,7 +18,10 @@ fn main() {
         .expect(&format!("Unable to open file: {}", input_file_path));
 
     let tokens = lexer::lex(&input);
-    let node  = parser::parse(tokens);
 
-    println!("{:#?}", node);
+    match parser::parse(tokens) {
+        Ok(node) => println!("{:#?}", node),
+        Err(e) => println!("ERROR: {:#?}", e)
+    };
+    
 }

@@ -8,9 +8,9 @@ pub struct NodeMeta {
 }
 
 impl NodeMeta {
-    pub fn new(start: Position, end: Position) -> NodeMeta {
+    pub fn new(span: Span) -> NodeMeta {
         NodeMeta {
-            span: Span::new(start, end),
+            span: span,
             ts_type: None,
         }
     }
@@ -18,7 +18,7 @@ impl NodeMeta {
 
 pub trait Node {
     fn get_node_meta(&self) -> &NodeMeta;
-    fn get_node_type(&self) -> NodeType;
+    fn get_node_kind(&self) -> NodeKind;
 
     fn get_span(&self) -> &Span {
         &self.get_node_meta().span
@@ -31,7 +31,7 @@ pub trait Node {
 
 
 #[derive(Debug)]
-pub enum NodeType<'a> {
+pub enum NodeKind<'a> {
     Expr(&'a Expression),
 }
 
@@ -40,8 +40,8 @@ impl Debug for dyn Node {
         write!(
             f,
             "{:?}",
-            match self.get_node_type() {
-                NodeType::Expr(expr) => expr,
+            match self.get_node_kind() {
+                NodeKind::Expr(expr) => expr,
             }
         )
     }
@@ -69,7 +69,7 @@ impl Node for Expression {
         }
     }
 
-    fn get_node_type(&self) -> NodeType {
-        NodeType::Expr(self)
+    fn get_node_kind(&self) -> NodeKind {
+        NodeKind::Expr(self)
     }
 }
