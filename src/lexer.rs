@@ -32,16 +32,16 @@ pub mod token {
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Token {
+    pub struct Token<'a> {
         pub kind: TokenKind,
-        pub span: Span,
+        pub span: Span<'a>,
     }
 
-    impl Token {
-        pub fn new(kind: TokenKind, start: Position, end: Position) -> Token {
+    impl<'a> Token<'a> {
+        pub fn new(kind: TokenKind, start: Position, end: Position, file_name: &String) -> Token {
             Token {
                 kind: kind,
-                span: Span::new(start, end),
+                span: Span::new(start, end, file_name),
             }
         }
 
@@ -77,7 +77,7 @@ lazy_static! {
     ];
 }
 
-pub fn lex(text: &str) -> Vec<Token> {
+pub fn lex<'a>(text: &str, file_name: &'static String) -> Vec<Token<'a>> {
     let mut offset: usize = 0;
     let mut position: Position = Position::new(1, 1);
     let mut tokens: Vec<Token> = Vec::new();
@@ -125,16 +125,21 @@ pub fn lex(text: &str) -> Vec<Token> {
                     position.column + re_match_text.chars().count(),
                 );
 
-                tokens.push(Token::new(token_kind, position, token_end));
+                tokens.push(Token::new(token_kind, position, token_end, file_name));
                 offset += re_match_text.len();
 
                 position = token_end;
             }
-            None => panic!("'{}' did not match any pattern!", text[offset..].len()),
+            None => panic!("'{}' did not match any pattern!", text[offset..]),
         }
     }
 
-    tokens.push(Token::new(TokenKind::EndOfFile, position, position));
+    tokens.push(Token::new(
+        TokenKind::EndOfFile,
+        position,
+        position,
+        file_name,
+    ));
     return tokens;
 }
 
@@ -162,17 +167,43 @@ mod tests {
     #[test]
     fn test_lex_whitespace() {
         assert_eq!(
-            lex("+ +\n +\t+\r\n +"),
+            lex("+ +\n +\t+\r\n +", &"".to_string()),
             vec![
-                Token::new(TokenKind::Plus, Position::new(1, 1), Position::new(1, 2)),
-                Token::new(TokenKind::Plus, Position::new(1, 3), Position::new(1, 4)),
-                Token::new(TokenKind::Plus, Position::new(2, 2), Position::new(2, 3)),
-                Token::new(TokenKind::Plus, Position::new(2, 4), Position::new(2, 5)),
-                Token::new(TokenKind::Plus, Position::new(3, 2), Position::new(3, 3)),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(1, 1),
+                    Position::new(1, 2),
+                    &"".to_string()
+                ),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(1, 3),
+                    Position::new(1, 4),
+                    &"".to_string()
+                ),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(2, 2),
+                    Position::new(2, 3),
+                    &"".to_string()
+                ),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(2, 4),
+                    Position::new(2, 5),
+                    &"".to_string()
+                ),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(3, 2),
+                    Position::new(3, 3),
+                    &"".to_string()
+                ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(3, 3),
-                    Position::new(3, 3)
+                    Position::new(3, 3),
+                    &"".to_string(),
                 )
             ]
         );
@@ -181,24 +212,37 @@ mod tests {
     #[test]
     fn test_lex_token_positions() {
         assert_eq!(
-            lex("123+  \n -\n\n5   "),
+            lex("123+  \n -\n\n5   ", &"".to_string()),
             vec![
                 Token::new(
                     TokenKind::IntLit("123".to_string()),
                     Position::new(1, 1),
-                    Position::new(1, 4)
+                    Position::new(1, 4),
+                    &"".to_string(),
                 ),
-                Token::new(TokenKind::Plus, Position::new(1, 4), Position::new(1, 5)),
-                Token::new(TokenKind::Minus, Position::new(2, 2), Position::new(2, 3)),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(1, 4),
+                    Position::new(1, 5),
+                    &"".to_string(),
+                ),
+                Token::new(
+                    TokenKind::Minus,
+                    Position::new(2, 2),
+                    Position::new(2, 3),
+                    &"".to_string(),
+                ),
                 Token::new(
                     TokenKind::IntLit("5".to_string()),
                     Position::new(4, 1),
-                    Position::new(4, 2)
+                    Position::new(4, 2),
+                    &"".to_string(),
                 ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(4, 5),
-                    Position::new(4, 5)
+                    Position::new(4, 5),
+                    &"".to_string(),
                 )
             ]
         );
@@ -207,17 +251,19 @@ mod tests {
     #[test]
     fn test_lex_int_lit() {
         assert_eq!(
-            lex("123"),
+            lex("123", &"".to_string()),
             vec![
                 Token::new(
                     TokenKind::IntLit("123".to_string()),
                     Position::new(1, 1),
-                    Position::new(1, 4)
+                    Position::new(1, 4),
+                    &"".to_string(),
                 ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 4),
-                    Position::new(1, 4)
+                    Position::new(1, 4),
+                    &"".to_string(),
                 )
             ]
         );
@@ -226,17 +272,19 @@ mod tests {
     #[test]
     fn test_lex_invalid() {
         assert_eq!(
-            lex("~"),
+            lex("~", &"".to_string()),
             vec![
                 Token::new(
                     TokenKind::Invalid("~".to_string()),
                     Position::new(1, 1),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 2),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 )
             ]
         );
@@ -245,13 +293,19 @@ mod tests {
     #[test]
     fn test_lex_plus() {
         assert_eq!(
-            lex("+"),
+            lex("+", &"".to_string()),
             vec![
-                Token::new(TokenKind::Plus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(
+                    TokenKind::Plus,
+                    Position::new(1, 1),
+                    Position::new(1, 2),
+                    &"".to_string(),
+                ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 2),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 )
             ]
         );
@@ -260,13 +314,19 @@ mod tests {
     #[test]
     fn test_lex_minus() {
         assert_eq!(
-            lex("-"),
+            lex("-", &"".to_string()),
             vec![
-                Token::new(TokenKind::Minus, Position::new(1, 1), Position::new(1, 2)),
+                Token::new(
+                    TokenKind::Minus,
+                    Position::new(1, 1),
+                    Position::new(1, 2),
+                    &"".to_string(),
+                ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 2),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 )
             ]
         );
@@ -275,17 +335,19 @@ mod tests {
     #[test]
     fn test_lex_asterisk() {
         assert_eq!(
-            lex("*"),
+            lex("*", &"".to_string()),
             vec![
                 Token::new(
                     TokenKind::Asterisk,
                     Position::new(1, 1),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 2),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 )
             ]
         );
@@ -294,17 +356,19 @@ mod tests {
     #[test]
     fn test_lex_forward_slash() {
         assert_eq!(
-            lex("/"),
+            lex("/", &"".to_string()),
             vec![
                 Token::new(
                     TokenKind::ForwardSlash,
                     Position::new(1, 1),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 ),
                 Token::new(
                     TokenKind::EndOfFile,
                     Position::new(1, 2),
-                    Position::new(1, 2)
+                    Position::new(1, 2),
+                    &"".to_string(),
                 )
             ]
         );

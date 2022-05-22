@@ -23,17 +23,19 @@ impl Position {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Span {
+#[derive(Debug, Clone, PartialEq)]
+pub struct Span<'a> {
     pub start: Position,
     pub end: Position,
+    pub file_name: &'a String
 }
 
-impl Span {
-    pub fn new(start: Position, end: Position) -> Span {
+impl<'a> Span<'a> {
+    pub fn new(start: Position, end: Position, file_name: &String) -> Span {
         Span {
             start: start,
             end: end,
+            file_name: file_name
         }
     }
 
@@ -54,8 +56,9 @@ impl fmt::Display for dyn Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let span = self.get_span();
 
-        fmt.write_str(format!(
-            "Error ({}, {}): {}",
+        fmt.write_str(&format!(
+            "Error at {}:{}:{}\n\t{}",
+            span.file_name,
             span.start.line,
             span.start.column,
             self.get_message()

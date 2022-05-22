@@ -2,12 +2,12 @@ use crate::utils::{Position, Span};
 use core::fmt::Debug;
 
 #[derive(Debug)]
-pub struct NodeMeta {
-    span: Span,
+pub struct NodeMeta<'a> {
+    span: Span<'a>,
     ts_type: Option<String>,
 }
 
-impl NodeMeta {
+impl<'a> NodeMeta<'a> {
     pub fn new(span: Span) -> NodeMeta {
         NodeMeta {
             span: span,
@@ -32,7 +32,7 @@ pub trait Node {
 
 #[derive(Debug)]
 pub enum NodeKind<'a> {
-    Expr(&'a Expression),
+    Expr(&'a Expression<'a>),
 }
 
 impl Debug for dyn Node {
@@ -48,20 +48,20 @@ impl Debug for dyn Node {
 }
 
 #[derive(Debug)]
-pub enum Expression {
+pub enum Expression<'a> {
     Binop {
-        meta: NodeMeta,
-        left: Box<Expression>,
+        meta: NodeMeta<'a>,
+        left: Box<Expression<'a>>,
         op: String,
-        right: Box<Expression>,
+        right: Box<Expression<'a>>,
     },
     IntLit {
-        meta: NodeMeta,
+        meta: NodeMeta<'a>,
         value: String,
     },
 }
 
-impl Node for Expression {
+impl Node for Expression<'_> {
     fn get_node_meta(&self) -> &NodeMeta {
         match self {
             Expression::Binop { meta, .. } => meta,

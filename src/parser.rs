@@ -3,12 +3,12 @@ use crate::lexer::token::{Token, TokenKind};
 use crate::utils::{Position, Span, Error};
 use std::{cmp, fmt};
 
-struct TokenStream {
-    tokens: Vec<Token>,
+struct TokenStream<'a> {
+    tokens: Vec<Token<'a>>,
     offset: usize,
 }
 
-impl TokenStream {
+impl<'a> TokenStream<'a> {
     pub fn new(tokens: Vec<Token>) -> TokenStream {
         match tokens.last() {
             Some(token) => assert_eq!(
@@ -50,11 +50,11 @@ impl TokenStream {
 }
 
 #[derive(Debug)]
-pub enum ParseError {
-    UnexpectedToken(Token),
+pub enum ParseError<'a> {
+    UnexpectedToken(Token<'a>),
 }
 
-impl Error for ParseError {
+impl Error for ParseError<'_> {
     fn get_span(&self) -> Span {
         match self {
             ParseError::UnexpectedToken(token) => token.span
@@ -68,7 +68,7 @@ impl Error for ParseError {
     }
 }
 
-fn parse_atom(stream: &mut TokenStream) -> Result<Expression, ParseError> {
+fn parse_atom<'a>(stream: &'a mut TokenStream) -> Result<Expression<'a>, ParseError<'a>> {
     let stream_start = stream.get_offset();
     let token = stream.read();
 
@@ -81,7 +81,7 @@ fn parse_atom(stream: &mut TokenStream) -> Result<Expression, ParseError> {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<Box<dyn Node>, Box<dyn Error>> {
+pub fn parse(tokens: Vec<Token<'static>>) -> Result<Box<dyn Node>, Box<dyn Error>> {
     let mut stream = TokenStream::new(tokens);
     
     match parse_atom(&mut stream) {
