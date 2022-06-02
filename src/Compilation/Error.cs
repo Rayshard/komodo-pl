@@ -1,11 +1,11 @@
 namespace Komodo.Utilities
 {
-    class CompilationError
+    class Error
     {
         public Location Location { get; }
         public string Message { get; }
 
-        private CompilationError(Location location, string message)
+        private Error(Location location, string message)
         {
             Location = location;
             Message = message;
