@@ -1,6 +1,10 @@
 package token
 
-import "github.com/Rayshard/komodo-pl/src/utils"
+import (
+	"fmt"
+
+	"github.com/Rayshard/komodo-pl/src/utils"
+)
 
 type TokenKind int
 
@@ -14,10 +18,35 @@ const (
 	TokenKindEOF
 )
 
+func (tk TokenKind) String() string {
+	switch tk {
+	case TokenKindInvalid:
+		return "Invalid"
+	case TokenKindIntLit:
+		return "IntLit"
+	case TokenKindPlus:
+		return "Plus"
+	case TokenKindMinus:
+		return "Minus"
+	case TokenKindAsterisk:
+		return "Asterisk"
+	case TokenKindForwardSlash:
+		return "ForwardSlash"
+	case TokenKindEOF:
+		return "EOF"
+	default:
+		panic(fmt.Sprintf("Not Implemented: %v", int(tk)))
+	}
+}
+
 type Token struct {
 	kind     TokenKind
 	location utils.Location
 	value    string
+}
+
+func (t Token) String() string {
+	return fmt.Sprintf("%v(%s) %v", t.kind, t.value, t.location)
 }
 
 func NewInvalid(value string, location utils.Location) Token {

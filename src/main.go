@@ -23,5 +23,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(lexer.Lex(sourceFile))
+	fmt.Printf("%+v\n", lexer.Lex(sourceFile))
 }

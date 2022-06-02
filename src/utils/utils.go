@@ -10,14 +10,26 @@ type Position struct {
 	Column int
 }
 
+func (p Position) String() string {
+	return fmt.Sprintf("%d:%d", p.Line, p.Column)
+}
+
 type Span struct {
 	Start Position
 	End   Position
 }
 
+func (s Span) String() string {
+	return fmt.Sprintf("%v-%v", s.Start, s.End)
+}
+
 type Location struct {
 	SourceFile *SourceFile
 	Span       Span
+}
+
+func (l Location) String() string {
+	return fmt.Sprintf("%s:%v", l.SourceFile.path, l.Span)
 }
 
 type Error struct {
