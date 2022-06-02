@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from turtle import position
 from typing import Callable, List, Tuple, Optional, Pattern
 
 from komodo.utils import Location, Position, SourceFile, Span
