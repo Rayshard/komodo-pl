@@ -1,4 +1,6 @@
-﻿using Komodo.Utilities;
+﻿using System.Text.Json;
+using Komodo.Compilation;
+using Komodo.Utilities;
 
 namespace Komodo
 {
@@ -21,7 +23,10 @@ namespace Komodo
             }
             
             var sourceFile = sourceFileResult.UnwrapSuccess();
-            Console.WriteLine(sourceFile.Text);
+            var tokens = Lexer.Lex(sourceFile);
+
+            foreach(var token in tokens)
+                Console.WriteLine(token);
         }
     }
 }
