@@ -1,6 +1,6 @@
 namespace Komodo.Utilities
 {
-    class Location
+    public class Location
     {
         public SourceFile SourceFile { get; }
         public Span Span { get; }
@@ -11,6 +11,6 @@ namespace Komodo.Utilities
             Span = span;
         }
 
-        public override string ToString() => $"{SourceFile.Path}:{Span}";
+        public override string ToString() => $"{SourceFile.Name}:{Span}";
     }
 }

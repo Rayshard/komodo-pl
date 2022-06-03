@@ -1,6 +1,6 @@
 namespace Komodo.Utilities
 {
-    class Span
+    public struct Span
     {
         public Position Start { get; set; }
         public Position End { get; set; }

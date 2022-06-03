@@ -1,6 +1,6 @@
 namespace Komodo.Utilities
 {
-    class Position
+    public struct Position
     {
         public int Line { get; set; }
         public int Column { get; set; }
