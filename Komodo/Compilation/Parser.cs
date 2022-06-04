@@ -1,41 +1,9 @@
 namespace Komodo.Compilation;
 
 using System.Diagnostics;
-using Komodo.Compilation.Syntax;
+using Komodo.Compilation.ConcreteSyntaxTree;
 using Komodo.Utilities;
 
-public class TokenStream
-{
-    private Token[] _tokens;
-    private int _offset;
-
-    public TokenStream(IEnumerable<Token> tokens)
-    {
-        _tokens = tokens.ToArray();
-        _offset = 0;
-
-        Trace.Assert(_tokens.Count() > 0, "Input tokens must have at least one token!");
-        Trace.Assert(_tokens.Last().Type == TokenType.EOF, $"Expected the last token to be an EOF but found {_tokens.Last()}");
-    }
-
-    public Token Next()
-    {
-        var token = _tokens[_offset];
-
-        if (token.Type != TokenType.EOF)
-            _offset++;
-
-        return token;
-    }
-
-    public Token Peek() => _tokens[_offset];
-
-    public int Offset
-    {
-        get => _offset;
-        set => _offset = Math.Max(0, Math.Min(_offset, _tokens.Length - 1));
-    }
-}
 
 public static class ParseError
 {
@@ -44,7 +12,7 @@ public static class ParseError
 
 public static class Parser
 {
-    public static (BinaryOperator?, Diagnostics) ParseBinaryOperator(TokenStream stream)
+    public static (CSTBinop?, Diagnostics) ParseBinop(TokenStream stream)
     {
         var diagnostics = new Diagnostics();
         var token = stream.Next();
@@ -55,14 +23,14 @@ public static class Parser
             case TokenType.Minus:
             case TokenType.Asterisk:
             case TokenType.ForwardSlash:
-                return (new BinaryOperator(token), diagnostics);
+                return (new CSTBinop(token), diagnostics);
             default:
                 diagnostics.Add(ParseError.UnexpectedToken(token));
                 return (null, diagnostics);
         }
     }
 
-    public static (Expression?, Diagnostics) ParseAtom(TokenStream stream)
+    public static (CSTLiteral?, Diagnostics) ParseLiteral(TokenStream stream)
     {
         var diagnostics = new Diagnostics();
         var token = stream.Next();
@@ -70,38 +38,38 @@ public static class Parser
         switch (token.Type)
         {
             case TokenType.IntLit:
-                return (new IntegerLiteral(token), diagnostics);
+                return (new CSTLiteral(token), diagnostics);
             default:
                 diagnostics.Add(ParseError.UnexpectedToken(token));
                 return (null, diagnostics);
         }
     }
 
-    public static (BinopExpression?, Diagnostics) ParseBinopExpression(TokenStream stream)
+    public static (CSTBinopExpression?, Diagnostics) ParseBinopExpression(TokenStream stream)
     {
         var diagnostics = new Diagnostics();
 
         //Parse Left Expression
-        var (left, leftDiagnostics) = ParseAtom(stream);
+        var (left, leftDiagnostics) = ParseLiteral(stream);
 
         diagnostics.Append(leftDiagnostics);
         if (left == null || diagnostics.HasError)
             return (null, diagnostics);
 
         //Parse Binary Operator
-        var (op, opDiagnostics) = ParseBinaryOperator(stream);
+        var (op, opDiagnostics) = ParseBinop(stream);
 
         diagnostics.Append(opDiagnostics);
         if (op == null || diagnostics.HasError)
             return (null, diagnostics);
 
         //Parse Right Expression
-        var (right, rightDiagnostics) = ParseAtom(stream);
+        var (right, rightDiagnostics) = ParseLiteral(stream);
 
         diagnostics.Append(rightDiagnostics);
         if (right == null || diagnostics.HasError)
             return (null, diagnostics);
 
-        return (new BinopExpression(left, op, right), diagnostics);
+        return (new CSTBinopExpression(left, op, right), diagnostics);
     }
 }
