@@ -1,23 +1,12 @@
+namespace Komodo.Utilities;
+
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
-namespace Komodo.Utilities
-{
     public enum DiagnosticType { Warning, Error };
 
-    public class Diagnostic
+    public record Diagnostic(DiagnosticType Type, Location Location, string Message)
     {
-        public DiagnosticType Type { get; }
-        public Location Location { get; }
-        public string Message { get; }
-
-        public Diagnostic(DiagnosticType type, Location location, string message)
-        {
-            Type = type;
-            Location = location;
-            Message = message;
-        }
-
         public override string ToString() => $"{Type} {Location}: {Message}";
     }
 
@@ -66,4 +55,3 @@ namespace Komodo.Utilities
             }
         }
     }
-}

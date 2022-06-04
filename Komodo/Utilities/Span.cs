@@ -1,16 +1,6 @@
-namespace Komodo.Utilities
+namespace Komodo.Utilities;
+
+public record Span(Position Start, Position End)
 {
-    public struct Span
-    {
-        public Position Start { get; set; }
-        public Position End { get; set; }
-
-        public Span(Position start, Position end)
-        {
-            Start = start;
-            End = end;
-        }
-
-        public override string ToString() => $"{Start}::{End}";
-    }
+    public override string ToString() => $"{Start}::{End}";
 }

@@ -1,16 +1,6 @@
-namespace Komodo.Utilities
+namespace Komodo.Utilities;
+
+public record Location(SourceFile SourceFile, Span Span)
 {
-    public class Location
-    {
-        public SourceFile SourceFile { get; }
-        public Span Span { get; }
-
-        public Location(SourceFile sourceFile, Span span)
-        {
-            SourceFile = sourceFile;
-            Span = span;
-        }
-
-        public override string ToString() => $"{SourceFile.Name}:{Span}";
-    }
+    public override string ToString() => $"{SourceFile.Name}:{Span}";
 }
