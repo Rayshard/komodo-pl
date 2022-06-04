@@ -21,17 +21,22 @@ class CLI
             Environment.Exit(-1);
         }
 
-        var diagnostics = new Diagnostics();
-
         var sourceFile = sourceFileResult.UnwrapSuccess();
-        var tokens = Lexer.Lex(sourceFile, diagnostics);
+        var (tokens, lexerDiagnostics) = Lexer.Lex(sourceFile);
 
-        diagnostics.Print();
-
-        if (diagnostics.HasError)
+        lexerDiagnostics.Print();
+        if (lexerDiagnostics.HasError)
             Environment.Exit(-1);
 
         foreach (var token in tokens)
             Console.WriteLine(token);
+
+        var (expr, parserDiagnostics) = Parser.ParseBinopExpression(new TokenStream(tokens));
+
+        parserDiagnostics.Print();
+        if (expr == null || parserDiagnostics.HasError)
+            Environment.Exit(-1);
+
+        Console.WriteLine(expr);
     }
 }

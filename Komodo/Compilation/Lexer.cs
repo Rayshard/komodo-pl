@@ -29,8 +29,9 @@ public static class Lexer
             ),
     });
 
-    public static List<Token> Lex(SourceFile sf, Diagnostics? diagnostics = null)
+    public static (List<Token>, Diagnostics) Lex(SourceFile sf)
     {
+        var diagnostics = new Diagnostics();
         var tokens = new List<Token>();
         int offset = 0;
 
@@ -59,13 +60,13 @@ public static class Lexer
             var (value, f) = bestMatch ?? throw new Exception($"'{sf.Text.Substring(offset)}' did not match any pattern!");
             var token = new Token(f(value), sf.GetLocation(offset, offset + value.Length), value);
 
-            if (token.Type == TokenType.Invalid) { diagnostics?.Add(new Diagnostic(DiagnosticType.Error, token.Location, $"Encounterd an invalid token: {token.Value}")); }
+            if (token.Type == TokenType.Invalid) { diagnostics.Add(new Diagnostic(DiagnosticType.Error, token.Location, $"Encounterd an invalid token: {token.Value}")); }
             else { tokens.Add(token); }
 
             offset += value.Length;
         }
 
         tokens.Add(new Token(TokenType.EOF, sf.GetLocation(offset, offset), ""));
-        return tokens;
+        return (tokens, diagnostics);
     }
 }
