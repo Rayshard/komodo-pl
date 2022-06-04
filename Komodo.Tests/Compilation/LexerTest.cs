@@ -17,10 +17,10 @@ public class LexerTest
     public void CorrectTokens(string input, (TokenType type, int start, int end)[] expected)
     {
         var sf = new SourceFile("Test", input);
-        var diagnostics = new Diagnostics();
         var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, sf.GetLocation(e.start, e.end), sf.Text.Substring(e.start, e.end - e.start))));
+        var (actualTokens, diagnostics) = Lexer.Lex(sf);
 
-        Assert.Equal(expectedTokens, Lexer.Lex(sf, diagnostics));
+        Assert.Equal(expectedTokens, actualTokens);
         Assert.True(diagnostics.Empty);
     }
 
