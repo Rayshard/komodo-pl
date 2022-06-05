@@ -12,6 +12,17 @@ public static class ParseError
 
 public static class Parser
 {
+    public static (T?, Diagnostics) Try<T>(Func<TokenStream, (T? Node, Diagnostics Diagnostics)> parseFunc, TokenStream stream)
+    {
+        var streamStart = stream.Offset;
+        var result = parseFunc(stream);
+
+        if (result.Node == null)
+            stream.Offset = streamStart;
+
+        return result;
+    }
+
     public static (CSTBinop?, Diagnostics) ParseBinop(TokenStream stream)
     {
         var diagnostics = new Diagnostics();
@@ -43,6 +54,35 @@ public static class Parser
                 diagnostics.Add(ParseError.UnexpectedToken(token));
                 return (null, diagnostics);
         }
+    }
+
+    public static (ICSTExpression?, Diagnostics) ParseAtom(TokenStream stream) => ParseLiteral(stream);
+
+    public static (ICSTExpression?, Diagnostics) ParseExpression(TokenStream stream, int precedence = 0)
+    {
+        var (expr, diagnostics) = Try(ParseAtom, stream);
+
+        if (expr != null)
+        {
+            while (true)
+            {
+                var (binop, binopDiagnostics) = Try(ParseBinop, stream);
+                if (binop == null || binop.Precedence < precedence)
+                    break;
+
+                var nextPrecedence = binop.Asssociativity == BinaryOperationAssociativity.Right ? binop.Precedence : (binop.Precedence + 1);
+                var (rhs, rhsDiagnostics) = Try((s) => ParseExpression(s, nextPrecedence), stream);
+                
+                diagnostics.Append(rhsDiagnostics);
+                
+                if (rhs == null)
+                    return (null, diagnostics);
+
+                expr = new CSTBinopExpression(expr, binop, rhs);
+            }
+        }
+
+        return (expr, diagnostics);
     }
 
     public static (CSTBinopExpression?, Diagnostics) ParseBinopExpression(TokenStream stream)

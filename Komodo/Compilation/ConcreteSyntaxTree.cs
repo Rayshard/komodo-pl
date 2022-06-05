@@ -32,7 +32,39 @@ public record Module(ICSTNode[] Children, Location Location) : ICSTNode
 public interface ICSTExpression : ICSTNode { }
 
 public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICSTExpression { }
-public record CSTBinop(Token Token) : CSTAtom(CSTNodeType.Symbol, Token) { }
+
+public enum BinaryOperation { Add, Sub, Multiply, Divide };
+public enum BinaryOperationAssociativity { Left, Right, None };
+
+public record CSTBinop(Token Token) : CSTAtom(CSTNodeType.Symbol, Token)
+{
+    public BinaryOperation Operation => Token.Type switch
+    {
+        TokenType.Plus => BinaryOperation.Add,
+        TokenType.Minus => BinaryOperation.Sub,
+        TokenType.Asterisk => BinaryOperation.Multiply,
+        TokenType.ForwardSlash => BinaryOperation.Divide,
+        var type => throw new NotImplementedException(type.ToString()),
+    };
+
+    public BinaryOperationAssociativity Asssociativity => Operation switch
+    {
+        BinaryOperation.Add => BinaryOperationAssociativity.Left,
+        BinaryOperation.Sub => BinaryOperationAssociativity.Left,
+        BinaryOperation.Multiply => BinaryOperationAssociativity.Left,
+        BinaryOperation.Divide => BinaryOperationAssociativity.Left,
+        var type => throw new NotImplementedException(type.ToString()),
+    };
+
+    public int Precedence => Operation switch
+    {
+        BinaryOperation.Add => 1,
+        BinaryOperation.Sub => 1,
+        BinaryOperation.Multiply => 2,
+        BinaryOperation.Divide => 2,
+        var op => throw new NotImplementedException(op.ToString()),
+    };
+}
 
 public record CSTBinopExpression(ICSTExpression Left, CSTBinop Op, ICSTExpression Right) : ICSTExpression
 {
