@@ -1,5 +1,7 @@
 namespace Komodo.Compilation.ConcreteSyntaxTree;
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Komodo.Utilities;
 
 public enum CSTNodeType
@@ -31,7 +33,16 @@ public record Module(ICSTNode[] Children, Location Location) : ICSTNode
 
 public interface ICSTExpression : ICSTNode { }
 
-public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICSTExpression { }
+public enum LiteralType { Int, String, Bool, Char }
+
+public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICSTExpression
+{
+    public LiteralType LiteralType => Token.Type switch
+    {
+        TokenType.IntLit => LiteralType.Int,
+        var type => throw new NotImplementedException(type.ToString()),
+    };
+}
 
 public enum BinaryOperation { Add, Sub, Multiply, Divide };
 public enum BinaryOperationAssociativity { Left, Right, None };
@@ -78,4 +89,42 @@ public record ParenthesizedExpression(Token LParen, ICSTExpression Expression, T
     public CSTNodeType NodeType => CSTNodeType.ParenthesizedExpression;
     public Location Location => new Location(Expression.Location.SourceFile, new Span(LParen.Location.Span.Start, RParen.Location.Span.End));
     public ICSTNode[] Children => new ICSTNode[] { new CSTAtom(CSTNodeType.Symbol, LParen), Expression, new CSTAtom(CSTNodeType.Symbol, RParen) };
+}
+
+public class CSTNodeJsonConverter : JsonConverter<ICSTNode>
+{
+    public override ICSTNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void Write(Utf8JsonWriter writer, ICSTNode node, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("type", node.NodeType.ToString());
+
+        switch (node)
+        {
+            case CSTBinopExpression(var left, var op, var right):
+                {
+                    writer.WritePropertyName("left");
+                    writer.WriteRawValue(JsonSerializer.Serialize((ICSTNode?)left, options));
+                    writer.WriteString("op", op.Operation.ToString());
+                    writer.WritePropertyName("right");
+                    writer.WriteRawValue(JsonSerializer.Serialize((ICSTNode?)right, options));
+                }
+                break;
+            case CSTLiteral(var token):
+                {
+                    var literal = (CSTLiteral)node;
+                    writer.WriteString("literal_type", literal.LiteralType.ToString());
+                    writer.WriteString("value", token.Value);
+                }
+                break;
+            default: throw new NotImplementedException(node.NodeType.ToString());
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+    }
 }

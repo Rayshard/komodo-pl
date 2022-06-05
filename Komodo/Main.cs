@@ -1,10 +1,21 @@
 ﻿namespace Komodo;
 
+using System.Text.Json;
 using Komodo.Compilation;
+using Komodo.Compilation.ConcreteSyntaxTree;
 using Komodo.Utilities;
 
 static class CLI
 {
+    static void CheckDiagnostics(Diagnostics diagnostics)
+    {
+        if (diagnostics.HasError)
+        {
+            diagnostics.Print();
+            Environment.Exit(-1);
+        }
+    }
+
     static void Main(string[] args)
     {
         if (args.Length != 1)
@@ -22,21 +33,20 @@ static class CLI
         }
 
         var sourceFile = sourceFileResult.UnwrapSuccess();
-        var (tokens, lexerDiagnostics) = Lexer.Lex(sourceFile);
+        var diagnostics = new Diagnostics();
 
-        lexerDiagnostics.Print();
-        if (lexerDiagnostics.HasError)
-            Environment.Exit(-1);
+        var tokens = Lexer.Lex(sourceFile, diagnostics);
+
+        CheckDiagnostics(diagnostics);
 
         foreach (var token in tokens)
             Console.WriteLine(token);
 
-        var (expr, parserDiagnostics) = Parser.ParseBinopExpression(new TokenStream(tokens));
+        var module = Parser.ParseExpression(new TokenStream(tokens), diagnostics);
+        if (module == null)
+            CheckDiagnostics(diagnostics);
 
-        parserDiagnostics.Print();
-        if (expr == null || parserDiagnostics.HasError)
-            Environment.Exit(-1);
-
-        Console.WriteLine(expr);
+        diagnostics.Print();
+        Console.WriteLine(JsonSerializer.Serialize((ICSTNode?)module, new JsonSerializerOptions { WriteIndented = true, Converters = { new CSTNodeJsonConverter() } }));
     }
 }
