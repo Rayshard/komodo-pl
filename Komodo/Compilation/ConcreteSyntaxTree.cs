@@ -102,6 +102,7 @@ public class CSTNodeJsonConverter : JsonConverter<ICSTNode>
     {
         writer.WriteStartObject();
         writer.WriteString("type", node.NodeType.ToString());
+        writer.WriteString("location", node.Location.ToString());
 
         switch (node)
         {
@@ -125,6 +126,5 @@ public class CSTNodeJsonConverter : JsonConverter<ICSTNode>
         }
 
         writer.WriteEndObject();
-        writer.Flush();
     }
 }

@@ -1,5 +1,6 @@
 ﻿namespace Komodo;
 
+using System.Text;
 using System.Text.Json;
 using Komodo.Compilation;
 using Komodo.Compilation.ConcreteSyntaxTree;
@@ -47,6 +48,8 @@ static class CLI
             CheckDiagnostics(diagnostics);
 
         diagnostics.Print();
-        Console.WriteLine(JsonSerializer.Serialize((ICSTNode?)module, new JsonSerializerOptions { WriteIndented = true, Converters = { new CSTNodeJsonConverter() } }));
+
+        var json = JsonSerializer.Serialize((ICSTNode?)module, new JsonSerializerOptions { Converters = { new CSTNodeJsonConverter() } });
+        Console.WriteLine(Utility.PrettyPrintJSON(json));
     }
 }
