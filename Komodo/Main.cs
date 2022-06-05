@@ -3,7 +3,7 @@
 using Komodo.Compilation;
 using Komodo.Utilities;
 
-class CLI
+static class CLI
 {
     static void Main(string[] args)
     {
