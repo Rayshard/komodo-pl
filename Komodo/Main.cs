@@ -50,6 +50,12 @@ static class CLI
         diagnostics.Print();
 
         var json = JsonSerializer.Serialize((ICSTNode?)module, new JsonSerializerOptions { Converters = { new CSTNodeJsonConverter() } });
-        Console.WriteLine(Utility.PrettyPrintJSON(json));
+        
+        using var document = JsonDocument.Parse(json);
+        using var documentCopy = JsonDocument.Parse(json);
+        Console.WriteLine(document.RootElement.Equals(documentCopy.RootElement));
+
+        
+        //Console.WriteLine(Utility.PrettyPrintJSON(json));
     }
 }
