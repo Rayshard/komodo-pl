@@ -6,6 +6,8 @@ using Komodo.Utilities;
 
 public static class Lexer
 {
+    static readonly Regex RE_WHITESPACE = new Regex(@"\G\s+", RegexOptions.Compiled);
+
     public static readonly ReadOnlyCollection<(Regex, Func<string, TokenType>)> PATTERNS = Array.AsReadOnly(new (Regex, Func<string, TokenType>)[]
     {
             (
@@ -29,7 +31,7 @@ public static class Lexer
             ),
     });
 
-    public static List<Token> Lex(SourceFile sf, Diagnostics? diagnostics)
+    public static List<Token> Lex(SourceFile sf, Diagnostics? diagnostics = null)
     {
         var tokens = new List<Token>();
         int offset = 0;
@@ -37,9 +39,7 @@ public static class Lexer
         while (offset < sf.Length)
         {
             //Skip Whitespace
-            while (Char.IsWhiteSpace(sf.Text[offset]))
-                offset++;
-
+            offset += RE_WHITESPACE.Match(sf.Text, offset).Length;
             if (offset >= sf.Length)
                 break;
 

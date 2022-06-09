@@ -10,6 +10,7 @@ public enum CSTNodeType
     Symbol,
     Literal,
     BinopExpression,
+    BinaryOperator,
     ParenthesizedExpression,
 }
 
@@ -47,7 +48,7 @@ public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICS
 public enum BinaryOperation { Add, Sub, Multiply, Divide };
 public enum BinaryOperationAssociativity { Left, Right, None };
 
-public record CSTBinop(Token Token) : CSTAtom(CSTNodeType.Symbol, Token)
+public record CSTBinaryOperator(Token Token) : CSTAtom(CSTNodeType.BinaryOperator, Token)
 {
     public BinaryOperation Operation => Token.Type switch
     {
@@ -77,54 +78,29 @@ public record CSTBinop(Token Token) : CSTAtom(CSTNodeType.Symbol, Token)
     };
 }
 
-public record CSTBinopExpression(ICSTExpression Left, CSTBinop Op, ICSTExpression Right) : ICSTExpression
+public record CSTBinopExpression(ICSTExpression Left, CSTBinaryOperator Op, ICSTExpression Right) : ICSTExpression
 {
     public CSTNodeType NodeType => CSTNodeType.BinopExpression;
-    public Location Location => new Location(Op.Location.SourceFile, new Span(Left.Location.Span.Start, Right.Location.Span.End));
+    public Location Location => new Location(Op.Location.SourceFileName, new Span(Left.Location.Span.Start, Right.Location.Span.End));
     public ICSTNode[] Children => new ICSTNode[] { Left, Op, Right };
 }
 
-public record ParenthesizedExpression(Token LParen, ICSTExpression Expression, Token RParen) : ICSTExpression
+public record CSTParenthesizedExpression(Token LParen, ICSTExpression Expression, Token RParen) : ICSTExpression
 {
     public CSTNodeType NodeType => CSTNodeType.ParenthesizedExpression;
-    public Location Location => new Location(Expression.Location.SourceFile, new Span(LParen.Location.Span.Start, RParen.Location.Span.End));
+    public Location Location => new Location(Expression.Location.SourceFileName, new Span(LParen.Location.Span.Start, RParen.Location.Span.End));
     public ICSTNode[] Children => new ICSTNode[] { new CSTAtom(CSTNodeType.Symbol, LParen), Expression, new CSTAtom(CSTNodeType.Symbol, RParen) };
 }
 
-public class CSTNodeJsonConverter : JsonConverter<ICSTNode>
+public static class Extensions
 {
-    public override ICSTNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public static bool IsExpression(this ICSTNode node) => node is ICSTExpression;
+
+    public static bool IsExpression(this CSTNodeType nodeType) => nodeType switch
     {
-        throw new NotImplementedException();
-    }
-
-    public override void Write(Utf8JsonWriter writer, ICSTNode node, JsonSerializerOptions options)
-    {
-        writer.WriteStartObject();
-        writer.WriteString("type", node.NodeType.ToString());
-        writer.WriteString("location", node.Location.ToString());
-
-        switch (node)
-        {
-            case CSTBinopExpression(var left, var op, var right):
-                {
-                    writer.WritePropertyName("left");
-                    writer.WriteRawValue(JsonSerializer.Serialize((ICSTNode?)left, options));
-                    writer.WriteString("op", op.Operation.ToString());
-                    writer.WritePropertyName("right");
-                    writer.WriteRawValue(JsonSerializer.Serialize((ICSTNode?)right, options));
-                }
-                break;
-            case CSTLiteral(var token):
-                {
-                    var literal = (CSTLiteral)node;
-                    writer.WriteString("literal_type", literal.LiteralType.ToString());
-                    writer.WriteString("value", token.Value);
-                }
-                break;
-            default: throw new NotImplementedException(node.NodeType.ToString());
-        }
-
-        writer.WriteEndObject();
-    }
+        CSTNodeType.Literal => true,
+        CSTNodeType.BinopExpression => true,
+        CSTNodeType.ParenthesizedExpression => true,
+        _ => false
+    };
 }

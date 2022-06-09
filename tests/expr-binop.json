@@ -1,0 +1,31 @@
+{
+  "input": "123\u002B456\n",
+  "function": "ParseExpression",
+  "expected": {
+    "nodeType": "BinopExpression",
+    "op": {
+      "nodeType": "BinaryOperator",
+      "token": {
+        "type": "Plus",
+        "location": "test:1:4::1:5",
+        "value": "\u002B"
+      }
+    },
+    "left": {
+      "nodeType": "Literal",
+      "token": {
+        "type": "IntLit",
+        "location": "test:1:1::1:4",
+        "value": "123"
+      }
+    },
+    "right": {
+      "nodeType": "Literal",
+      "token": {
+        "type": "IntLit",
+        "location": "test:1:5::1:8",
+        "value": "456"
+      }
+    }
+  }
+}

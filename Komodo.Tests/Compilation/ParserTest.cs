@@ -1,28 +1,39 @@
 namespace Komodo.Tests.Compilation;
 
+using System.Text.Json.Nodes;
 using Komodo.Compilation;
+using Komodo.Compilation.ConcreteSyntaxTree;
 using Komodo.Utilities;
 
 public class ParserTest
 {
     [Theory]
-    [MemberData(nameof(GetTokens))]
-    public void CorrectParsedCSTNode(string input, string _other)[] expected)
+    [MemberData(nameof(GetTestCaseFilePaths))]
+    public void CorrectlyParsedCSTNode(string filePath)
     {
-        var sf = new SourceFile("Test", input);
-        var diagnostics = new Diagnostics();
-        var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, sf.GetLocation(e.start, e.end), sf.Text.Substring(e.start, e.end - e.start))));
-        var actualTokens = Lexer.Lex(sf, diagnostics);
+        using StreamReader stream = new StreamReader(filePath);
 
-        Assert.Equal(expectedTokens, actualTokens);
-        Assert.True(diagnostics.Empty);
+        var json = JsonNode.Parse(stream.BaseStream) ?? throw new Exception($"File at {filePath} is not valid json!");
+        var testCase = json.AsObject();
+
+        var input = testCase["input"]?.GetValue<string>() ?? throw new Exception("Expected a string");
+        var function = testCase["function"]?.GetValue<string>() ?? throw new Exception("Expected a string");
+        var expected = testCase["expected"]?.AsObject() ?? throw new Exception("Expected an object");
+
+        var actualTokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input), null));
+        var actualDiagnostics = new Diagnostics();
+        ICSTNode? actual = function switch
+        {
+            "ParseExpression" => Parser.ParseExpression(actualTokenStream, actualDiagnostics),
+            _ => throw new Exception($"Unknown parse function: {function}")
+        };
+
+        Assert.Equal(JsonSerializer.ParseCSTNode(expected), actual);
     }
 
-    
-
-    public static IEnumerable<object[]> GetTokens()
+    public static IEnumerable<object[]> GetTestCaseFilePaths()
     {
-        foreach (var (input, expected) in TokensData)
-            yield return new object[] { input, expected };
+        foreach(var filePath in Directory.GetFiles("tests/"))
+            yield return new object[] { filePath }; 
     }
 }

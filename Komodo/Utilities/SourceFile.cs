@@ -44,7 +44,7 @@ public record SourceFile
         return position;
     }
 
-    public Location GetLocation(int start, int end) => new Location(this, new Span(GetPosition(start), GetPosition(end)));
+    public Location GetLocation(int start, int end) => new Location(Name, new Span(GetPosition(start), GetPosition(end)));
 
     public static Result<SourceFile, string> Load(string path)
     {

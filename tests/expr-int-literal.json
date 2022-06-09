@@ -1,0 +1,12 @@
+{
+  "input": "123",
+  "function": "ParseExpression",
+  "expected": {
+    "nodeType": "Literal",
+    "token": {
+      "type": "IntLit",
+      "location": "test:1:1::1:4",
+      "value": "123"
+    }
+  }
+}

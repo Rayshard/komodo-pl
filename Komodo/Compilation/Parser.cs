@@ -12,7 +12,7 @@ public static class ParseError
 
 public static class Parser
 {
-    public static T? Try<T>(Func<TokenStream, Diagnostics?, T?> parseFunc, TokenStream stream, Diagnostics? diagnostics)
+    public static T? Try<T>(Func<TokenStream, Diagnostics?, T?> parseFunc, TokenStream stream, Diagnostics? diagnostics = null)
     {
         var streamStart = stream.Offset;
         var node = parseFunc(stream, diagnostics);
@@ -23,7 +23,7 @@ public static class Parser
         return node;
     }
 
-    public static CSTBinop? ParseBinop(TokenStream stream, Diagnostics? diagnostics)
+    public static CSTBinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Next();
 
@@ -33,14 +33,14 @@ public static class Parser
             case TokenType.Minus:
             case TokenType.Asterisk:
             case TokenType.ForwardSlash:
-                return new CSTBinop(token);
+                return new CSTBinaryOperator(token);
             default:
                 diagnostics?.Add(ParseError.UnexpectedToken(token));
                 return null;
         }
     }
 
-    public static CSTLiteral? ParseLiteral(TokenStream stream, Diagnostics? diagnostics)
+    public static CSTLiteral? ParseLiteral(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Next();
 
@@ -53,9 +53,9 @@ public static class Parser
         }
     }
 
-    public static ICSTExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics) => ParseLiteral(stream, diagnostics);
+    public static ICSTExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null) => ParseLiteral(stream, diagnostics);
 
-    public static ICSTExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics, int precedence = 0)
+    public static ICSTExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null, int precedence = 0)
     {
         var expr = Try(ParseAtom, stream, diagnostics);
 
