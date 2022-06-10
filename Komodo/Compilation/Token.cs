@@ -11,6 +11,8 @@ public enum TokenType
     Minus,
     Asterisk,
     ForwardSlash,
+    LParen,
+    RParen,
     EOF,
 }
 

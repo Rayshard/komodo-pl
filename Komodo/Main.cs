@@ -88,12 +88,16 @@ static class CLI
         foreach (var (name, (input, functionName, function)) in parserTestCases)
         {
             var filePath = Path.Join(outputDirectory, $"{name}.json");
+
+            if (File.Exists(filePath))
+                continue;
+
             var tokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input)));
 
             var outputDiagnostics = new Diagnostics();
             var outputCSTNode = function(tokenStream, outputDiagnostics) ?? throw new Exception($"Could not parse cst node for test case: {name}");
 
-            if(!outputDiagnostics.Empty)
+            if (!outputDiagnostics.Empty)
             {
                 Console.WriteLine($"Test Case \"{name}\" has unexpected diagnostics:");
                 outputDiagnostics.Print();

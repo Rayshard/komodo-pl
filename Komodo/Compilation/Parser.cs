@@ -59,6 +59,24 @@ public static class Parser
 
         switch (token.Type)
         {
+            case TokenType.LParen:
+                {
+                    var lParen = stream.Next();
+
+                    var expr = ParseExpression(stream, diagnostics);
+                    if (expr == null)
+                        return null;
+
+                    token = stream.Peek();
+                    if (token.Type != TokenType.RParen)
+                    {
+                        diagnostics?.Add(ParseError.UnexpectedToken(token));
+                        return null;
+                    }
+
+                    var rParen = stream.Next();
+                    return new CSTParenthesizedExpression(lParen, expr, rParen);
+                }
             default: return ParseLiteral(stream, diagnostics);
         }
     }
@@ -72,7 +90,7 @@ public static class Parser
             while (true)
             {
                 var streamStart = stream.Offset;
-                
+
                 var binop = Try(ParseBinop, stream, null);
                 if (binop == null || binop.Precedence < minPrecedence)
                 {

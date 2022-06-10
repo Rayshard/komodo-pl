@@ -6,7 +6,7 @@ using Komodo.Utilities;
 
 public static class Lexer
 {
-    static readonly Regex RE_WHITESPACE = new Regex(@"\G\s+", RegexOptions.Compiled);
+    static readonly Regex RE_WHITESPACE = new Regex(@"\G\s+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static readonly ReadOnlyCollection<(Regex, Func<string, TokenType>)> PATTERNS = Array.AsReadOnly(new (Regex, Func<string, TokenType>)[]
     {
@@ -15,13 +15,15 @@ public static class Lexer
                 _ => TokenType.IntLit
             ),
             (
-                new Regex(@"\G(\+|-|\*|/)", RegexOptions.Compiled | RegexOptions.CultureInvariant),
+                new Regex(@"\G(\+|-|\*|/|\(|\))", RegexOptions.Compiled | RegexOptions.CultureInvariant),
                 text => text switch
                     {
                         "+" => TokenType.Plus,
                         "-" => TokenType.Minus,
                         "*" => TokenType.Asterisk,
                         "/" => TokenType.ForwardSlash,
+                        "(" => TokenType.LParen,
+                        ")" => TokenType.RParen,
                         _ => throw new ArgumentException(text)
                     }
             ),
