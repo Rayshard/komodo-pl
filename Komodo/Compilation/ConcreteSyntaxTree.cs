@@ -1,7 +1,5 @@
 namespace Komodo.Compilation.ConcreteSyntaxTree;
 
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Komodo.Utilities;
 
 public enum CSTNodeType
@@ -27,9 +25,10 @@ public record CSTAtom(CSTNodeType NodeType, Token Token) : ICSTNode
     public ICSTNode[] Children => new ICSTNode[] { };
 }
 
-public record Module(ICSTNode[] Children, Location Location) : ICSTNode
+public record CSTModule(Token LBracket, ICSTNode[] Children, Token RBracket) : ICSTNode
 {
     public CSTNodeType NodeType => CSTNodeType.Module;
+    public Location Location => new Location(LBracket.Location.SourceFileName, new Span(LBracket.Location.Span.Start, RBracket.Location.Span.End));
 }
 
 public interface ICSTExpression : ICSTNode { }

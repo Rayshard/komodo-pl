@@ -7,17 +7,11 @@ using Komodo.Utilities;
 
 static class CLI
 {
-    static void CheckDiagnostics(Diagnostics diagnostics)
+    static void PrintUsage(string command = "", string msg = "", int? exitCode = null)
     {
-        if (diagnostics.HasError)
-        {
-            diagnostics.Print();
-            Environment.Exit(-1);
-        }
-    }
+        if (msg.Length != 0)
+            Console.WriteLine(msg);
 
-    static void PrintUsage(string command = "", int? exitCode = null)
-    {
         switch (command)
         {
             case "": Console.WriteLine("Usage: komodo [command] [command-options] [arguments]"); break;
@@ -32,10 +26,22 @@ static class CLI
 
     static void DoRun(IEnumerable<string> args)
     {
+        if (args.Count() == 0)
+            PrintUsage("run", exitCode: -1);
+
+        var options = args.TakeWhile(x => x.StartsWith('-')).ToHashSet();
+
+        args = args.Skip(options.Count());
         if (args.Count() != 1)
-            PrintUsage("run", -1);
+            PrintUsage("run", msg: "Expected an input file path", exitCode: -1);
 
         var inputFilePath = args.ElementAt(0);
+        var printTokens = options.Remove("--print-tokens");
+        var printCST = options.Remove("--print-cst");
+
+        if (options.Count() != 0)
+            PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
+
         var sourceFileResult = SourceFile.Load(inputFilePath);
         if (sourceFileResult.IsFailure)
         {
@@ -48,20 +54,27 @@ static class CLI
 
         var tokens = Lexer.Lex(sourceFile, diagnostics);
 
-        CheckDiagnostics(diagnostics);
-
-        foreach (var token in tokens)
-            Console.WriteLine(token);
-
-        var expression = Parser.ParseExpression(new TokenStream(tokens), diagnostics);
-        if (expression == null)
+        if (diagnostics.HasError)
         {
-            CheckDiagnostics(diagnostics);
-            return;
+            diagnostics.Print();
+            Environment.Exit(-1);
         }
 
-        var json = JsonSerializer.Serialize(expression);
-        Console.WriteLine(json);
+        if (printTokens)
+        {
+            foreach (var token in tokens)
+                Console.WriteLine(token);
+        }
+
+        var module = Parser.ParseModule(new TokenStream(tokens), diagnostics);
+        if (module == null)
+        {
+            diagnostics.Print();
+            Environment.Exit(-1);
+        }
+
+        if (printCST)
+            Console.WriteLine(JsonSerializer.Serialize(module));
 
         diagnostics.Print();
     }
@@ -69,7 +82,7 @@ static class CLI
     static void DoMakeTests(IEnumerable<string> args)
     {
         if (args.Count() != 1)
-            PrintUsage("make-tests", -1);
+            PrintUsage("make-tests", msg: "Expected an output directory", exitCode: -1);
 
         var outputDirectory = args.ElementAt(0);
 
@@ -118,7 +131,7 @@ static class CLI
     {
         var remainingArgs = args.AsEnumerable();
         if (remainingArgs.Count() == 0)
-            PrintUsage("", -1);
+            PrintUsage("", msg: "Expected a command", exitCode: -1);
 
         var command = remainingArgs.ElementAt(0);
         remainingArgs = remainingArgs.Skip(1);
@@ -127,12 +140,7 @@ static class CLI
         {
             case "run": DoRun(remainingArgs); break;
             case "make-tests": DoMakeTests(remainingArgs); break;
-            default:
-                {
-                    Console.WriteLine($"Unknown command: {command}");
-                    PrintUsage("", -1);
-                }
-                break;
+            default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
         }
     }
 }

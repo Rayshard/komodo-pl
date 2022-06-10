@@ -13,6 +13,8 @@ public enum TokenType
     ForwardSlash,
     LParen,
     RParen,
+    LCBracket,
+    RCBracket,
     EOF,
 }
 

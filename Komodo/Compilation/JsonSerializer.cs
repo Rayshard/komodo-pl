@@ -134,6 +134,13 @@ public static class JsonSerializer
                     properties.Add("rParen", Serialize(rParen));
                 }
                 break;
+            case CSTModule(var lBracket, var children, var rBracket):
+                {
+                    properties.Add("lBracket", Serialize(lBracket));
+                    properties.Add("children", new JsonArray(children.Select(x => Serialize(x)).ToArray()));
+                    properties.Add("rBracket", Serialize(rBracket));
+                }
+                break;
             default: throw new NotImplementedException(node.NodeType.ToString());
         }
 

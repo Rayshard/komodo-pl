@@ -30,9 +30,7 @@ public class Diagnostics
             case DiagnosticType.Warning:
                 _warnings.Add(d);
                 break;
-            default:
-                Trace.Fail("Unimplemented");
-                break;
+            default: throw new NotImplementedException(d.Type.ToString());
         }
     }
 

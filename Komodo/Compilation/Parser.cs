@@ -7,6 +7,7 @@ using Komodo.Utilities;
 
 public static class ParseError
 {
+    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.Location, $"Expected {expected} but found {found.Type}({found.Value})");
     public static Diagnostic UnexpectedToken(Token token) => new Diagnostic(DiagnosticType.Error, token.Location, $"Encountered unexpected token: {token.Type}({token.Value})");
 }
 
@@ -21,6 +22,20 @@ public static class Parser
             stream.Offset = streamStart;
 
         return node;
+    }
+
+    public static Token? ExpectToken(TokenType type, TokenStream stream, Diagnostics? diagnostics = null)
+    {
+        var token = stream.Next();
+
+        if (token.Type != type)
+        {
+            stream.Offset -= 1; // Unconsume token
+            diagnostics?.Add(ParseError.ExpectedToken(type, token));
+            return null;
+        }
+
+        return token;
     }
 
     public static CSTBinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
@@ -67,14 +82,10 @@ public static class Parser
                     if (expr == null)
                         return null;
 
-                    token = stream.Peek();
-                    if (token.Type != TokenType.RParen)
-                    {
-                        diagnostics?.Add(ParseError.UnexpectedToken(token));
+                    var rParen = ExpectToken(TokenType.RParen, stream, diagnostics);
+                    if (rParen == null)
                         return null;
-                    }
 
-                    var rParen = stream.Next();
                     return new CSTParenthesizedExpression(lParen, expr, rParen);
                 }
             default: return ParseLiteral(stream, diagnostics);
@@ -108,5 +119,22 @@ public static class Parser
         }
 
         return expr;
+    }
+
+    public static CSTModule? ParseModule(TokenStream stream, Diagnostics? diagnostics = null)
+    {
+        var lBracket = ExpectToken(TokenType.LCBracket, stream, diagnostics);
+        if (lBracket == null)
+            return null;
+
+        var expr = ParseExpression(stream, diagnostics);
+        if (expr == null)
+            return null;
+
+        var rBracket = ExpectToken(TokenType.RCBracket, stream, diagnostics);
+        if (rBracket == null)
+            return null;
+
+        return new CSTModule(lBracket, new ICSTNode[] { expr }, rBracket);
     }
 }

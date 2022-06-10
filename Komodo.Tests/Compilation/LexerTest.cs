@@ -35,6 +35,8 @@ public class LexerTest
         ("/", new[] {(TokenType.ForwardSlash, 0, 1), (TokenType.EOF, 1, 1)}),
         ("(", new[] {(TokenType.LParen, 0, 1), (TokenType.EOF, 1, 1)}),
         (")", new[] {(TokenType.RParen, 0, 1), (TokenType.EOF, 1, 1)}),
+        ("{", new[] {(TokenType.LCBracket, 0, 1), (TokenType.EOF, 1, 1)}),
+        ("}", new[] {(TokenType.RCBracket, 0, 1), (TokenType.EOF, 1, 1)}),
     };
 
     public static IEnumerable<object[]> GetTokens()

@@ -15,7 +15,7 @@ public static class Lexer
                 _ => TokenType.IntLit
             ),
             (
-                new Regex(@"\G(\+|-|\*|/|\(|\))", RegexOptions.Compiled | RegexOptions.CultureInvariant),
+                new Regex(@"\G(\+|-|\*|/|\(|\)|\{|\})", RegexOptions.Compiled | RegexOptions.CultureInvariant),
                 text => text switch
                     {
                         "+" => TokenType.Plus,
@@ -24,6 +24,8 @@ public static class Lexer
                         "/" => TokenType.ForwardSlash,
                         "(" => TokenType.LParen,
                         ")" => TokenType.RParen,
+                        "{" => TokenType.LCBracket,
+                        "}" => TokenType.RCBracket,
                         _ => throw new ArgumentException(text)
                     }
             ),
