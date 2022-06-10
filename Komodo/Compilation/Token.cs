@@ -48,6 +48,6 @@ public class TokenStream
     public int Offset
     {
         get => _offset;
-        set => _offset = Math.Max(0, Math.Min(_offset, _tokens.Length - 1));
+        set => _offset = Math.Max(0, Math.Min(value, _tokens.Length - 1));
     }
 }

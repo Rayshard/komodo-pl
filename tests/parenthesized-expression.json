@@ -1,0 +1,50 @@
+{
+  "input": "((123 \u002B 456) - 789)",
+  "function": "ParseExpression",
+  "expected": {
+    "nodeType": "BinopExpression",
+    "op": {
+      "nodeType": "BinaryOperator",
+      "token": {
+        "type": "Minus",
+        "location": "test:1:14::1:15",
+        "value": "-"
+      }
+    },
+    "left": {
+      "nodeType": "BinopExpression",
+      "op": {
+        "nodeType": "BinaryOperator",
+        "token": {
+          "type": "Plus",
+          "location": "test:1:7::1:8",
+          "value": "\u002B"
+        }
+      },
+      "left": {
+        "nodeType": "Literal",
+        "token": {
+          "type": "IntLit",
+          "location": "test:1:3::1:6",
+          "value": "123"
+        }
+      },
+      "right": {
+        "nodeType": "Literal",
+        "token": {
+          "type": "IntLit",
+          "location": "test:1:9::1:12",
+          "value": "456"
+        }
+      }
+    },
+    "right": {
+      "nodeType": "Literal",
+      "token": {
+        "type": "IntLit",
+        "location": "test:1:16::1:19",
+        "value": "789"
+      }
+    }
+  }
+}

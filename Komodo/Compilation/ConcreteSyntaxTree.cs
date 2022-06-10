@@ -70,10 +70,10 @@ public record CSTBinaryOperator(Token Token) : CSTAtom(CSTNodeType.BinaryOperato
 
     public int Precedence => Operation switch
     {
-        BinaryOperation.Add => 1,
-        BinaryOperation.Sub => 1,
-        BinaryOperation.Multiply => 2,
-        BinaryOperation.Divide => 2,
+        BinaryOperation.Add => 0,
+        BinaryOperation.Sub => 0,
+        BinaryOperation.Multiply => 1,
+        BinaryOperation.Divide => 1,
         var op => throw new NotImplementedException(op.ToString()),
     };
 }

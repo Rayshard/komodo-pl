@@ -53,9 +53,17 @@ public static class Parser
         }
     }
 
-    public static ICSTExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null) => ParseLiteral(stream, diagnostics);
+    public static ICSTExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null)
+    {
+        var token = stream.Peek();
 
-    public static ICSTExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null, int precedence = 0)
+        switch (token.Type)
+        {
+            default: return ParseLiteral(stream, diagnostics);
+        }
+    }
+
+    public static ICSTExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null, int minPrecedence = 0)
     {
         var expr = Try(ParseAtom, stream, diagnostics);
 
@@ -63,12 +71,17 @@ public static class Parser
         {
             while (true)
             {
+                var streamStart = stream.Offset;
+                
                 var binop = Try(ParseBinop, stream, null);
-                if (binop == null || binop.Precedence < precedence)
+                if (binop == null || binop.Precedence < minPrecedence)
+                {
+                    stream.Offset = streamStart;
                     break;
+                }
 
-                var nextPrecedence = binop.Asssociativity == BinaryOperationAssociativity.Right ? binop.Precedence : (binop.Precedence + 1);
-                var rhs = Try((s, d) => ParseExpression(s, d, nextPrecedence), stream, diagnostics);
+                var nextMinPrecedence = binop.Asssociativity == BinaryOperationAssociativity.Right ? binop.Precedence : (binop.Precedence + 1);
+                var rhs = Try((s, d) => ParseExpression(s, d, nextMinPrecedence), stream, diagnostics);
                 if (rhs == null)
                     return null;
 

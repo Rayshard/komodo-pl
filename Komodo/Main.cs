@@ -60,11 +60,8 @@ static class CLI
             return;
         }
 
-
-        //var json = JsonSerializer.Serialize((ICSTNode?)expression, new JsonSerializerOptions { Converters = { new CSTNodeJsonConverter() } });
         var json = JsonSerializer.Serialize(expression);
-        var deserialized = JsonSerializer.ParseCSTNode(JsonNode.Parse(json.ToString()) ?? throw new Exception("Invalid json"));
-        Console.WriteLine(expression.Equals(deserialized));
+        Console.WriteLine(json);
 
         diagnostics.Print();
     }
@@ -85,13 +82,23 @@ static class CLI
         // Parser Tests
         var parserTestCases = new Dictionary<string, (string, string, Func<TokenStream, Diagnostics?, ICSTNode?>)>();
         parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
-        parserTestCases.Add("expr-binop", ("123+456\n", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
+        parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
+        parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
 
         foreach (var (name, (input, functionName, function)) in parserTestCases)
         {
             var filePath = Path.Join(outputDirectory, $"{name}.json");
             var tokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input)));
-            var outputCSTNode = function(tokenStream, null) ?? throw new Exception($"Could not parse cst node from input: {input}");
+
+            var outputDiagnostics = new Diagnostics();
+            var outputCSTNode = function(tokenStream, outputDiagnostics) ?? throw new Exception($"Could not parse cst node for test case: {name}");
+
+            if(!outputDiagnostics.Empty)
+            {
+                Console.WriteLine($"Test Case \"{name}\" has unexpected diagnostics:");
+                outputDiagnostics.Print();
+                continue;
+            }
 
             var outputJson = new JsonObject(new[] {
                 KeyValuePair.Create<string, JsonNode?>("input", JsonValue.Create(input)),
