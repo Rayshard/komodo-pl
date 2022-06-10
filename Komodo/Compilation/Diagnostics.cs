@@ -3,6 +3,34 @@ namespace Komodo.Utilities;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 
+public record Hint
+{
+    public int Line { get; }
+    public int ColumnStart { get; }
+    public int ColumnEnd { get; }
+    public string Message { get; }
+
+    public Hint(int line, int columnStart, int columnEnd, string message = "")
+    {
+        Line = line;
+        ColumnStart = columnStart;
+        ColumnEnd = columnEnd;
+        Message = message;
+    }
+
+    public Hint(Location location, string message = "")
+    {
+        Trace.Assert(location.Span.Start.Line == location.Span.End.Line, "Hints can only span one line!");
+
+        Line = location.Span.Start.Line;
+        ColumnStart = location.Span.Start.Column;
+        ColumnEnd = location.Span.End.Column;
+        Message = message;
+    }
+
+    public override string ToString() => $"{new string(' ', ColumnStart - 1)}{new string('^', ColumnEnd - ColumnStart)} {Message}";
+}
+
 public enum DiagnosticType { Warning, Error };
 
 public record Diagnostic(DiagnosticType Type, Location Location, string Message)

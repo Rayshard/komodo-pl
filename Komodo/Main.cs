@@ -3,6 +3,7 @@
 using System.Text.Json.Nodes;
 using Komodo.Compilation;
 using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Interpretation;
 using Komodo.Utilities;
 
 static class CLI
@@ -22,6 +23,13 @@ static class CLI
 
         if (exitCode.HasValue)
             Environment.Exit(exitCode.Value);
+    }
+
+    static void PrintInfo(string info)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"[INFO] {info}");
+        Console.ResetColor();
     }
 
     static void DoRun(IEnumerable<string> args)
@@ -49,10 +57,16 @@ static class CLI
             Environment.Exit(-1);
         }
 
-        var sourceFile = sourceFileResult.UnwrapSuccess();
+        var sourceFiles = new Dictionary<string, SourceFile>();
         var diagnostics = new Diagnostics();
+        var stopwatch = new System.Diagnostics.Stopwatch();
 
+        var sourceFile = sourceFileResult.UnwrapSuccess();
+        sourceFiles.Add(sourceFile.Name, sourceFile);
+
+        stopwatch.Start();
         var tokens = Lexer.Lex(sourceFile, diagnostics);
+        stopwatch.Stop();
 
         if (diagnostics.HasError)
         {
@@ -60,11 +74,15 @@ static class CLI
             Environment.Exit(-1);
         }
 
+        PrintInfo($"Lexing finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+
         if (printTokens)
         {
             foreach (var token in tokens)
                 Console.WriteLine(token);
         }
+
+        stopwatch.Restart();
 
         var module = Parser.ParseModule(new TokenStream(tokens), diagnostics);
         if (module == null)
@@ -73,10 +91,35 @@ static class CLI
             Environment.Exit(-1);
         }
 
+        stopwatch.Stop();
+
+        PrintInfo($"Parsing finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+
         if (printCST)
             Console.WriteLine(JsonSerializer.Serialize(module));
 
         diagnostics.Print();
+
+        PrintInfo($"Running {sourceFile.Name} ...");
+
+        Interpreter interpreter = new Interpreter();
+
+        stopwatch.Restart();
+
+        foreach (var node in module.Children)
+        {
+            var result = interpreter.Evaluate(node);
+            if (result is KomodoException)
+            {
+                (result as KomodoException)?.Print(sourceFiles);
+                break;
+            }
+
+            Console.WriteLine(result);
+        }
+
+        stopwatch.Stop();
+        PrintInfo($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
     }
 
     static void DoMakeTests(IEnumerable<string> args)
