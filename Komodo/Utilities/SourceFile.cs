@@ -1,6 +1,34 @@
 namespace Komodo.Utilities;
 
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+
+public record Position(int Line, int Column)
+{
+    public override string ToString() => $"{Line}:{Column}";
+}
+
+public record TextSpan(string SourceFileName, Position Start, int Length)
+{
+    private static readonly Regex REGEX_PATTERN = new Regex("(?<sfn>[^:]+):(?<line>[0-9]+):(?<column>[0-9]+)::(?<length>[0-9+])", RegexOptions.Compiled);
+    
+    public override string ToString() => $"{SourceFileName}:{Start}::{Length}";
+
+    public static TextSpan From(string s)
+    {
+        Match m = REGEX_PATTERN.Match(s);
+
+        if (!m.Success)
+            throw new ArgumentException($"Invalid format: {s}");
+
+        var sourceFileName = m.Groups["sfn"].Value;
+        var line = int.Parse(m.Groups["line"].Value);
+        var column = int.Parse(m.Groups["column"].Value);
+        var length = int.Parse(m.Groups["length"].Value);
+
+        return new TextSpan(sourceFileName, new Position(line, column), length);
+    }
+}
 
 public record SourceFile
 {
@@ -44,7 +72,7 @@ public record SourceFile
         return position;
     }
 
-    public Location GetLocation(int start, int end) => new Location(Name, new Span(GetPosition(start), GetPosition(end)));
+    public TextSpan GetSpan(int offset, int length) => new TextSpan(Name, GetPosition(offset), length);
 
     public static Result<SourceFile, string> Load(string path)
     {

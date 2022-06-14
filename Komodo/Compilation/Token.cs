@@ -18,9 +18,9 @@ public enum TokenType
     EOF,
 }
 
-public record Token(TokenType Type, Location Location, string Value)
+public record Token(TokenType Type, TextSpan TextSpan, string Value)
 {
-    public override string ToString() => $"{Type.ToString()}({Value}) at {Location}";
+    public override string ToString() => $"{Type.ToString()}({Value}) at {TextSpan}";
 }
 
 public class TokenStream

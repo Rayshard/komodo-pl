@@ -61,15 +61,15 @@ public static class Lexer
             }
 
             var (value, f) = bestMatch ?? throw new Exception($"'{sf.Text.Substring(offset)}' did not match any pattern!");
-            var token = new Token(f(value), sf.GetLocation(offset, offset + value.Length), value);
+            var token = new Token(f(value), sf.GetSpan(offset, offset + value.Length), value);
 
-            if (token.Type == TokenType.Invalid) { diagnostics?.Add(new Diagnostic(DiagnosticType.Error, token.Location, $"Encounterd an invalid token: {token.Value}")); }
+            if (token.Type == TokenType.Invalid) { diagnostics?.Add(new Diagnostic(DiagnosticType.Error, token.TextSpan, $"Encounterd an invalid token: {token.Value}")); }
             else { tokens.Add(token); }
 
             offset += value.Length;
         }
 
-        tokens.Add(new Token(TokenType.EOF, sf.GetLocation(offset, offset), ""));
+        tokens.Add(new Token(TokenType.EOF, sf.GetSpan(offset, offset), ""));
         return tokens;
     }
 }

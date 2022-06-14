@@ -1,41 +1,21 @@
 namespace Komodo.Utilities;
 
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 
-public record Hint
+//TODO: Make hints a type of diagnostic (maybe a subclass?)
+
+public record Hint(Position Start, Position End, string Message)
 {
-    public int Line { get; }
-    public int ColumnStart { get; }
-    public int ColumnEnd { get; }
-    public string Message { get; }
+    //public override string ToString() =>$"{new string(' ', TextSpan.Start.Column - 1)}{new string('^', TextSpan.Length)} {Message}";
 
-    public Hint(int line, int columnStart, int columnEnd, string message = "")
-    {
-        Line = line;
-        ColumnStart = columnStart;
-        ColumnEnd = columnEnd;
-        Message = message;
-    }
-
-    public Hint(Location location, string message = "")
-    {
-        Trace.Assert(location.Span.Start.Line == location.Span.End.Line, "Hints can only span one line!");
-
-        Line = location.Span.Start.Line;
-        ColumnStart = location.Span.Start.Column;
-        ColumnEnd = location.Span.End.Column;
-        Message = message;
-    }
-
-    public override string ToString() => $"{new string(' ', ColumnStart - 1)}{new string('^', ColumnEnd - ColumnStart)} {Message}";
+    public Dictionary<int, string[]> LineStrings => throw new NotImplementedException();
 }
 
-public enum DiagnosticType { Warning, Error };
+public enum DiagnosticType { Info, Hint, Warning, Error };
 
-public record Diagnostic(DiagnosticType Type, Location Location, string Message)
+public record Diagnostic(DiagnosticType Type, TextSpan TextSpan, string Message)
 {
-    public override string ToString() => $"{Type} {Location}: {Message}";
+    public override string ToString() => $"{Type} {TextSpan}: {Message}";
 }
 
 public class Diagnostics

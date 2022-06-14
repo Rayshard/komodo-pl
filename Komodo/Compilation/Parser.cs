@@ -7,8 +7,8 @@ using Komodo.Utilities;
 
 public static class ParseError
 {
-    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.Location, $"Expected {expected} but found {found.Type}({found.Value})");
-    public static Diagnostic UnexpectedToken(Token token) => new Diagnostic(DiagnosticType.Error, token.Location, $"Encountered unexpected token: {token.Type}({token.Value})");
+    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.TextSpan, $"Expected {expected} but found {found.Type}({found.Value})");
+    public static Diagnostic UnexpectedToken(Token token) => new Diagnostic(DiagnosticType.Error, token.TextSpan, $"Encountered unexpected token: {token.Type}({token.Value})");
 }
 
 public static class Parser

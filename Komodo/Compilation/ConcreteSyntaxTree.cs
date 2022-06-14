@@ -15,20 +15,20 @@ public enum CSTNodeType
 public interface ICSTNode
 {
     public CSTNodeType NodeType { get; }
-    public Location Location { get; }
+    public TextSpan TextSpan { get; }
     public ICSTNode[] Children { get; }
 }
 
 public record CSTAtom(CSTNodeType NodeType, Token Token) : ICSTNode
 {
-    public Location Location => Token.Location;
+    public TextSpan TextSpan => Token.TextSpan;
     public ICSTNode[] Children => new ICSTNode[] { };
 }
 
 public record CSTModule(Token LBracket, ICSTNode[] Children, Token RBracket) : ICSTNode
 {
     public CSTNodeType NodeType => CSTNodeType.Module;
-    public Location Location => new Location(LBracket.Location.SourceFileName, new Span(LBracket.Location.Span.Start, RBracket.Location.Span.End));
+    public TextSpan TextSpan => new TextSpan(LBracket.TextSpan.SourceFileName, new TextSpan(LBracket.TextSpan.Start, RBracket.TextSpan.End));
 }
 
 public interface ICSTExpression : ICSTNode { }
@@ -80,7 +80,7 @@ public record CSTBinaryOperator(Token Token) : CSTAtom(CSTNodeType.BinaryOperato
 public record CSTBinopExpression(ICSTExpression Left, CSTBinaryOperator Op, ICSTExpression Right) : ICSTExpression
 {
     public CSTNodeType NodeType => CSTNodeType.BinopExpression;
-    public Location Location => new Location(Op.Location.SourceFileName, new Span(Left.Location.Span.Start, Right.Location.Span.End));
+    public TextSpan TextSpan => new TextSpan(Op.TextSpan.SourceFileName, new TextSpan(Left.TextSpan., Right.Location.Span.End));
     public ICSTNode[] Children => new ICSTNode[] { Left, Op, Right };
 }
 
