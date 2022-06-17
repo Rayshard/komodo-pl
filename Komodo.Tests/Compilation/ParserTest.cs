@@ -2,7 +2,7 @@ namespace Komodo.Tests.Compilation;
 
 using System.Text.Json.Nodes;
 using Komodo.Compilation;
-using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Compilation.CST;
 using Komodo.Utilities;
 
 public class ParserTest
@@ -20,9 +20,9 @@ public class ParserTest
         var function = testCase["function"]?.GetValue<string>() ?? throw new Exception("Expected a string");
         var expected = testCase["expected"]?.AsObject() ?? throw new Exception("Expected an object");
 
-        var actualTokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input), null));
+        var actualTokenStream = Lexer.Lex(new TextSource("test", input), null);
         var actualDiagnostics = new Diagnostics();
-        ICSTNode? actual = function switch
+        INode? actual = function switch
         {
             "ParseExpression" => Parser.ParseExpression(actualTokenStream, actualDiagnostics),
             _ => throw new Exception($"Unknown parse function: {function}")

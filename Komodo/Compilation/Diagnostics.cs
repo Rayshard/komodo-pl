@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 
 //TODO: Make hints a type of diagnostic (maybe a subclass?)
 
-public record Hint(Position Start, Position End, string Message)
+public record Hint(int Start, int End, string Message = "")
 {
     //public override string ToString() =>$"{new string(' ', TextSpan.Start.Column - 1)}{new string('^', TextSpan.Length)} {Message}";
 
@@ -13,9 +13,9 @@ public record Hint(Position Start, Position End, string Message)
 
 public enum DiagnosticType { Info, Hint, Warning, Error };
 
-public record Diagnostic(DiagnosticType Type, TextSpan TextSpan, string Message)
+public record Diagnostic(DiagnosticType Type, TextLocation Location, string Message)
 {
-    public override string ToString() => $"{Type} {TextSpan}: {Message}";
+    public override string ToString() => $"{Type} {Location}: {Message}";
 }
 
 public class Diagnostics

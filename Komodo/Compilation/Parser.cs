@@ -1,14 +1,12 @@
 namespace Komodo.Compilation;
 
-using System.Diagnostics;
-using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Compilation.CST;
 using Komodo.Utilities;
-
 
 public static class ParseError
 {
-    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.TextSpan, $"Expected {expected} but found {found.Type}({found.Value})");
-    public static Diagnostic UnexpectedToken(Token token) => new Diagnostic(DiagnosticType.Error, token.TextSpan, $"Encountered unexpected token: {token.Type}({token.Value})");
+    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.Location, $"Expected {expected} but found {found.Type}({found.Value})");
+    public static Diagnostic UnexpectedToken(Token token) => new Diagnostic(DiagnosticType.Error, token.Location, $"Encountered unexpected token: {token.Type}({token.Value})");
 }
 
 public static class Parser
@@ -38,7 +36,7 @@ public static class Parser
         return token;
     }
 
-    public static CSTBinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
+    public static BinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Next();
 
@@ -48,27 +46,27 @@ public static class Parser
             case TokenType.Minus:
             case TokenType.Asterisk:
             case TokenType.ForwardSlash:
-                return new CSTBinaryOperator(token);
+                return new BinaryOperator(token);
             default:
                 diagnostics?.Add(ParseError.UnexpectedToken(token));
                 return null;
         }
     }
 
-    public static CSTLiteral? ParseLiteral(TokenStream stream, Diagnostics? diagnostics = null)
+    public static Literal? ParseLiteral(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Next();
 
         switch (token.Type)
         {
-            case TokenType.IntLit: return new CSTLiteral(token);
+            case TokenType.IntLit: return new Literal(token);
             default:
                 diagnostics?.Add(ParseError.UnexpectedToken(token));
                 return null;
         }
     }
 
-    public static ICSTExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null)
+    public static IExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Peek();
 
@@ -86,13 +84,13 @@ public static class Parser
                     if (rParen == null)
                         return null;
 
-                    return new CSTParenthesizedExpression(lParen, expr, rParen);
+                    return new ParenthesizedExpression(lParen, expr, rParen);
                 }
             default: return ParseLiteral(stream, diagnostics);
         }
     }
 
-    public static ICSTExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null, int minPrecedence = 0)
+    public static IExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null, int minPrecedence = 0)
     {
         var expr = Try(ParseAtom, stream, diagnostics);
 
@@ -114,14 +112,14 @@ public static class Parser
                 if (rhs == null)
                     return null;
 
-                expr = new CSTBinopExpression(expr, binop, rhs);
+                expr = new BinopExpression(expr, binop, rhs);
             }
         }
 
         return expr;
     }
 
-    public static CSTModule? ParseModule(TokenStream stream, Diagnostics? diagnostics = null)
+    public static Module? ParseModule(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var lBracket = ExpectToken(TokenType.LCBracket, stream, diagnostics);
         if (lBracket == null)
@@ -135,6 +133,6 @@ public static class Parser
         if (rBracket == null)
             return null;
 
-        return new CSTModule(lBracket, new ICSTNode[] { expr }, rBracket);
+        return new Module(stream.Source, new INode[] { expr });
     }
 }

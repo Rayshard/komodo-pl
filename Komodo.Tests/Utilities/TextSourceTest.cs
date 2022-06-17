@@ -2,7 +2,7 @@ namespace Komodo.Tests.Utilities;
 
 using Komodo.Utilities;
 
-public class SourceFileTest
+public class TextSourceTest
 {
     [Theory]
     [InlineData(0, 1, 1)]
@@ -14,7 +14,7 @@ public class SourceFileTest
     [InlineData(14, 4, 5)]
     public void CorrectPositionGivenOffset(int offset, int expectedLine, int expectedColumn)
     {
-        var sf = new SourceFile("Test", "abc\n 123\n\n q w");
+        var sf = new TextSource("Test", "abc\n 123\n\n q w");
         
         Assert.Equal(new Position(expectedLine, expectedColumn), sf.GetPosition(offset));
     }

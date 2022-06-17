@@ -8,29 +8,30 @@ public record Position(int Line, int Column)
     public override string ToString() => $"{Line}:{Column}";
 }
 
-public record TextSpan(string SourceFileName, Position Start, int Length)
+public record TextLocation(string SourceName, int Start, int End)
 {
-    private static readonly Regex REGEX_PATTERN = new Regex("(?<sfn>[^:]+):(?<line>[0-9]+):(?<column>[0-9]+)::(?<length>[0-9+])", RegexOptions.Compiled);
-    
-    public override string ToString() => $"{SourceFileName}:{Start}::{Length}";
+    private static readonly Regex REGEX_PATTERN = new Regex("(?<sourceName>[^\\[]+)\\[(?<start>[0-9]+),(?<end>[0-9]+)\\]", RegexOptions.Compiled);
 
-    public static TextSpan From(string s)
+    public int Length => End - Start;
+
+    public override string ToString() => $"{SourceName}[{Start},{End}]";
+
+    public static TextLocation From(string s)
     {
         Match m = REGEX_PATTERN.Match(s);
 
         if (!m.Success)
             throw new ArgumentException($"Invalid format: {s}");
 
-        var sourceFileName = m.Groups["sfn"].Value;
-        var line = int.Parse(m.Groups["line"].Value);
-        var column = int.Parse(m.Groups["column"].Value);
-        var length = int.Parse(m.Groups["length"].Value);
+        var sourceName = m.Groups["sourceName"].Value;
+        var start = int.Parse(m.Groups["start"].Value);
+        var end = int.Parse(m.Groups["end"].Value);
 
-        return new TextSpan(sourceFileName, new Position(line, column), length);
+        return new TextLocation(sourceName, start, end);
     }
 }
 
-public record SourceFile
+public record TextSource
 {
     public string Name { get; }
     public string Text { get; }
@@ -39,7 +40,7 @@ public record SourceFile
 
     public int Length => Text.Length;
 
-    public SourceFile(string name, string text)
+    public TextSource(string name, string text)
     {
         Name = name;
         Text = text;
@@ -72,11 +73,11 @@ public record SourceFile
         return position;
     }
 
-    public TextSpan GetSpan(int offset, int length) => new TextSpan(Name, GetPosition(offset), length);
+    public TextLocation GetLocation(int offset, int length) => new TextLocation(Name, offset, offset + length);
 
-    public static Result<SourceFile, string> Load(string path)
+    public static Result<TextSource, string> Load(string path)
     {
-        try { return new Result<SourceFile, string>.Success(new SourceFile(path, System.IO.File.ReadAllText(path))); }
-        catch (Exception e) { return new Result<SourceFile, string>.Failure(e.Message); }
+        try { return new Result<TextSource, string>.Success(new TextSource(path, System.IO.File.ReadAllText(path))); }
+        catch (Exception e) { return new Result<TextSource, string>.Failure(e.Message); }
     }
 }

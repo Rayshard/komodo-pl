@@ -1,4 +1,4 @@
-using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Compilation.CST;
 using Komodo.Utilities;
 
 namespace Komodo.Interpretation;
@@ -7,20 +7,20 @@ public interface IResult { }
 
 public record KomodoValue<T>(T Value) : IResult;
 
-public record KomodoException(string Message, Location Location, IEnumerable<Hint> Hints) : IResult
+public record KomodoException(string Message, TextLocation Location, IEnumerable<Hint> Hints) : IResult
 {
-    public static KomodoException DivisionByZero(Location location) => new KomodoException("Division by zero", location, new Hint[] { new Hint(location, "this expression evaluated to 0") });
-    public static KomodoException InvalidOperation(Location location) => new KomodoException("Invalid operation", location, new Hint[] { new Hint(location) });
+    public static KomodoException DivisionByZero(TextLocation location) => new KomodoException("Division by zero", location, new Hint[] { new Hint(location.Start, location.End, "this expression evaluated to 0") });
+    public static KomodoException InvalidOperation(TextLocation location) => new KomodoException("Invalid operation", location, new Hint[] { new Hint(location.Start, location.End) });
 
-    public void Print(Dictionary<string, SourceFile> sourceFiles)
+    public void Print(Dictionary<string, TextSource> sources)
     {
         Console.WriteLine($"Exception: {Message}");
         Console.WriteLine($"    at {Location}");
 
-        SourceFile sf = sourceFiles[Location.SourceFileName];
-        var (startLine, endLine) = (Location.Span.Start.Line, Location.Span.End.Line);
-        var lines = sf.Text.Split('\n').Skip(startLine - 1).Take(endLine - startLine + 1).Select((line, index) => (startLine + index, line, Hints.Where(h => h.Line == startLine)));
-        var preLineWidth = endLine.ToString().Length + 7;
+        var source = sources[Location.SourceName];
+        var (start, end) = (source.GetPosition(Location.Start), source.GetPosition(Location.End));
+        var lines = source.Text.Split('\n').Skip(start.Line - 1).Take(end.Line - start.Line + 1).Select((line, index) => (start.Line + index, line, Hints.Where(h => source.GetPosition(h.Start).Line == start.Line)));
+        var preLineWidth = end.Line.ToString().Length + 7;
 
         Console.ForegroundColor = ConsoleColor.DarkBlue;
         Console.WriteLine("|\t".PadLeft(preLineWidth));
@@ -56,15 +56,15 @@ public class Interpreter
 
     }
 
-    public IResult Evaluate(ICSTNode node) => node switch
+    public IResult Evaluate(INode node) => node switch
     {
-        CSTLiteral l => Evaluate(l),
-        CSTBinopExpression b => Evaluate(b),
-        CSTParenthesizedExpression p => Evaluate(p.Expression),
+        Literal l => Evaluate(l),
+        BinopExpression b => Evaluate(b),
+        ParenthesizedExpression p => Evaluate(p.Expression),
         _ => throw new NotImplementedException(node.NodeType.ToString())
     };
 
-    private IResult Evaluate(CSTLiteral node)
+    private IResult Evaluate(Literal node)
     {
         switch (node.LiteralType)
         {
@@ -73,7 +73,7 @@ public class Interpreter
         }
     }
 
-    private IResult Evaluate(CSTBinopExpression node)
+    private IResult Evaluate(BinopExpression node)
     {
         var leftResult = Evaluate(node.Left);
         var rightResult = Evaluate(node.Right);

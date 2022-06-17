@@ -2,7 +2,7 @@
 
 using System.Text.Json.Nodes;
 using Komodo.Compilation;
-using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Compilation.CST;
 using Komodo.Interpretation;
 using Komodo.Utilities;
 
@@ -50,14 +50,14 @@ static class CLI
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
-        var sourceFileResult = SourceFile.Load(inputFilePath);
+        var sourceFileResult = TextSource.Load(inputFilePath);
         if (sourceFileResult.IsFailure)
         {
             Console.WriteLine($"ERROR: {sourceFileResult.UnwrapFailure()}");
             Environment.Exit(-1);
         }
 
-        var sourceFiles = new Dictionary<string, SourceFile>();
+        var sourceFiles = new Dictionary<string, TextSource>();
         var diagnostics = new Diagnostics();
         var stopwatch = new System.Diagnostics.Stopwatch();
 
@@ -65,7 +65,7 @@ static class CLI
         sourceFiles.Add(sourceFile.Name, sourceFile);
 
         stopwatch.Start();
-        var tokens = Lexer.Lex(sourceFile, diagnostics);
+        var tokenStream = Lexer.Lex(sourceFile, diagnostics);
         stopwatch.Stop();
 
         if (diagnostics.HasError)
@@ -78,13 +78,13 @@ static class CLI
 
         if (printTokens)
         {
-            foreach (var token in tokens)
+            foreach (var token in tokenStream)
                 Console.WriteLine(token);
         }
 
         stopwatch.Restart();
 
-        var module = Parser.ParseModule(new TokenStream(tokens), diagnostics);
+        var module = Parser.ParseModule(tokenStream, diagnostics);
         if (module == null)
         {
             diagnostics.Print();
@@ -106,7 +106,7 @@ static class CLI
 
         stopwatch.Restart();
 
-        foreach (var node in module.Children)
+        foreach (var node in module.Nodes)
         {
             var result = interpreter.Evaluate(node);
             if (result is KomodoException)
@@ -136,7 +136,7 @@ static class CLI
         }
 
         // Parser Tests
-        var parserTestCases = new Dictionary<string, (string, string, Func<TokenStream, Diagnostics?, ICSTNode?>)>();
+        var parserTestCases = new Dictionary<string, (string, string, Func<TokenStream, Diagnostics?, INode?>)>();
         parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
         parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
         parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
@@ -148,7 +148,7 @@ static class CLI
             if (File.Exists(filePath))
                 continue;
 
-            var tokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input)));
+            var tokenStream = Lexer.Lex(new TextSource("test", input));
 
             var outputDiagnostics = new Diagnostics();
             var outputCSTNode = function(tokenStream, outputDiagnostics) ?? throw new Exception($"Could not parse cst node for test case: {name}");
