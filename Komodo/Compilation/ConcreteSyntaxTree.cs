@@ -5,10 +5,9 @@ using Komodo.Utilities;
 public enum NodeType
 {
     Token,
-    Symbol,
     Literal,
-    BinopExpression,
     BinaryOperator,
+    BinopExpression,
     ParenthesizedExpression,
 }
 

@@ -2,20 +2,63 @@ namespace Komodo.Utilities;
 
 using System.Collections.ObjectModel;
 
-//TODO: Make hints a type of diagnostic (maybe a subclass?)
+public record LineHint(TextLocation Location, string Message);
 
-public record Hint(int Start, int End, string Message = "")
-{
-    //public override string ToString() =>$"{new string(' ', TextSpan.Start.Column - 1)}{new string('^', TextSpan.Length)} {Message}";
+public enum DiagnosticType { Warning, Error };
 
-    public Dictionary<int, string[]> LineStrings => throw new NotImplementedException();
-}
-
-public enum DiagnosticType { Info, Hint, Warning, Error };
-
-public record Diagnostic(DiagnosticType Type, TextLocation Location, string Message)
+public record Diagnostic(DiagnosticType Type, TextLocation Location, string Message, LineHint[]? Hints = null)
 {
     public override string ToString() => $"{Type} {Location}: {Message}";
+
+    public void Print(Dictionary<string, TextSource> sources)
+    {
+        var source = sources[Location.SourceName];
+
+        // Print general message
+        if (Type == DiagnosticType.Error) { Console.ForegroundColor = ConsoleColor.Red; }
+        else if (Type == DiagnosticType.Warning) { Console.ForegroundColor = ConsoleColor.Yellow; }
+        else { Console.ForegroundColor = ConsoleColor.Gray; }
+
+        Console.WriteLine($"[{Type.ToString().ToUpper()}] {source.Name}:{source.GetPosition(Location.Start)} {Message}");
+        Console.ResetColor();
+
+        // Print hints
+        if (Hints == null)
+            return;
+
+        var hintsSortedByLineNumber = Hints.OrderBy(h => h.Location.Start);
+
+        foreach (var hint in hintsSortedByLineNumber)
+        {
+            var (start, end) = (source.GetPosition(hint.Location.Start), source.GetPosition(hint.Location.End));
+            var preLineWidth = end.Line.ToString().Length + 7;
+
+            for (int lineNumber = start.Line; lineNumber <= end.Line; lineNumber++)
+            {
+                // Print line number and text
+                var line = source.Lines[lineNumber].Text;
+
+                Console.ForegroundColor = ConsoleColor.DarkBlue;
+                Console.Write($"{lineNumber} |\t".PadLeft(preLineWidth));
+                Console.ResetColor();
+                Console.WriteLine(line);
+
+                // Print hint
+                Console.ForegroundColor = ConsoleColor.DarkBlue;
+                Console.Write("|\t".PadLeft(preLineWidth));
+
+                if (lineNumber == end.Line)
+                {
+                    Console.Write(new string('^', end.Column - 1));
+                    Console.WriteLine(" " + hint.Message);
+                }
+                else if (lineNumber == start.Line) { Console.WriteLine(new string('^', line.Length - start.Column)); }
+                else { Console.WriteLine(new string('^', line.Length)); }
+
+                Console.ResetColor();
+            }
+        }
+    }
 }
 
 public class Diagnostics
@@ -49,21 +92,13 @@ public class Diagnostics
     public ReadOnlyCollection<Diagnostic> Errors => _errors.AsReadOnly();
     public ReadOnlyCollection<Diagnostic> Warnings => _warnings.AsReadOnly();
 
-    public void Print()
+    public void Print(Dictionary<string, TextSource> sources)
     {
-        if (HasError)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(String.Join('\n', _errors));
-            Console.ResetColor();
-        }
+        foreach (var w in Warnings)
+            w.Print(sources);
 
-        if (HasWarning)
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(String.Join('\n', _warnings));
-            Console.ResetColor();
-        }
+        foreach (var e in Errors)
+            e.Print(sources);
     }
 
     public void Append(Diagnostics diagnostics)

@@ -19,7 +19,7 @@ public class LexerTest
     {
         var source = new TextSource("Test", input);
         var diagnostics = new Diagnostics();
-        var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, source.GetLocation(e.start, e.end), source.Text.Substring(e.start, e.end - e.start))));
+        var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, new TextLocation(source.Name, e.start, e.end), source.Text.Substring(e.start, e.end - e.start))));
         var actualTokens = Lexer.Lex(source, diagnostics);
 
         Assert.Equal(expectedTokens.AsEnumerable(), actualTokens.AsEnumerable());

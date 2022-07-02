@@ -1,4 +1,1 @@
-☐ Remove CST prefix from all nodes and change namespace to CST
-☐ Make CSTModule just a list of children; no brackets
-☐ Make Token a CST Node
 ☐ Fix diagnostics to be more flexible

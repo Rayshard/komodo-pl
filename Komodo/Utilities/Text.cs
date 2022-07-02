@@ -2,6 +2,7 @@ namespace Komodo.Utilities;
 
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using System.Collections.ObjectModel;
 
 public record Position(int Line, int Column)
 {
@@ -35,8 +36,7 @@ public record TextSource
 {
     public string Name { get; }
     public string Text { get; }
-
-    private readonly int[] _lineStarts;
+    public ReadOnlyDictionary<int, (int Start, string Text)> Lines { get; }
 
     public int Length => Text.Length;
 
@@ -45,12 +45,16 @@ public record TextSource
         Name = name;
         Text = text;
 
-        var lines = Text.Split('\n');
-        _lineStarts = new int[lines.Length + 1];
-        _lineStarts[0] = 0;
+        var lines = new Dictionary<int, (int, string)>();
+        var offset = 0;
 
-        for (int i = 0; i < lines.Length; i++)
-            _lineStarts[i + 1] = _lineStarts[i] + lines[i].Length + 1;
+        foreach (var line in Text.Split('\n'))
+        {
+            lines.Add(lines.Count() + 1, (offset, line));
+            offset += line.Length + 1;
+        }
+
+        Lines = new ReadOnlyDictionary<int, (int Start, string Text)>(lines);
     }
 
     public Position GetPosition(int offset)
@@ -59,15 +63,14 @@ public record TextSource
 
         var position = new Position(1, 1);
 
-        for (int line = 0; line < _lineStarts.Length; line++)
+        for(int lineNumber = 1; lineNumber <= Lines.Count; lineNumber++)
         {
-            var lineStart = _lineStarts[line];
+            var lineStart = Lines[lineNumber].Start;
 
             if (offset < lineStart)
                 break;
 
-
-            position = new Position(line + 1, offset - lineStart + 1);
+            position = new Position(lineNumber, offset - lineStart + 1);
         }
 
         return position;
