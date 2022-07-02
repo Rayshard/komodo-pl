@@ -2,7 +2,7 @@
 
 using System.Text.Json.Nodes;
 using Komodo.Compilation;
-using Komodo.Compilation.ConcreteSyntaxTree;
+using Komodo.Compilation.CST;
 using Komodo.Interpretation;
 using Komodo.Utilities;
 
@@ -11,11 +11,23 @@ static class CLI
     static void PrintUsage(string command = "", string msg = "", int? exitCode = null)
     {
         if (msg.Length != 0)
-            Console.WriteLine(msg);
+            Console.WriteLine(msg + Environment.NewLine);
 
         switch (command)
         {
-            case "": Console.WriteLine("Usage: komodo [command] [command-options] [arguments]"); break;
+            case "":
+                {
+                    var message = String.Join(
+                        Environment.NewLine,
+                        "Usage: komodo [command] [command-options] [arguments]",
+                        "Commands:",
+                        "    run             Runs a program",
+                        "    make-tests      Generates test files"
+                    );
+
+                    Console.WriteLine(message);
+                }
+                break;
             case "run": Console.WriteLine("Usage: komodo run [input file path]"); break;
             case "make-tests": Console.WriteLine("Usage: komodo make-tests [output directory]"); break;
             default: throw new Exception($"Invalid command: {command}");
@@ -50,14 +62,14 @@ static class CLI
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
-        var sourceFileResult = SourceFile.Load(inputFilePath);
+        var sourceFileResult = TextSource.Load(inputFilePath);
         if (sourceFileResult.IsFailure)
         {
             Console.WriteLine($"ERROR: {sourceFileResult.UnwrapFailure()}");
             Environment.Exit(-1);
         }
 
-        var sourceFiles = new Dictionary<string, SourceFile>();
+        var sourceFiles = new Dictionary<string, TextSource>();
         var diagnostics = new Diagnostics();
         var stopwatch = new System.Diagnostics.Stopwatch();
 
@@ -65,12 +77,12 @@ static class CLI
         sourceFiles.Add(sourceFile.Name, sourceFile);
 
         stopwatch.Start();
-        var tokens = Lexer.Lex(sourceFile, diagnostics);
+        var tokenStream = Lexer.Lex(sourceFile, diagnostics);
         stopwatch.Stop();
 
         if (diagnostics.HasError)
         {
-            diagnostics.Print();
+            diagnostics.Print(sourceFiles);
             Environment.Exit(-1);
         }
 
@@ -78,16 +90,16 @@ static class CLI
 
         if (printTokens)
         {
-            foreach (var token in tokens)
+            foreach (var token in tokenStream)
                 Console.WriteLine(token);
         }
 
         stopwatch.Restart();
 
-        var module = Parser.ParseModule(new TokenStream(tokens), diagnostics);
-        if (module == null)
+        var module = Parser.ParseModule(tokenStream, diagnostics);
+        if (module == null || diagnostics.HasError)
         {
-            diagnostics.Print();
+            diagnostics.Print(sourceFiles);
             Environment.Exit(-1);
         }
 
@@ -98,7 +110,7 @@ static class CLI
         if (printCST)
             Console.WriteLine(JsonSerializer.Serialize(module));
 
-        diagnostics.Print();
+        diagnostics.Print(sourceFiles);
 
         PrintInfo($"Running {sourceFile.Name} ...");
 
@@ -106,16 +118,13 @@ static class CLI
 
         stopwatch.Restart();
 
-        foreach (var node in module.Children)
+        foreach (var node in module.Nodes)
         {
             var result = interpreter.Evaluate(node);
-            if (result is KomodoException)
-            {
-                (result as KomodoException)?.Print(sourceFiles);
-                break;
-            }
-
             Console.WriteLine(result);
+
+            if (result is KomodoException)
+                break;
         }
 
         stopwatch.Stop();
@@ -136,10 +145,10 @@ static class CLI
         }
 
         // Parser Tests
-        var parserTestCases = new Dictionary<string, (string, string, Func<TokenStream, Diagnostics?, ICSTNode?>)>();
-        parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
-        parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
-        parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics, 0)));
+        var parserTestCases = new Dictionary<string, (string, string, Func<TokenStream, Diagnostics?, INode?>)>();
+        parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
+        parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
+        parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
 
         foreach (var (name, (input, functionName, function)) in parserTestCases)
         {
@@ -148,7 +157,8 @@ static class CLI
             if (File.Exists(filePath))
                 continue;
 
-            var tokenStream = new TokenStream(Lexer.Lex(new SourceFile("test", input)));
+            var source = new TextSource("test", input);
+            var tokenStream = Lexer.Lex(source);
 
             var outputDiagnostics = new Diagnostics();
             var outputCSTNode = function(tokenStream, outputDiagnostics) ?? throw new Exception($"Could not parse cst node for test case: {name}");
@@ -156,7 +166,7 @@ static class CLI
             if (!outputDiagnostics.Empty)
             {
                 Console.WriteLine($"Test Case \"{name}\" has unexpected diagnostics:");
-                outputDiagnostics.Print();
+                outputDiagnostics.Print(new Dictionary<string, TextSource>(new[] { new KeyValuePair<string, TextSource>(source.Name, source) }));
                 continue;
             }
 

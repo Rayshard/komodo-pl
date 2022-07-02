@@ -1,42 +1,57 @@
-namespace Komodo.Compilation.ConcreteSyntaxTree;
+namespace Komodo.Compilation.CST;
 
 using Komodo.Utilities;
 
-public enum CSTNodeType
+public enum NodeType
 {
-    Module,
-    Symbol,
+    Token,
     Literal,
-    BinopExpression,
     BinaryOperator,
+    BinopExpression,
     ParenthesizedExpression,
 }
 
-public interface ICSTNode
+public interface INode
 {
-    public CSTNodeType NodeType { get; }
-    public Location Location { get; }
-    public ICSTNode[] Children { get; }
+    public NodeType NodeType { get; }
+    public TextLocation Location { get; }
+    public INode[] Children { get; }
 }
 
-public record CSTAtom(CSTNodeType NodeType, Token Token) : ICSTNode
+public record Module(TextSource Source, INode[] Nodes);
+
+public enum TokenType
 {
-    public Location Location => Token.Location;
-    public ICSTNode[] Children => new ICSTNode[] { };
+    Invalid,
+    IntLit,
+    Plus,
+    Minus,
+    Asterisk,
+    ForwardSlash,
+    LParen,
+    RParen,
+    LCBracket,
+    RCBracket,
+    EOF,
 }
 
-public record CSTModule(Token LBracket, ICSTNode[] Children, Token RBracket) : ICSTNode
+public record Token(TokenType Type, TextLocation Location, string Value) : INode
 {
-    public CSTNodeType NodeType => CSTNodeType.Module;
-    public Location Location => new Location(LBracket.Location.SourceFileName, new Span(LBracket.Location.Span.Start, RBracket.Location.Span.End));
+    public NodeType NodeType => NodeType.Token;
+    public INode[] Children => new INode[] { };
+    public override string ToString() => $"{Type.ToString()}({Value}) at {Location}";
 }
 
-public interface ICSTExpression : ICSTNode { }
+public interface IExpression : INode { }
 
 public enum LiteralType { Int, String, Bool, Char }
 
-public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICSTExpression
+public record Literal(Token Token) : IExpression
 {
+    public NodeType NodeType => NodeType.Literal;
+    public TextLocation Location => Token.Location;
+    public INode[] Children => new INode[] { Token };
+
     public LiteralType LiteralType => Token.Type switch
     {
         TokenType.IntLit => LiteralType.Int,
@@ -47,8 +62,12 @@ public record CSTLiteral(Token Token) : CSTAtom(CSTNodeType.Literal, Token), ICS
 public enum BinaryOperation { Add, Sub, Multiply, Divide };
 public enum BinaryOperationAssociativity { Left, Right, None };
 
-public record CSTBinaryOperator(Token Token) : CSTAtom(CSTNodeType.BinaryOperator, Token)
+public record BinaryOperator(Token Token) : INode
 {
+    public NodeType NodeType => NodeType.BinaryOperator;
+    public TextLocation Location => Token.Location;
+    public INode[] Children => new INode[] { Token };
+
     public BinaryOperation Operation => Token.Type switch
     {
         TokenType.Plus => BinaryOperation.Add,
@@ -77,29 +96,29 @@ public record CSTBinaryOperator(Token Token) : CSTAtom(CSTNodeType.BinaryOperato
     };
 }
 
-public record CSTBinopExpression(ICSTExpression Left, CSTBinaryOperator Op, ICSTExpression Right) : ICSTExpression
+public record BinopExpression(IExpression Left, BinaryOperator Op, IExpression Right) : IExpression
 {
-    public CSTNodeType NodeType => CSTNodeType.BinopExpression;
-    public Location Location => new Location(Op.Location.SourceFileName, new Span(Left.Location.Span.Start, Right.Location.Span.End));
-    public ICSTNode[] Children => new ICSTNode[] { Left, Op, Right };
+    public NodeType NodeType => NodeType.BinopExpression;
+    public TextLocation Location => new TextLocation(Op.Location.SourceName, Left.Location.Start, Right.Location.End);
+    public INode[] Children => new INode[] { Left, Op, Right };
 }
 
-public record CSTParenthesizedExpression(Token LParen, ICSTExpression Expression, Token RParen) : ICSTExpression
+public record ParenthesizedExpression(Token LParen, IExpression Expression, Token RParen) : IExpression
 {
-    public CSTNodeType NodeType => CSTNodeType.ParenthesizedExpression;
-    public Location Location => new Location(Expression.Location.SourceFileName, new Span(LParen.Location.Span.Start, RParen.Location.Span.End));
-    public ICSTNode[] Children => new ICSTNode[] { new CSTAtom(CSTNodeType.Symbol, LParen), Expression, new CSTAtom(CSTNodeType.Symbol, RParen) };
+    public NodeType NodeType => NodeType.ParenthesizedExpression;
+    public TextLocation Location => new TextLocation(Expression.Location.SourceName, LParen.Location.Start, RParen.Location.End);
+    public INode[] Children => new INode[] { LParen, Expression, RParen };
 }
 
 public static class Extensions
 {
-    public static bool IsExpression(this ICSTNode node) => node is ICSTExpression;
+    public static bool IsExpression(this INode node) => node is IExpression;
 
-    public static bool IsExpression(this CSTNodeType nodeType) => nodeType switch
+    public static bool IsExpression(this NodeType nodeType) => nodeType switch
     {
-        CSTNodeType.Literal => true,
-        CSTNodeType.BinopExpression => true,
-        CSTNodeType.ParenthesizedExpression => true,
+        NodeType.Literal => true,
+        NodeType.BinopExpression => true,
+        NodeType.ParenthesizedExpression => true,
         _ => false
     };
 }

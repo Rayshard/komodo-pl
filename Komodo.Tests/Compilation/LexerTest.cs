@@ -1,6 +1,7 @@
 namespace Komodo.Tests.Compilation;
 
 using Komodo.Compilation;
+using Komodo.Compilation.CST;
 using Komodo.Utilities;
 
 public class LexerTest
@@ -16,12 +17,12 @@ public class LexerTest
     [MemberData(nameof(GetTokens))]
     public void CorrectTokens(string input, (TokenType type, int start, int end)[] expected)
     {
-        var sf = new SourceFile("Test", input);
+        var source = new TextSource("Test", input);
         var diagnostics = new Diagnostics();
-        var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, sf.GetLocation(e.start, e.end), sf.Text.Substring(e.start, e.end - e.start))));
-        var actualTokens = Lexer.Lex(sf, diagnostics);
+        var expectedTokens = new List<Token>(expected.Select(e => new Token(e.type, new TextLocation(source.Name, e.start, e.end), source.Text.Substring(e.start, e.end - e.start))));
+        var actualTokens = Lexer.Lex(source, diagnostics);
 
-        Assert.Equal(expectedTokens, actualTokens);
+        Assert.Equal(expectedTokens.AsEnumerable(), actualTokens.AsEnumerable());
         Assert.True(diagnostics.Empty);
     }
 

@@ -7,7 +7,7 @@
       "nodeType": "BinaryOperator",
       "token": {
         "type": "Plus",
-        "location": "test:1:15::1:16",
+        "location": "test[14,15]",
         "value": "\u002B"
       }
     },
@@ -17,7 +17,7 @@
         "nodeType": "BinaryOperator",
         "token": {
           "type": "Minus",
-          "location": "test:1:7::1:8",
+          "location": "test[6,7]",
           "value": "-"
         }
       },
@@ -27,7 +27,7 @@
           "nodeType": "BinaryOperator",
           "token": {
             "type": "Asterisk",
-            "location": "test:1:3::1:4",
+            "location": "test[2,3]",
             "value": "*"
           }
         },
@@ -35,7 +35,7 @@
           "nodeType": "Literal",
           "token": {
             "type": "IntLit",
-            "location": "test:1:1::1:2",
+            "location": "test[0,1]",
             "value": "1"
           }
         },
@@ -43,7 +43,7 @@
           "nodeType": "Literal",
           "token": {
             "type": "IntLit",
-            "location": "test:1:5::1:6",
+            "location": "test[4,5]",
             "value": "4"
           }
         }
@@ -54,7 +54,7 @@
           "nodeType": "BinaryOperator",
           "token": {
             "type": "ForwardSlash",
-            "location": "test:1:11::1:12",
+            "location": "test[10,11]",
             "value": "/"
           }
         },
@@ -62,7 +62,7 @@
           "nodeType": "Literal",
           "token": {
             "type": "IntLit",
-            "location": "test:1:9::1:10",
+            "location": "test[8,9]",
             "value": "7"
           }
         },
@@ -70,7 +70,7 @@
           "nodeType": "Literal",
           "token": {
             "type": "IntLit",
-            "location": "test:1:13::1:14",
+            "location": "test[12,13]",
             "value": "6"
           }
         }
@@ -80,7 +80,7 @@
       "nodeType": "Literal",
       "token": {
         "type": "IntLit",
-        "location": "test:1:17::1:18",
+        "location": "test[16,17]",
         "value": "9"
       }
     }
