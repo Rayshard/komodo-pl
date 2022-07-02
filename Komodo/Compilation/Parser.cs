@@ -6,7 +6,14 @@ using System.Collections.ObjectModel;
 
 public static class ParseError
 {
-    public static Diagnostic ExpectedToken(TokenType expected, Token found) => new Diagnostic(DiagnosticType.Error, found.Location, $"Expected {expected} but found {found.Type}({found.Value})");
+    public static Diagnostic ExpectedToken(TokenType expected, Token found)
+    {
+        var message = $"Expected {expected} but found {found.Type}({found.Value})";
+        var lineHints = new LineHint[] { new LineHint(found.Location, $"expected {expected}") };
+
+        return new Diagnostic(DiagnosticType.Error, found.Location, message, lineHints);
+    }
+
     public static Diagnostic UnexpectedToken(Token token)
     {
         var message = $"Encountered unexpected token: {token.Type}({token.Value})";
