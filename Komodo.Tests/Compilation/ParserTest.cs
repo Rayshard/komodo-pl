@@ -25,6 +25,7 @@ public class ParserTest
         INode? actual = function switch
         {
             "ParseExpression" => Parser.ParseExpression(actualTokenStream, actualDiagnostics),
+            "ParseStatement" => Parser.ParseStatement(actualTokenStream, actualDiagnostics),
             _ => throw new Exception($"Unknown parse function: {function}")
         };
 

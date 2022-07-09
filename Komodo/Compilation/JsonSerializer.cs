@@ -43,8 +43,9 @@ public static class JsonSerializer
         {
             CST.NodeType.Literal => ParseCSTLiteral(json),
             CST.NodeType.BinopExpression => ParseCSTBinopExpression(json),
-            CST.NodeType.ParenthesizedExpression => ParseParenthesizedExpression(json),
+            CST.NodeType.ParenthesizedExpression => ParseCSTParenthesizedExpression(json),
             CST.NodeType.BinaryOperator => ParseCSTBinaryOperator(json),
+            CST.NodeType.VariableDeclaration => ParseCSTVariableDeclaration(json),
             _ => throw new NotImplementedException(nodeType.ToString())
         };
     }
@@ -58,6 +59,17 @@ public static class JsonSerializer
             throw new ArgumentException($"{nodeType.ToString()} is not an expression");
 
         return (CST.IExpression)ParseCSTNode(json);
+    }
+
+    public static CST.IStatement ParseCSTStatement(JsonNode json)
+    {
+        var obj = json.AsObject();
+        var nodeType = Enum.Parse<CST.NodeType>(obj.GetPropertyValue<string>("nodeType"));
+
+        if (!nodeType.IsStatement())
+            throw new ArgumentException($"{nodeType.ToString()} is not a statement");
+
+        return (CST.IStatement)ParseCSTNode(json);
     }
 
     public static CST.Literal ParseCSTLiteral(JsonNode json)
@@ -89,7 +101,7 @@ public static class JsonSerializer
         return new CST.BinopExpression(left, op, right);
     }
 
-    public static CST.ParenthesizedExpression ParseParenthesizedExpression(JsonNode json)
+    public static CST.ParenthesizedExpression ParseCSTParenthesizedExpression(JsonNode json)
     {
         var obj = json.AsObject();
         obj.AssertPropertyValue("nodeType", CST.NodeType.ParenthesizedExpression.ToString());
@@ -98,6 +110,19 @@ public static class JsonSerializer
         var rParen = obj.GetPropertyValue("rParen", ParseToken);
         var expr = obj.GetPropertyValue("expr", ParseCSTExpression);
         return new CST.ParenthesizedExpression(lParen, expr, rParen);
+    }
+
+    public static CST.VariableDeclaration ParseCSTVariableDeclaration(JsonNode json)
+    {
+        var obj = json.AsObject();
+        obj.AssertPropertyValue("nodeType", CST.NodeType.VariableDeclaration.ToString());
+
+        var varKeyword = obj.GetPropertyValue("varKeyword", ParseToken);
+        var id = obj.GetPropertyValue("id", ParseToken);
+        var singleEqualsSymbol = obj.GetPropertyValue("singleEquals", ParseToken);
+        var expr = obj.GetPropertyValue("expr", ParseCSTExpression);
+        var semicolon = obj.GetPropertyValue("semicolon", ParseToken);
+        return new CST.VariableDeclaration(varKeyword, id, singleEqualsSymbol, expr, semicolon);
     }
 
     #region Serializers
@@ -140,6 +165,15 @@ public static class JsonSerializer
                     properties.Add("lParen", Serialize(lParen));
                     properties.Add("expr", Serialize(expr));
                     properties.Add("rParen", Serialize(rParen));
+                }
+                break;
+                case CST.VariableDeclaration(var varKeyword, var id, var singleEqualsSymbol, var expr, var semicolon):
+                {
+                    properties.Add("varKeyword", Serialize(varKeyword));
+                    properties.Add("id", Serialize(id));
+                    properties.Add("singleEquals", Serialize(singleEqualsSymbol));
+                    properties.Add("expr", Serialize(expr));
+                    properties.Add("semicolon", Serialize(semicolon));
                 }
                 break;
             default: throw new NotImplementedException(node.NodeType.ToString());

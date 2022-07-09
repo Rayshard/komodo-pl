@@ -13,25 +13,46 @@ static class CLI
         if (msg.Length != 0)
             Console.WriteLine(msg + Environment.NewLine);
 
+        string message;
+
         switch (command)
         {
             case "":
                 {
-                    var message = String.Join(
+                    message = String.Join(
                         Environment.NewLine,
                         "Usage: komodo [command] [command-options] [arguments]",
+                        "",
                         "Commands:",
                         "    run             Runs a program",
                         "    make-tests      Generates test files"
                     );
-
-                    Console.WriteLine(message);
                 }
                 break;
-            case "run": Console.WriteLine("Usage: komodo run [input file path]"); break;
-            case "make-tests": Console.WriteLine("Usage: komodo make-tests [output directory]"); break;
+            case "run":
+                {
+                    message = String.Join(
+                        Environment.NewLine,
+                        "Usage: komodo run [options] [input file path]",
+                        "",
+                        "Options:",
+                        "    --print-tokens   Prints the the input file's tokens to STDOUT",
+                        "    --print-cst      Prints the input file's concrete syntax tree to STDOUT"
+                    );
+                }
+                break;
+            case "make-tests":
+                {
+                    message = String.Join(
+                        Environment.NewLine,
+                        "Usage: komodo make-tests [output directory]"
+                    );
+                }
+                break;
             default: throw new Exception($"Invalid command: {command}");
         };
+
+        Console.WriteLine(message);
 
         if (exitCode.HasValue)
             Environment.Exit(exitCode.Value);
@@ -149,13 +170,17 @@ static class CLI
         parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
+        parserTestCases.Add("variable-declaration", ("var x = 123;", "ParseStatement", (stream, diagnostics) => Parser.ParseStatement(stream, diagnostics)));
 
         foreach (var (name, (input, functionName, function)) in parserTestCases)
         {
             var filePath = Path.Join(outputDirectory, $"{name}.json");
 
             if (File.Exists(filePath))
+            {
+                PrintInfo($"Test Case '{name}' already created.");
                 continue;
+            }
 
             var source = new TextSource("test", input);
             var tokenStream = Lexer.Lex(source);
@@ -165,7 +190,7 @@ static class CLI
 
             if (!outputDiagnostics.Empty)
             {
-                Console.WriteLine($"Test Case \"{name}\" has unexpected diagnostics:");
+                PrintInfo($"Test Case \"{name}\" has unexpected diagnostics:");
                 outputDiagnostics.Print(new Dictionary<string, TextSource>(new[] { new KeyValuePair<string, TextSource>(source.Name, source) }));
                 continue;
             }
@@ -177,6 +202,7 @@ static class CLI
             });
 
             File.WriteAllText(filePath, outputJson.ToString());
+            PrintInfo($"Created test case '{name}'.");
         }
     }
 

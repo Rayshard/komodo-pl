@@ -57,7 +57,15 @@ public static class Lexer
                 _ => TokenType.IntLit
             ),
             (
-                new Regex(@"\G(\+|-|\*|/|\(|\)|\{|\})", RegexOptions.Compiled | RegexOptions.CultureInvariant),
+                new Regex(@"\G([a-zA-Z_][a-zA-Z0-9_]*'*)", RegexOptions.Compiled | RegexOptions.CultureInvariant),
+                text => text switch
+                    {
+                        "var" => TokenType.KW_VAR,
+                        _ => TokenType.Identifier
+                    }
+            ),
+            (
+                new Regex(@"\G(\+|-|\*|/|\(|\)|\{|\}|=|;)", RegexOptions.Compiled | RegexOptions.CultureInvariant),
                 text => text switch
                     {
                         "+" => TokenType.Plus,
@@ -68,6 +76,8 @@ public static class Lexer
                         ")" => TokenType.RParen,
                         "{" => TokenType.LCBracket,
                         "}" => TokenType.RCBracket,
+                        "=" => TokenType.SingleEquals,
+                        ";" => TokenType.Semicolon,
                         _ => throw new ArgumentException(text)
                     }
             ),

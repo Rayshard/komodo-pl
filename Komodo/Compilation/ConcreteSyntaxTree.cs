@@ -9,6 +9,7 @@ public enum NodeType
     BinaryOperator,
     BinopExpression,
     ParenthesizedExpression,
+    VariableDeclaration,
 }
 
 public interface INode
@@ -24,6 +25,7 @@ public enum TokenType
 {
     Invalid,
     IntLit,
+    Identifier,
     Plus,
     Minus,
     Asterisk,
@@ -32,6 +34,9 @@ public enum TokenType
     RParen,
     LCBracket,
     RCBracket,
+    SingleEquals,
+    Semicolon,
+    KW_VAR,
     EOF,
 }
 
@@ -43,6 +48,8 @@ public record Token(TokenType Type, TextLocation Location, string Value) : INode
 }
 
 public interface IExpression : INode { }
+
+public interface IStatement : INode { }
 
 public enum LiteralType { Int, String, Bool, Char }
 
@@ -110,6 +117,13 @@ public record ParenthesizedExpression(Token LParen, IExpression Expression, Toke
     public INode[] Children => new INode[] { LParen, Expression, RParen };
 }
 
+public record VariableDeclaration(Token VarKeyword, Token Identifier, Token SingleEquals, IExpression Expression, Token Semicolon) : IStatement
+{
+    public NodeType NodeType => NodeType.VariableDeclaration;
+    public TextLocation Location => new TextLocation(VarKeyword.Location.SourceName, VarKeyword.Location.Start, Semicolon.Location.End);
+    public INode[] Children => new INode[] { VarKeyword, Identifier, SingleEquals, Expression, Semicolon };
+}
+
 public static class Extensions
 {
     public static bool IsExpression(this INode node) => node is IExpression;
@@ -119,6 +133,12 @@ public static class Extensions
         NodeType.Literal => true,
         NodeType.BinopExpression => true,
         NodeType.ParenthesizedExpression => true,
+        _ => false
+    };
+
+    public static bool IsStatement(this NodeType nodeType) => nodeType switch
+    {
+        NodeType.VariableDeclaration => true,
         _ => false
     };
 }

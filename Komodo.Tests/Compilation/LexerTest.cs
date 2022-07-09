@@ -38,6 +38,34 @@ public class LexerTest
         (")", new[] {(TokenType.RParen, 0, 1), (TokenType.EOF, 1, 1)}),
         ("{", new[] {(TokenType.LCBracket, 0, 1), (TokenType.EOF, 1, 1)}),
         ("}", new[] {(TokenType.RCBracket, 0, 1), (TokenType.EOF, 1, 1)}),
+        (";", new[] {(TokenType.Semicolon, 0, 1), (TokenType.EOF, 1, 1)}),
+        ("=", new[] {(TokenType.SingleEquals, 0, 1), (TokenType.EOF, 1, 1)}),
+
+        // Identifier
+        ("_", new[] {(TokenType.Identifier, 0, 1), (TokenType.EOF, 1, 1)}),
+        ("__", new[] {(TokenType.Identifier, 0, 2), (TokenType.EOF, 2, 2)}),
+        ("_1", new[] {(TokenType.Identifier, 0, 2), (TokenType.EOF, 2, 2)}),
+        ("_1a", new[] {(TokenType.Identifier, 0, 3), (TokenType.EOF, 3, 3)}),
+        ("_a1", new[] {(TokenType.Identifier, 0, 3), (TokenType.EOF, 3, 3)}),
+        ("_a1_", new[] {(TokenType.Identifier, 0, 4), (TokenType.EOF, 4, 4)}),
+        ("w", new[] {(TokenType.Identifier, 0, 1), (TokenType.EOF, 1, 1)}),
+        ("w1", new[] {(TokenType.Identifier, 0, 2), (TokenType.EOF, 2, 2)}),
+        ("w1_", new[] {(TokenType.Identifier, 0, 3), (TokenType.EOF, 3, 3)}),
+        ("w1_1p", new[] {(TokenType.Identifier, 0, 5), (TokenType.EOF, 5, 5)}),
+        ("alpha'", new[] {(TokenType.Identifier, 0, 6), (TokenType.EOF, 6, 6)}),
+        ("alpha''", new[] {(TokenType.Identifier, 0, 7), (TokenType.EOF, 7, 7)}),
+        ("alpha1'", new[] {(TokenType.Identifier, 0, 7), (TokenType.EOF, 7, 7)}),
+        ("alpha1_'", new[] {(TokenType.Identifier, 0, 8), (TokenType.EOF, 8, 8)}),
+
+        // Keywords
+        ("var", new[] {(TokenType.KW_VAR, 0, 3), (TokenType.EOF, 3, 3)}),
+
+        // Combinations
+        ("1_", new[] {(TokenType.IntLit, 0, 1), (TokenType.Identifier, 1, 2), (TokenType.EOF, 2, 2)}),
+        ("7_a", new[] {(TokenType.IntLit, 0, 1), (TokenType.Identifier, 1, 3), (TokenType.EOF, 3, 3)}),
+        ("alpha'beta'", new[] {(TokenType.Identifier, 0, 6), (TokenType.Identifier, 6, 11), (TokenType.EOF, 11, 11)}),
+        ("alpha''beta'", new[] {(TokenType.Identifier, 0, 7), (TokenType.Identifier, 7, 12), (TokenType.EOF, 12, 12)}),
+        ("alpha'7beta'", new[] {(TokenType.Identifier, 0, 6), (TokenType.IntLit, 6, 7), (TokenType.Identifier, 7, 12), (TokenType.EOF, 12, 12)}),
     };
 
     public static IEnumerable<object[]> GetTokens()

@@ -99,6 +99,31 @@ public static class Parser
         return new ParenthesizedExpression(lParen, expr, rParen);
     }
 
+    public static VariableDeclaration? ParseVariableDeclaration(TokenStream stream, Diagnostics? diagnostics = null)
+    {
+        var varKeyword = ExpectToken(TokenType.KW_VAR, stream, diagnostics);
+        if (varKeyword == null)
+            return null;
+
+        var id = ExpectToken(TokenType.Identifier, stream, diagnostics);
+        if (id == null)
+            return null;
+
+        var singleEqualsSymbol = ExpectToken(TokenType.SingleEquals, stream, diagnostics);
+        if (singleEqualsSymbol == null)
+            return null;
+
+        var expr = ParseExpression(stream, diagnostics);
+        if (expr == null)
+            return null;
+
+        var semicolon = ExpectToken(TokenType.Semicolon, stream, diagnostics);
+        if (semicolon == null)
+            return null;
+
+        return new VariableDeclaration(varKeyword, id, singleEqualsSymbol, expr, semicolon);
+    }
+
     public static IExpression? ParseAtom(TokenStream stream, Diagnostics? diagnostics = null)
     {
         IExpression? atom = null;
@@ -152,12 +177,14 @@ public static class Parser
 
     public static IExpression? ParseExpression(TokenStream stream, Diagnostics? diagnostics = null) => ParseExpressionAtPrecedence(0, stream, diagnostics);
 
+    public static IStatement? ParseStatement(TokenStream stream, Diagnostics? diagnostics = null) => ParseVariableDeclaration(stream, diagnostics);
+
     public static Module? ParseModule(TokenStream stream, Diagnostics? diagnostics = null)
     {
-        var expr = ParseExpression(stream, diagnostics);
-        if (expr == null)
+        var stmt = ParseStatement(stream, diagnostics);
+        if (stmt == null)
             return null;
 
-        return new Module(stream.Source, new INode[] { expr });
+        return new Module(stream.Source, new INode[] { stmt });
     }
 }
