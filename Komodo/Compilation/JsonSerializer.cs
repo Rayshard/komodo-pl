@@ -46,6 +46,7 @@ public static class JsonSerializer
             CST.NodeType.ParenthesizedExpression => ParseCSTParenthesizedExpression(json),
             CST.NodeType.BinaryOperator => ParseCSTBinaryOperator(json),
             CST.NodeType.VariableDeclaration => ParseCSTVariableDeclaration(json),
+            CST.NodeType.IdentifierExpression => ParseCSTIdentifierExpression(json),
             _ => throw new NotImplementedException(nodeType.ToString())
         };
     }
@@ -112,6 +113,15 @@ public static class JsonSerializer
         return new CST.ParenthesizedExpression(lParen, expr, rParen);
     }
 
+    public static CST.IdentifierExpression ParseCSTIdentifierExpression(JsonNode json)
+    {
+        var obj = json.AsObject();
+        obj.AssertPropertyValue("nodeType", CST.NodeType.IdentifierExpression.ToString());
+
+        var id = obj.GetPropertyValue("id", ParseToken);
+        return new CST.IdentifierExpression(id);
+    }
+
     public static CST.VariableDeclaration ParseCSTVariableDeclaration(JsonNode json)
     {
         var obj = json.AsObject();
@@ -139,7 +149,8 @@ public static class JsonSerializer
     {
         return new JsonObject(new[] {
             KeyValuePair.Create<string, JsonNode?>("sourceName", JsonValue.Create(module.Source.Name)),
-            KeyValuePair.Create<string, JsonNode?>("nodes", new JsonArray(module.Nodes.Select(node => Serialize(node)).ToArray())),
+            KeyValuePair.Create<string, JsonNode?>("statements", new JsonArray(module.Statements.Select(stmt => Serialize(stmt)).ToArray())),
+            KeyValuePair.Create<string, JsonNode?>("eofToken", Serialize(module.EOF)),
         });
     }
 
@@ -167,7 +178,7 @@ public static class JsonSerializer
                     properties.Add("rParen", Serialize(rParen));
                 }
                 break;
-                case CST.VariableDeclaration(var varKeyword, var id, var singleEqualsSymbol, var expr, var semicolon):
+            case CST.VariableDeclaration(var varKeyword, var id, var singleEqualsSymbol, var expr, var semicolon):
                 {
                     properties.Add("varKeyword", Serialize(varKeyword));
                     properties.Add("id", Serialize(id));
@@ -176,6 +187,7 @@ public static class JsonSerializer
                     properties.Add("semicolon", Serialize(semicolon));
                 }
                 break;
+            case CST.IdentifierExpression(var id): properties.Add("id", Serialize(id)); break;
             default: throw new NotImplementedException(node.NodeType.ToString());
         }
 

@@ -1,0 +1,12 @@
+{
+  "input": "abc",
+  "function": "ParseExpression",
+  "expected": {
+    "nodeType": "IdentifierExpression",
+    "id": {
+      "type": "Identifier",
+      "location": "test[0,3]",
+      "value": "abc"
+    }
+  }
+}

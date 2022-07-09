@@ -56,6 +56,15 @@ public static class Parser
         return token;
     }
 
+    public static IdentifierExpression? ParseIdentifierExpression(TokenStream stream, Diagnostics? diagnostics = null)
+    {
+        var id = ExpectToken(TokenType.Identifier, stream, diagnostics);
+        if (id == null)
+            return null;
+
+        return new IdentifierExpression(id);
+    }
+
     public static BinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var token = stream.Next();
@@ -142,6 +151,13 @@ public static class Parser
             return atom;
         }
 
+        (atom, var identifierExpressionDiagnostics) = Try(ParseIdentifierExpression, stream);
+        if (atom != null)
+        {
+            diagnostics?.Append(identifierExpressionDiagnostics);
+            return atom;
+        }
+
         diagnostics?.Add(ParseError.UnexpectedToken(stream.Next()));
         return atom;
     }
@@ -181,10 +197,21 @@ public static class Parser
 
     public static Module? ParseModule(TokenStream stream, Diagnostics? diagnostics = null)
     {
-        var stmt = ParseStatement(stream, diagnostics);
-        if (stmt == null)
+        var stmts = new List<IStatement>();
+
+        while (stream.Peek().Type != TokenType.EOF)
+        {
+            var stmt = ParseStatement(stream, diagnostics);
+            if (stmt == null)
+                break;
+
+            stmts.Add(stmt);
+        }
+
+        var eof = ExpectToken(TokenType.EOF, stream, diagnostics);
+        if (eof == null)
             return null;
 
-        return new Module(stream.Source, new INode[] { stmt });
+        return new Module(stream.Source, stmts.ToArray(), eof);
     }
 }

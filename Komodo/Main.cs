@@ -139,14 +139,18 @@ static class CLI
 
         stopwatch.Restart();
 
-        foreach (var node in module.Nodes)
+        foreach (var stmt in module.Statements)
         {
-            var result = interpreter.Evaluate(node);
-            Console.WriteLine(result);
-
+            var result = interpreter.Evaluate(stmt);
+            
             if (result is KomodoException)
+            {
+                (result as KomodoException)!.Print(sourceFiles);
                 break;
+            }
         }
+
+        interpreter.PrintEnvironment();
 
         stopwatch.Stop();
         PrintInfo($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
@@ -170,6 +174,7 @@ static class CLI
         parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
+        parserTestCases.Add("identifier-expression", ("abc", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("variable-declaration", ("var x = 123;", "ParseStatement", (stream, diagnostics) => Parser.ParseStatement(stream, diagnostics)));
 
         foreach (var (name, (input, functionName, function)) in parserTestCases)
@@ -178,7 +183,7 @@ static class CLI
 
             if (File.Exists(filePath))
             {
-                PrintInfo($"Test Case '{name}' already created.");
+                PrintInfo($"Test Case '{name}' already exists.");
                 continue;
             }
 

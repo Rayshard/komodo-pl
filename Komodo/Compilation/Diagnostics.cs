@@ -47,12 +47,17 @@ public record Diagnostic(DiagnosticType Type, TextLocation Location, string Mess
                 Console.ForegroundColor = ConsoleColor.DarkBlue;
                 Console.Write("|\t".PadLeft(preLineWidth));
 
-                if (lineNumber == end.Line)
+                if (start.Line == end.Line)
+                {
+                    Console.Write(new string(' ', start.Column - 1) + new string('^', end.Column - start.Column));
+                    Console.WriteLine(" " + hint.Message);
+                }
+                else if (lineNumber == start.Line) { Console.WriteLine(new string('^', line.Length - start.Column)); }
+                else if (lineNumber == end.Line)
                 {
                     Console.Write(new string('^', end.Column - 1));
                     Console.WriteLine(" " + hint.Message);
                 }
-                else if (lineNumber == start.Line) { Console.WriteLine(new string('^', line.Length - start.Column)); }
                 else { Console.WriteLine(new string('^', line.Length)); }
 
                 Console.ResetColor();

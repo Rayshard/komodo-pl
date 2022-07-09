@@ -10,6 +10,7 @@ public enum NodeType
     BinopExpression,
     ParenthesizedExpression,
     VariableDeclaration,
+    IdentifierExpression,
 }
 
 public interface INode
@@ -19,7 +20,7 @@ public interface INode
     public INode[] Children { get; }
 }
 
-public record Module(TextSource Source, INode[] Nodes);
+public record Module(TextSource Source, IStatement[] Statements, Token EOF);
 
 public enum TokenType
 {
@@ -117,6 +118,13 @@ public record ParenthesizedExpression(Token LParen, IExpression Expression, Toke
     public INode[] Children => new INode[] { LParen, Expression, RParen };
 }
 
+public record IdentifierExpression(Token ID) : IExpression
+{
+    public NodeType NodeType => NodeType.IdentifierExpression;
+    public TextLocation Location => new TextLocation(ID.Location.SourceName, ID.Location.Start, ID.Location.End);
+    public INode[] Children => new INode[] { ID };
+}
+
 public record VariableDeclaration(Token VarKeyword, Token Identifier, Token SingleEquals, IExpression Expression, Token Semicolon) : IStatement
 {
     public NodeType NodeType => NodeType.VariableDeclaration;
@@ -133,6 +141,7 @@ public static class Extensions
         NodeType.Literal => true,
         NodeType.BinopExpression => true,
         NodeType.ParenthesizedExpression => true,
+        NodeType.IdentifierExpression => true,
         _ => false
     };
 
