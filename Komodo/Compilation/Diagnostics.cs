@@ -1,6 +1,6 @@
-namespace Komodo.Utilities;
-
 using System.Collections.ObjectModel;
+
+namespace Komodo.Utilities;
 
 public record LineHint(TextLocation Location, string Message);
 

@@ -1,8 +1,8 @@
-namespace Komodo.Compilation;
-
 using Komodo.Compilation.CST;
 using Komodo.Utilities;
 using System.Collections.ObjectModel;
+
+namespace Komodo.Compilation;
 
 public static class ParseError
 {
