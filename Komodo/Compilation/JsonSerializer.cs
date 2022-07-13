@@ -148,7 +148,6 @@ public static class JsonSerializer
     public static JsonNode Serialize(CST.Module module)
     {
         return new JsonObject(new[] {
-            KeyValuePair.Create<string, JsonNode?>("sourceName", JsonValue.Create(module.Source.Name)),
             KeyValuePair.Create<string, JsonNode?>("statements", new JsonArray(module.Statements.Select(stmt => Serialize(stmt)).ToArray())),
             KeyValuePair.Create<string, JsonNode?>("eofToken", Serialize(module.EOF)),
         });

@@ -212,6 +212,6 @@ public static class Parser
         if (eof == null)
             return null;
 
-        return new Module(stream.Source, stmts.ToArray(), eof);
+        return new Module(stmts.ToArray(), eof);
     }
 }
