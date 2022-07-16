@@ -37,13 +37,13 @@ public static class Parser
         return token;
     }
 
-    public static IdentifierExpression? ParseIdentifierExpression(TokenStream stream, Diagnostics? diagnostics = null)
+    public static Identifier? ParseIdentifier(TokenStream stream, Diagnostics? diagnostics = null)
     {
         var id = ExpectToken(TokenType.Identifier, stream, diagnostics);
         if (id == null)
             return null;
 
-        return new IdentifierExpression(id);
+        return new Identifier(id);
     }
 
     public static BinaryOperator? ParseBinop(TokenStream stream, Diagnostics? diagnostics = null)
@@ -132,10 +132,10 @@ public static class Parser
             return atom;
         }
 
-        (atom, var identifierExpressionDiagnostics) = Try(ParseIdentifierExpression, stream);
+        (atom, var IdentifierDiagnostics) = Try(ParseIdentifier, stream);
         if (atom != null)
         {
-            diagnostics?.Append(identifierExpressionDiagnostics);
+            diagnostics?.Append(IdentifierDiagnostics);
             return atom;
         }
 

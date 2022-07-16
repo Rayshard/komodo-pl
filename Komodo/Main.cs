@@ -58,13 +58,6 @@ static class CLI
             Environment.Exit(exitCode.Value);
     }
 
-    static void PrintInfo(string info)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"[INFO] {info}");
-        Console.ResetColor();
-    }
-
     static void DoRun(IEnumerable<string> args)
     {
         if (args.Count() == 0)
@@ -83,6 +76,9 @@ static class CLI
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
+        var sourceFiles = new Dictionary<string, TextSource>();
+        var diagnostics = new Diagnostics();
+
         var sourceFileResult = TextSource.Load(inputFilePath);
         if (sourceFileResult.IsFailure)
         {
@@ -90,59 +86,49 @@ static class CLI
             Environment.Exit(-1);
         }
 
-        var sourceFiles = new Dictionary<string, TextSource>();
-        var diagnostics = new Diagnostics();
-        var stopwatch = new System.Diagnostics.Stopwatch();
-
         var sourceFile = sourceFileResult.UnwrapSuccess();
         sourceFiles.Add(sourceFile.Name, sourceFile);
 
-        stopwatch.Start();
-        var tokenStream = Lexer.Lex(sourceFile, diagnostics);
-        stopwatch.Stop();
+        var typecheckEnvironment = new Compilation.TypeSystem.Environment();
 
-        if (diagnostics.HasError)
+        var input = new Pass<TextSource>(sourceFile);
+        var lexPass = input.Run("Lexing", Lexer.Lex, sourceFiles, diagnostics);
+        var parsePass = lexPass?.Run("Parsing", Parser.ParseModule, sourceFiles, diagnostics);
+        var tcPass = parsePass?.Run("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), sourceFiles, diagnostics);
+
+        if(lexPass is null || parsePass is null || tcPass is null)
         {
             diagnostics.Print(sourceFiles);
             Environment.Exit(-1);
         }
-
-        PrintInfo($"Lexing finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
 
         if (printTokens)
         {
-            foreach (var token in tokenStream)
+            foreach (var token in lexPass.Value)
                 Console.WriteLine(token);
         }
 
-        stopwatch.Restart();
-
-        var module = Parser.ParseModule(tokenStream, diagnostics);
-        if (module == null || diagnostics.HasError)
-        {
-            diagnostics.Print(sourceFiles);
-            Environment.Exit(-1);
-        }
-
-        stopwatch.Stop();
-
-        PrintInfo($"Parsing finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
-
         if (printCST)
-            Console.WriteLine(JsonSerializer.Serialize(module));
+            Console.WriteLine(JsonSerializer.Serialize(parsePass.Value));
 
         diagnostics.Print(sourceFiles);
 
-        PrintInfo($"Running {sourceFile.Name} ...");
+        Console.WriteLine(typecheckEnvironment.ToString());
+
+        // Run the interpreter
+
+        Utility.PrintInfo($"Running {sourceFile.Name} ...");
 
         Interpreter interpreter = new Interpreter();
 
-        stopwatch.Restart();
+        var stopwatch = new System.Diagnostics.Stopwatch();
 
-        foreach (var stmt in module.Statements)
+        stopwatch.Start();
+
+        foreach (var stmt in parsePass.Value.Statements)
         {
             var result = interpreter.Evaluate(stmt);
-            
+
             if (result is KomodoException)
             {
                 (result as KomodoException)!.Print(sourceFiles);
@@ -150,10 +136,10 @@ static class CLI
             }
         }
 
-        interpreter.PrintEnvironment();
-
         stopwatch.Stop();
-        PrintInfo($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+
+        Console.WriteLine(interpreter.EnvironmentToString());
+        Utility.PrintInfo($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
     }
 
     static void DoMakeTests(IEnumerable<string> args)
@@ -174,7 +160,7 @@ static class CLI
         parserTestCases.Add("expr-int-literal", ("123", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("expr-binop", ("1 * 4 - 7 / 6 + 9", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("parenthesized-expression", ("(123 + (456 - 789))", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
-        parserTestCases.Add("identifier-expression", ("abc", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
+        parserTestCases.Add("identifier", ("abc", "ParseExpression", (stream, diagnostics) => Parser.ParseExpression(stream, diagnostics)));
         parserTestCases.Add("variable-declaration", ("var x = 123;", "ParseStatement", (stream, diagnostics) => Parser.ParseStatement(stream, diagnostics)));
 
         foreach (var (name, (input, functionName, function)) in parserTestCases)
@@ -183,7 +169,7 @@ static class CLI
 
             if (File.Exists(filePath))
             {
-                PrintInfo($"Test Case '{name}' already exists.");
+                Utility.PrintInfo($"Test Case '{name}' already exists.");
                 continue;
             }
 
@@ -195,7 +181,7 @@ static class CLI
 
             if (!outputDiagnostics.Empty)
             {
-                PrintInfo($"Test Case \"{name}\" has unexpected diagnostics:");
+                Utility.PrintInfo($"Test Case \"{name}\" has unexpected diagnostics:");
                 outputDiagnostics.Print(new Dictionary<string, TextSource>(new[] { new KeyValuePair<string, TextSource>(source.Name, source) }));
                 continue;
             }
@@ -207,7 +193,7 @@ static class CLI
             });
 
             File.WriteAllText(filePath, outputJson.ToString());
-            PrintInfo($"Created test case '{name}'.");
+            Utility.PrintInfo($"Created test case '{name}'.");
         }
     }
 

@@ -10,7 +10,7 @@ public enum NodeType
     BinopExpression,
     ParenthesizedExpression,
     VariableDeclaration,
-    IdentifierExpression,
+    Identifier,
 }
 
 public interface INode
@@ -33,7 +33,7 @@ public static class Extensions
         NodeType.Literal => true,
         NodeType.BinopExpression => true,
         NodeType.ParenthesizedExpression => true,
-        NodeType.IdentifierExpression => true,
+        NodeType.Identifier => true,
         _ => false
     };
 

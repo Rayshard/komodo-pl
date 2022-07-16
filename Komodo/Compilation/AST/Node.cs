@@ -8,8 +8,8 @@ public enum NodeType
     IntLiteral,
     BoolLiteral,
 
+    Identifier,
     BinopExpression,
-    IdentifierExpression,
     VariableDeclaration,
 }
 
@@ -17,11 +17,13 @@ public interface INode
 {
     public NodeType NodeType { get; }
     public TextLocation Location { get; }
-    public TSType TSType { get; }
     public INode[] Children { get; }
 }
 
-public interface IExpression : INode { }
+public interface IExpression : INode 
+{
+    public TSType TSType { get; }
+}
 
 public interface IStatement : INode { }
 
@@ -34,7 +36,7 @@ public static class Extensions
         NodeType.IntLiteral or
         NodeType.BoolLiteral or
         NodeType.BinopExpression or
-        NodeType.IdentifierExpression => true,
+        NodeType.Identifier => true,
         _ => false
     };
 

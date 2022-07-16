@@ -17,6 +17,13 @@ public record TextLocation(string SourceName, int Start, int End)
 
     public override string ToString() => $"{SourceName}[{Start},{End}]";
 
+    public string ToString(Dictionary<string, TextSource> sources)
+    {
+        var src = sources[SourceName];
+        var (start, end) = (src.GetPosition(Start), src.GetPosition(End));
+        return $"{SourceName}:{start}::{end}";
+    }
+
     public static TextLocation From(string s)
     {
         Match m = REGEX_PATTERN.Match(s);

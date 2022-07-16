@@ -1,5 +1,3 @@
 var x = 123;
 var y = 456;
 var z = x + y * 2;
-
-var myInt: Int = 123;

@@ -15,4 +15,11 @@ public static class Utility
 
         return Encoding.UTF8.GetString(stream.ToArray());
     }
+
+    public static void PrintInfo(string info)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"[INFO] {info}");
+        Console.ResetColor();
+    }
 }

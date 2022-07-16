@@ -2,7 +2,7 @@
   "input": "abc",
   "function": "ParseExpression",
   "expected": {
-    "nodeType": "IdentifierExpression",
+    "nodeType": "Identifier",
     "id": {
       "type": "Identifier",
       "location": "test[0,3]",

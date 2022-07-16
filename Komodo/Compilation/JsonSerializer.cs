@@ -46,7 +46,7 @@ public static class JsonSerializer
             CST.NodeType.ParenthesizedExpression => ParseCSTParenthesizedExpression(json),
             CST.NodeType.BinaryOperator => ParseCSTBinaryOperator(json),
             CST.NodeType.VariableDeclaration => ParseCSTVariableDeclaration(json),
-            CST.NodeType.IdentifierExpression => ParseCSTIdentifierExpression(json),
+            CST.NodeType.Identifier => ParseCSTIdentifier(json),
             _ => throw new NotImplementedException(nodeType.ToString())
         };
     }
@@ -113,13 +113,13 @@ public static class JsonSerializer
         return new CST.ParenthesizedExpression(lParen, expr, rParen);
     }
 
-    public static CST.IdentifierExpression ParseCSTIdentifierExpression(JsonNode json)
+    public static CST.Identifier ParseCSTIdentifier(JsonNode json)
     {
         var obj = json.AsObject();
-        obj.AssertPropertyValue("nodeType", CST.NodeType.IdentifierExpression.ToString());
+        obj.AssertPropertyValue("nodeType", CST.NodeType.Identifier.ToString());
 
         var id = obj.GetPropertyValue("id", ParseToken);
-        return new CST.IdentifierExpression(id);
+        return new CST.Identifier(id);
     }
 
     public static CST.VariableDeclaration ParseCSTVariableDeclaration(JsonNode json)
@@ -186,7 +186,7 @@ public static class JsonSerializer
                     properties.Add("semicolon", Serialize(semicolon));
                 }
                 break;
-            case CST.IdentifierExpression(var id): properties.Add("id", Serialize(id)); break;
+            case CST.Identifier(var token): properties.Add("id", Serialize(token)); break;
             default: throw new NotImplementedException(node.NodeType.ToString());
         }
 

@@ -34,15 +34,19 @@ public class Interpreter
         environment = new Dictionary<string, IKomodoValue>();
     }
 
-    public void PrintEnvironment()
+    public string EnvironmentToString()
     {
-        Console.WriteLine("========== Environment ==========");
+        using var writer = new StringWriter();
+
+        writer.WriteLine("========== Environment ==========");
 
         foreach (var (id, value) in environment)
-            Console.WriteLine($" -> {id}: {value}");
+            writer.WriteLine($" -> {id}: {value}");
 
 
-        Console.WriteLine("============== End ==============");
+        writer.WriteLine("============== End ==============");
+
+        return writer.ToString();
     }
 
     public IResult Evaluate(INode node) => node switch
@@ -50,7 +54,7 @@ public class Interpreter
         Literal l => Evaluate(l),
         BinopExpression b => Evaluate(b),
         ParenthesizedExpression p => Evaluate(p.Expression),
-        IdentifierExpression i => Evaluate(i),
+        Identifier i => Evaluate(i),
         VariableDeclaration vd => Evaluate(vd),
         _ => throw new NotImplementedException(node.NodeType.ToString())
     };
@@ -85,10 +89,10 @@ public class Interpreter
         }
     }
 
-    private IResult Evaluate(IdentifierExpression node)
+    private IResult Evaluate(Identifier node)
     {
-        if (environment.ContainsKey(node.ID.Value)) { return environment[node.ID.Value]; }
-        else { return KomodoException.UnknownVariable(node.ID); }
+        if (environment.ContainsKey(node.Token.Value)) { return environment[node.Token.Value]; }
+        else { return KomodoException.UnknownVariable(node.Token); }
     }
 
     private IResult Evaluate(VariableDeclaration node)

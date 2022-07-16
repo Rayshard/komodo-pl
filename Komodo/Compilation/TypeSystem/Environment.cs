@@ -2,31 +2,44 @@ using Komodo.Utilities;
 
 namespace Komodo.Compilation.TypeSystem;
 
-public record Symbol(string Name, TextLocation DefinitionLocation);
-public record Variable(string Name, TSType TSType, TextLocation DefinitionLocation) : Symbol(Name, DefinitionLocation);
+public interface Symbol
+{
+    public string Name { get; }
+    public TextLocation DefinitionLocation { get; }
+}
+
+public record TypedSymbol(string Name, TSType TSType, TextLocation DefinitionLocation) : Symbol { }
+public record Typename(string Name, TSType TSType, TextLocation DefinitionLocation) : Symbol { }
 
 public class Environment
 {
-    public Environment? Parent => null;
+    public Environment? Parent { get; }
 
-    private Dictionary<string, Symbol> symbols = new Dictionary<string, Symbol>();
+    public Dictionary<string, Symbol> Symbols { get; }
 
-    public void AddSymbol(Symbol symbol, Diagnostics diagnostics)
+    public Environment(Environment? parent = null)
     {
-        if (symbols.ContainsKey(symbol.Name))
+        Parent = parent;
+        Symbols = new Dictionary<string, Symbol>();
+    }
+
+    public bool AddSymbol(Symbol symbol, Diagnostics diagnostics)
+    {
+        if (Symbols.ContainsKey(symbol.Name))
         {
-            diagnostics.Add(Error.TSSymbolAlreadyDefined(symbol.Name, symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
-            return;
+            diagnostics.Add(Error.TSSymbolAlreadyDefined(symbol.Name, Symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
+            return false;
         }
 
-        symbols.Add(symbol.Name, symbol);
+        Symbols.Add(symbol.Name, symbol);
+        return true;
     }
 
     public Symbol? GetSymbol(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
     {
         Symbol? symbol;
 
-        if (!symbols.TryGetValue(name, out symbol))
+        if (!Symbols.TryGetValue(name, out symbol))
         {
             if (checkParent && Parent is not null)
                 return Parent.GetSymbol(name, location, diagnostics, checkParent);
@@ -37,12 +50,12 @@ public class Environment
         return symbol;
     }
 
-    public Variable? GetVaraible(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
+    public TypedSymbol? GetTypedSymbol(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
     {
         var symbol = GetSymbol(name, location, diagnostics, checkParent);
 
         if (symbol is null) { return null; }
-        else if (symbol is Variable) { return symbol as Variable; }
+        else if (symbol is TypedSymbol) { return symbol as TypedSymbol; }
         else
         {
             diagnostics.Add(Error.TSSymbolIsNotAVariable(name, symbol.DefinitionLocation, location));
@@ -50,7 +63,22 @@ public class Environment
         }
     }
 
-    public Dictionary<string, Variable> Variables => new Dictionary<string, Variable>(from item in symbols
-                                                                                      where item.Value is Variable
-                                                                                      select new KeyValuePair<string, Variable>(item.Key, (Variable)item.Value));
+    public Dictionary<string, TypedSymbol> TypedSymbols => new Dictionary<string, TypedSymbol>(from item in Symbols
+                                                                                               where item.Value is TypedSymbol
+                                                                                               select new KeyValuePair<string, TypedSymbol>(item.Key, (TypedSymbol)item.Value));
+
+    public override string ToString()
+    {
+        using var writer = new StringWriter();
+
+        writer.WriteLine("========== Environment ==========");
+
+        foreach (var (id, value) in Symbols)
+            writer.WriteLine($" -> {id}: {value}");
+
+
+        writer.WriteLine("============== End ==============");
+
+        return writer.ToString();
+    }
 }
