@@ -22,4 +22,6 @@ public static class Utility
         Console.WriteLine($"[INFO] {info}");
         Console.ResetColor();
     }
+
+    public static string StringifyEnumerable<T>(string prefix, IEnumerable<T> items, string suffix, string delimiter) => $"{prefix}{string.Join(delimiter, items)}{suffix}";
 }

@@ -19,10 +19,15 @@ public record Identifier : INode
     public NodeType NodeType => NodeType.Identifier;
     public INode[] Children => new INode[] { };
 
-    public record Expression(string Name, TextLocation Location, TypedSymbol TypedSymbol) : Identifier(Name, Location, TypedSymbol), IExpression
+    public record Expression(string Name, TextLocation Location, Symbol Symbol) : Identifier(Name, Location, Symbol), IExpression
     {
-        public TSType TSType => TypedSymbol.TSType;
+        public TSType TSType => Symbol switch
+        {
+            Symbol.Variable var => var.TSType,
+            Symbol.Function func => func.TSType,
+            var symbol => throw new NotImplementedException($"Identifier expressions can not contain symbols of type {symbol.GetType()}") 
+        };
     }
 
-    public record Typename(string Name, TextLocation Location, TypeSystem.Typename TSTypename) : Identifier(Name, Location, TSTypename) { }
+    public record Typename(string Name, TextLocation Location, Symbol.Typename TSTypename) : Identifier(Name, Location, TSTypename) { }
 }

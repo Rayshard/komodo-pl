@@ -76,7 +76,7 @@ static class CLI
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
-        var sourceFiles = new Dictionary<string, TextSource>();
+        var sourceFiles = new Dictionary<string, TextSource>() { { "std", new TextSource("std", "") } };
         var diagnostics = new Diagnostics();
 
         var sourceFileResult = TextSource.Load(inputFilePath);
@@ -90,13 +90,23 @@ static class CLI
         sourceFiles.Add(sourceFile.Name, sourceFile);
 
         var typecheckEnvironment = new Compilation.TypeSystem.Environment();
+        var operatorOverloads = new Compilation.TypeSystem.TSOperator[]
+        {
+            new Compilation.TypeSystem.TSOperator.BinaryAdd(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.BinarySubtract(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.BinaryMultipy(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.BinaryDivide(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+        };
+
+        foreach (var overload in operatorOverloads)
+            typecheckEnvironment.AddOperatorOverload(new Compilation.TypeSystem.Environment.OperatorOverload(overload, new TextLocation("std", 0, 0)), new TextLocation("std", 0, 0), diagnostics);
 
         var input = new Pass<TextSource>(sourceFile);
         var lexPass = input.Run("Lexing", Lexer.Lex, sourceFiles, diagnostics);
         var parsePass = lexPass?.Run("Parsing", Parser.ParseModule, sourceFiles, diagnostics);
         var tcPass = parsePass?.Run("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), sourceFiles, diagnostics);
 
-        if(lexPass is null || parsePass is null || tcPass is null)
+        if (lexPass is null || parsePass is null || tcPass is null)
         {
             diagnostics.Print(sourceFiles);
             Environment.Exit(-1);

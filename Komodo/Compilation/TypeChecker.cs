@@ -34,21 +34,34 @@ public static class TypeChecker
             var op => throw new NotImplementedException(op.ToString())
         };
 
-        throw new NotImplementedException("Implement the fact that the operation and types must match");
-        //return new AST.BinopExpression(left, operation, right, node.Location);
+        var operatorKind = operation switch
+        {
+            AST.BinaryOperation.Add => OperatorKind.BinaryAdd,
+            AST.BinaryOperation.Sub => OperatorKind.BinarySubtract,
+            AST.BinaryOperation.Multiply => OperatorKind.BinaryMultiply,
+            AST.BinaryOperation.Divide => OperatorKind.BinaryDivide,
+            var op => throw new NotImplementedException(op.ToString())
+        };
+
+        var operatorOverload = environment.GetOperatorOverload(operatorKind, new TSType[] { left.TSType, right.TSType }, node.Op.Location, diagnostics, true);
+        if(operatorOverload is null)
+            return null;
+
+        return new AST.BinopExpression(left, operation, right, operatorOverload.Operator.Return, node.Location);
     }
 
     public static AST.Identifier? TypeCheck(CST.Identifier node, TypeSystem.Environment environment, Diagnostics diagnostics)
     {
         var symbol = environment.GetSymbol(node.Token.Value, node.Location, diagnostics, true);
-
         if (symbol is null)
             return null;
 
         switch (symbol)
         {
-            case TypedSymbol: return new AST.Identifier.Expression(node.Token.Value, node.Location, (TypedSymbol)symbol);
-            case Typename: return new AST.Identifier.Typename(node.Token.Value, node.Location, (Typename)symbol);
+
+            case Symbol.Variable variable: return new AST.Identifier.Expression(node.Token.Value, node.Location, variable);
+            case Symbol.Function function: return new AST.Identifier.Expression(node.Token.Value, node.Location, function);
+            case Symbol.Typename typename: return new AST.Identifier.Typename(node.Token.Value, node.Location, typename);
             default: throw new NotImplementedException(symbol.GetType().ToString());
         }
     }
@@ -56,12 +69,10 @@ public static class TypeChecker
     public static AST.VariableDeclaration? TypeCheck(CST.VariableDeclaration node, TypeSystem.Environment environment, Diagnostics diagnostics)
     {
         var expr = TypeCheck(node.Expression, environment, diagnostics);
-
         if (expr is null)
             return null;
 
-        var symbol = new TypedSymbol(node.Identifier.Value, expr.TSType, node.Location);
-        
+        var symbol = new Symbol.Variable(node.Identifier.Value, expr.TSType, node.Location);
         return environment.AddSymbol(symbol, diagnostics) ? new AST.VariableDeclaration(symbol, expr, node.Location) : null;
     }
 

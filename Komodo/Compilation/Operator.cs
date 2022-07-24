@@ -1,0 +1,2 @@
+namespace Komodo.Compilation;
+

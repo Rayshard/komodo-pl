@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using Komodo.Compilation.TypeSystem;
 using Komodo.Utilities;
 
 namespace Komodo.Compilation;
@@ -10,6 +12,8 @@ public enum ErrorCode
     TSSymbolAleadyDefined,
     TSSymbolDoesNotExist,
     TSSymbolIsNotAVariable,
+    OperatorOverloadWithParametersAlreadyExists,
+    OperatorOverloadDoesNotExist,
 }
 
 public record Error(ErrorCode Code, string Message, LineHint[]? LineHints, TextLocation Location) : Diagnostic(DiagnosticType.Error, Location, $"{Code}: {Message}", LineHints)
@@ -56,5 +60,21 @@ public record Error(ErrorCode Code, string Message, LineHint[]? LineHints, TextL
         var lineHints = new LineHint[] { new LineHint(symbolDefinitionLocation, $"symbol was defined here") };
 
         return new Error(ErrorCode.TSSymbolDoesNotExist, message, lineHints, errorLocation);
+    }
+
+    public static Error OperatorOverloadWithParametersAlreadyExists(TypeSystem.Environment.OperatorOverload existingOverload, TextLocation errorLocation)
+    {
+        var message = $"An overload for '{existingOverload.Operator.Kind}' already exists with the same parameters!";
+        var lineHints = new LineHint[] { new LineHint(existingOverload.DefinitionLocation, $"original overload was defined here") };
+
+        return new Error(ErrorCode.OperatorOverloadWithParametersAlreadyExists, message, lineHints, errorLocation);
+    }
+
+    public static Error OperatorOverloadDoesNotExist(OperatorKind op, IEnumerable<TSType> args, TextLocation errorLocation)
+    {
+        var message = $"There is no overload for '{op}' that takes operands {Utility.StringifyEnumerable("(", args, ")", ", ")}";
+        var lineHints = new LineHint[] { };
+        
+        return new Error(ErrorCode.OperatorOverloadDoesNotExist, message, lineHints, errorLocation);
     }
 }

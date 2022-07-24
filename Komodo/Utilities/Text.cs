@@ -17,7 +17,7 @@ public record TextLocation(string SourceName, int Start, int End)
 
     public override string ToString() => $"{SourceName}[{Start},{End}]";
 
-    public string ToString(Dictionary<string, TextSource> sources)
+    public string ToTerminalLink(Dictionary<string, TextSource> sources)
     {
         var src = sources[SourceName];
         var (start, end) = (src.GetPosition(Start), src.GetPosition(End));

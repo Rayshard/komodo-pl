@@ -2,36 +2,32 @@ using Komodo.Utilities;
 
 namespace Komodo.Compilation.TypeSystem;
 
-public interface Symbol
-{
-    public string Name { get; }
-    public TextLocation DefinitionLocation { get; }
-}
-
-public record TypedSymbol(string Name, TSType TSType, TextLocation DefinitionLocation) : Symbol { }
-public record Typename(string Name, TSType TSType, TextLocation DefinitionLocation) : Symbol { }
-
 public class Environment
 {
-    public Environment? Parent { get; }
+    public record OperatorOverload(TSOperator Operator, TextLocation DefinitionLocation);
 
-    public Dictionary<string, Symbol> Symbols { get; }
+    private Dictionary<string, Symbol> symbols = new Dictionary<string, Symbol>();
+    private Dictionary<OperatorKind, List<OperatorOverload>> operators = new Dictionary<OperatorKind, List<OperatorOverload>>();
+
+    public Environment? Parent { get; }
 
     public Environment(Environment? parent = null)
     {
         Parent = parent;
-        Symbols = new Dictionary<string, Symbol>();
+
+        foreach (OperatorKind kind in Enum.GetValues(typeof(OperatorKind)))
+            operators[kind] = new List<OperatorOverload>();
     }
 
     public bool AddSymbol(Symbol symbol, Diagnostics diagnostics)
     {
-        if (Symbols.ContainsKey(symbol.Name))
+        if (symbols.ContainsKey(symbol.Name))
         {
-            diagnostics.Add(Error.TSSymbolAlreadyDefined(symbol.Name, Symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
+            diagnostics.Add(Error.TSSymbolAlreadyDefined(symbol.Name, symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
             return false;
         }
 
-        Symbols.Add(symbol.Name, symbol);
+        symbols.Add(symbol.Name, symbol);
         return true;
     }
 
@@ -39,7 +35,7 @@ public class Environment
     {
         Symbol? symbol;
 
-        if (!Symbols.TryGetValue(name, out symbol))
+        if (!symbols.TryGetValue(name, out symbol))
         {
             if (checkParent && Parent is not null)
                 return Parent.GetSymbol(name, location, diagnostics, checkParent);
@@ -50,12 +46,12 @@ public class Environment
         return symbol;
     }
 
-    public TypedSymbol? GetTypedSymbol(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
+    public Symbol.Variable? GetVariable(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
     {
         var symbol = GetSymbol(name, location, diagnostics, checkParent);
 
         if (symbol is null) { return null; }
-        else if (symbol is TypedSymbol) { return symbol as TypedSymbol; }
+        else if (symbol is Symbol.Variable) { return symbol as Symbol.Variable; }
         else
         {
             diagnostics.Add(Error.TSSymbolIsNotAVariable(name, symbol.DefinitionLocation, location));
@@ -63,9 +59,37 @@ public class Environment
         }
     }
 
-    public Dictionary<string, TypedSymbol> TypedSymbols => new Dictionary<string, TypedSymbol>(from item in Symbols
-                                                                                               where item.Value is TypedSymbol
-                                                                                               select new KeyValuePair<string, TypedSymbol>(item.Key, (TypedSymbol)item.Value));
+    public Dictionary<string, T> GetAll<T>() where T : Symbol => new Dictionary<string, T>(from item in symbols
+                                                                                           where item.Value is T
+                                                                                           select new KeyValuePair<string, T>(item.Key, (T)item.Value));
+
+    public bool AddOperatorOverload(OperatorOverload overload, TextLocation location, Diagnostics? diagnostics)
+    {
+        var exisitingOverload = GetOperatorOverload(overload.Operator.Kind, overload.Operator.Parameters, location, null, false);
+        if (exisitingOverload is not null)
+        {
+            diagnostics?.Add(Error.OperatorOverloadWithParametersAlreadyExists(exisitingOverload, location));
+            return false;
+        }
+
+        operators[overload.Operator.Kind].Add(overload);
+        return true;
+    }
+
+    public OperatorOverload? GetOperatorOverload(OperatorKind op, IEnumerable<TSType> args, TextLocation location, Diagnostics? diagnostics, bool checkParent)
+    {
+        foreach (var overload in operators[op])
+        {
+            if (overload.Operator.Accepts(args))
+                return overload;
+        }
+
+        if (checkParent && Parent is not null)
+            return Parent.GetOperatorOverload(op, args, location, diagnostics, checkParent);
+
+        diagnostics?.Add(Error.OperatorOverloadDoesNotExist(op, args, location));
+        return null;
+    }
 
     public override string ToString()
     {
@@ -73,9 +97,12 @@ public class Environment
 
         writer.WriteLine("========== Environment ==========");
 
-        foreach (var (id, value) in Symbols)
-            writer.WriteLine($" -> {id}: {value}");
+        foreach (var (_, value) in symbols)
+            writer.WriteLine(value);
 
+        foreach (var (kind, overloads) in operators)
+            foreach (var overload in overloads)
+                writer.WriteLine(overload);
 
         writer.WriteLine("============== End ==============");
 
