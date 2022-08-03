@@ -58,6 +58,14 @@ static class CLI
             Environment.Exit(exitCode.Value);
     }
 
+    static Compilation.AST.Module? CompileSource(TextSource source, Compilation.TypeSystem.Environment tcEnv, Diagnostics? diagnostics)
+    {
+        return new Pass<TextSource>(source)
+                .Bind("Lexing", Lexer.Lex, diagnostics)
+                .Bind("Parsing", Parser.ParseModule, diagnostics)
+                .Bind("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, tcEnv, diagnostics), diagnostics).Value;
+    }
+
     static void DoRun(IEnumerable<string> args)
     {
         if (args.Count() == 0)
@@ -102,9 +110,9 @@ static class CLI
             typecheckEnvironment.AddOperatorOverload(new Compilation.TypeSystem.Environment.OperatorOverload(overload, new TextLocation("std", 0, 0)), new TextLocation("std", 0, 0), diagnostics);
 
         var input = new Pass<TextSource>(sourceFile);
-        var lexPass = input.Run("Lexing", Lexer.Lex, sourceFiles, diagnostics);
-        var parsePass = lexPass?.Run("Parsing", Parser.ParseModule, sourceFiles, diagnostics);
-        var tcPass = parsePass?.Run("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), sourceFiles, diagnostics);
+        var lexPass = input?.Bind("Lexing", Lexer.Lex, diagnostics);
+        var parsePass = lexPass?.Bind("Parsing", Parser.ParseModule, diagnostics);
+        var tcPass = parsePass?.Bind("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), diagnostics);
 
         if (lexPass is null || parsePass is null || tcPass is null)
         {

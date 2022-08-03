@@ -5,7 +5,7 @@ namespace Komodo.Compilation;
 
 public static class TypeChecker
 {
-    public static AST.IExpression? TypeCheck(CST.Literal node, TypeSystem.Environment environment, Diagnostics diagnostics)
+    public static AST.IExpression? TypeCheck(CST.Literal node, TypeSystem.Environment environment, Diagnostics? diagnostics)
     {
         switch (node.LiteralType)
         {
@@ -15,7 +15,7 @@ public static class TypeChecker
         }
     }
 
-    public static AST.BinopExpression? TypeCheck(CST.BinopExpression node, TypeSystem.Environment environment, Diagnostics diagnostics)
+    public static AST.BinopExpression? TypeCheck(CST.BinopExpression node, TypeSystem.Environment environment, Diagnostics? diagnostics)
     {
         var left = TypeCheck(node.Left, environment, diagnostics);
         if (left is null)
@@ -50,7 +50,7 @@ public static class TypeChecker
         return new AST.BinopExpression(left, operation, right, operatorOverload.Operator.Return, node.Location);
     }
 
-    public static AST.Identifier? TypeCheck(CST.Identifier node, TypeSystem.Environment environment, Diagnostics diagnostics)
+    public static AST.Identifier? TypeCheck(CST.Identifier node, TypeSystem.Environment environment, Diagnostics? diagnostics)
     {
         var symbol = environment.GetSymbol(node.Token.Value, node.Location, diagnostics, true);
         if (symbol is null)
@@ -66,7 +66,7 @@ public static class TypeChecker
         }
     }
 
-    public static AST.VariableDeclaration? TypeCheck(CST.VariableDeclaration node, TypeSystem.Environment environment, Diagnostics diagnostics)
+    public static AST.VariableDeclaration? TypeCheck(CST.VariableDeclaration node, TypeSystem.Environment environment, Diagnostics? diagnostics)
     {
         var expr = TypeCheck(node.Expression, environment, diagnostics);
         if (expr is null)
@@ -76,13 +76,13 @@ public static class TypeChecker
         return environment.AddSymbol(symbol, diagnostics) ? new AST.VariableDeclaration(symbol, expr, node.Location) : null;
     }
 
-    public static AST.Module? TypeCheck(CST.Module module, TypeSystem.Environment environment, Diagnostics diagnostics)
+    public static AST.Module? TypeCheck(CST.Module module, TypeSystem.Environment environment, Diagnostics? diagnostics)
     {
         var stmts = from stmt in module.Statements select TypeCheck(stmt, environment, diagnostics);
         return new AST.Module(stmts.ToArray());
     }
 
-    public static AST.INode? TypeCheck(CST.INode node, TypeSystem.Environment environment, Diagnostics diagnostics) => node switch
+    public static AST.INode? TypeCheck(CST.INode node, TypeSystem.Environment environment, Diagnostics? diagnostics) => node switch
     {
         CST.Literal => TypeCheck((CST.Literal)node, environment, diagnostics),
         CST.BinopExpression => TypeCheck((CST.BinopExpression)node, environment, diagnostics),
@@ -92,6 +92,6 @@ public static class TypeChecker
         _ => throw new NotImplementedException(node.NodeType.ToString())
     };
 
-    public static AST.IExpression? TypeCheck(CST.IExpression node, TypeSystem.Environment environment, Diagnostics diagnostics) => (AST.IExpression?)TypeCheck((CST.INode)node, environment, diagnostics);
-    public static AST.IStatement? TypeCheck(CST.IStatement node, TypeSystem.Environment environment, Diagnostics diagnostics) => (AST.IStatement?)TypeCheck((CST.INode)node, environment, diagnostics);
+    public static AST.IExpression? TypeCheck(CST.IExpression node, TypeSystem.Environment environment, Diagnostics? diagnostics) => (AST.IExpression?)TypeCheck((CST.INode)node, environment, diagnostics);
+    public static AST.IStatement? TypeCheck(CST.IStatement node, TypeSystem.Environment environment, Diagnostics? diagnostics) => (AST.IStatement?)TypeCheck((CST.INode)node, environment, diagnostics);
 }

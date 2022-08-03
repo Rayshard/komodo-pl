@@ -19,11 +19,11 @@ public class Environment
             operators[kind] = new List<OperatorOverload>();
     }
 
-    public bool AddSymbol(Symbol symbol, Diagnostics diagnostics)
+    public bool AddSymbol(Symbol symbol, Diagnostics? diagnostics)
     {
         if (symbols.ContainsKey(symbol.Name))
         {
-            diagnostics.Add(Error.TSSymbolAlreadyDefined(symbol.Name, symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
+            diagnostics?.Add(Error.TSSymbolAlreadyDefined(symbol.Name, symbols[symbol.Name].DefinitionLocation, symbol.DefinitionLocation));
             return false;
         }
 
@@ -31,7 +31,7 @@ public class Environment
         return true;
     }
 
-    public Symbol? GetSymbol(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
+    public Symbol? GetSymbol(string name, TextLocation location, Diagnostics? diagnostics, bool checkParent)
     {
         Symbol? symbol;
 
@@ -40,13 +40,13 @@ public class Environment
             if (checkParent && Parent is not null)
                 return Parent.GetSymbol(name, location, diagnostics, checkParent);
 
-            diagnostics.Add(Error.TSSymbolDoesNotExist(name, location));
+            diagnostics?.Add(Error.TSSymbolDoesNotExist(name, location));
         }
 
         return symbol;
     }
 
-    public Symbol.Variable? GetVariable(string name, TextLocation location, Diagnostics diagnostics, bool checkParent)
+    public Symbol.Variable? GetVariable(string name, TextLocation location, Diagnostics? diagnostics, bool checkParent)
     {
         var symbol = GetSymbol(name, location, diagnostics, checkParent);
 
@@ -54,7 +54,7 @@ public class Environment
         else if (symbol is Symbol.Variable) { return symbol as Symbol.Variable; }
         else
         {
-            diagnostics.Add(Error.TSSymbolIsNotAVariable(name, symbol.DefinitionLocation, location));
+            diagnostics?.Add(Error.TSSymbolIsNotAVariable(name, symbol.DefinitionLocation, location));
             return null;
         }
     }

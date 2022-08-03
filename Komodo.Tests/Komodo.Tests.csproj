@@ -24,7 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Komodo\Komodo.csproj" />
-    <None Include="$(SolutionDir)tests\**" CopyToOutputDirectory="PreserveNewest" LinkBase="tests\" />
   </ItemGroup>
 
 </Project>
