@@ -16,7 +16,7 @@ public record Pass<T>(T? Value = null) where T : class
         if (output == null || (diagnostics is not null && diagnostics.HasError))
             return new Pass<Output>();
 
-        Utility.PrintInfo($"{name} pass finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+        Logger.Info($"{name} pass finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
         return new Pass<Output>(output);
     }
 }

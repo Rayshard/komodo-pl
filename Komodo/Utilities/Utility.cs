@@ -16,12 +16,5 @@ public static class Utility
         return Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    public static void PrintInfo(string info)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"[INFO] {info}");
-        Console.ResetColor();
-    }
-
     public static string StringifyEnumerable<T>(string prefix, IEnumerable<T> items, string suffix, string delimiter) => $"{prefix}{string.Join(delimiter, items)}{suffix}";
 }

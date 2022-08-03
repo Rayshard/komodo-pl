@@ -1,6 +1,7 @@
 ﻿namespace Komodo;
 
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Komodo.Compilation;
 using Komodo.Compilation.CST;
 using Komodo.Interpretation;
@@ -8,12 +9,14 @@ using Komodo.Utilities;
 
 static class CLI
 {
+    static Regex CreateSettableOptionRegex(string name, Regex valueRegex) => new Regex($"--{name}\\s*=\\s*(?<Value>({valueRegex.ToString()}))");
+
     static void PrintUsage(string command = "", string msg = "", int? exitCode = null)
     {
-        if (msg.Length != 0)
-            Console.WriteLine(msg + Environment.NewLine);
+        string message = "";
 
-        string message;
+        if (msg.Length != 0)
+            message += msg + Environment.NewLine;
 
         switch (command)
         {
@@ -36,6 +39,7 @@ static class CLI
                         "Usage: komodo run [options] [input file path]",
                         "",
                         "Options:",
+                        "    --loglevel       Sets the log level. Default is NOLOG",
                         "    --print-tokens   Prints the the input file's tokens to STDOUT",
                         "    --print-cst      Prints the input file's concrete syntax tree to STDOUT"
                     );
@@ -52,7 +56,7 @@ static class CLI
             default: throw new Exception($"Invalid command: {command}");
         };
 
-        Console.WriteLine(message);
+        Logger.Error(message);
 
         if (exitCode.HasValue)
             Environment.Exit(exitCode.Value);
@@ -81,6 +85,15 @@ static class CLI
         var printTokens = options.Remove("--print-tokens");
         var printCST = options.Remove("--print-cst");
 
+        var logLevelRegex = CreateSettableOptionRegex("loglevel", new Regex(String.Join('|', Enum.GetNames(typeof(LogLevel)))));
+        var logLevelOptionMatches = options.Select(x => logLevelRegex.Match(x)).TakeWhile(x => x.Success);
+        foreach (var llom in logLevelOptionMatches)
+        {
+            var value = llom.Groups["Value"].Value;
+            Logger.MinLevel = (LogLevel)Enum.Parse(typeof(LogLevel), value);
+            options.Remove(llom.Value);
+        }
+
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
@@ -90,8 +103,8 @@ static class CLI
         var sourceFileResult = TextSource.Load(inputFilePath);
         if (sourceFileResult.IsFailure)
         {
-            Console.WriteLine($"ERROR: {sourceFileResult.UnwrapFailure()}");
-            Environment.Exit(-1);
+            Logger.Error(sourceFileResult.UnwrapFailure());
+            Environment.Exit(1);
         }
 
         var sourceFile = sourceFileResult.UnwrapSuccess();
@@ -114,10 +127,10 @@ static class CLI
         var parsePass = lexPass?.Bind("Parsing", Parser.ParseModule, diagnostics);
         var tcPass = parsePass?.Bind("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), diagnostics);
 
-        if (lexPass is null || parsePass is null || tcPass is null)
+        if (lexPass.Value is null || parsePass.Value is null || tcPass.Value is null)
         {
             diagnostics.Print(sourceFiles);
-            Environment.Exit(-1);
+            Environment.Exit(1);
         }
 
         if (printTokens)
@@ -131,33 +144,33 @@ static class CLI
 
         diagnostics.Print(sourceFiles);
 
-        Console.WriteLine(typecheckEnvironment.ToString());
+        //Console.WriteLine(typecheckEnvironment.ToString());
 
         // Run the interpreter
 
-        Utility.PrintInfo($"Running {sourceFile.Name} ...");
+        // Logger.Info($"Running {sourceFile.Name} ...");
 
-        Interpreter interpreter = new Interpreter();
+        // Interpreter interpreter = new Interpreter();
 
-        var stopwatch = new System.Diagnostics.Stopwatch();
+        // var stopwatch = new System.Diagnostics.Stopwatch();
 
-        stopwatch.Start();
+        // stopwatch.Start();
 
-        foreach (var stmt in parsePass.Value.Statements)
-        {
-            var result = interpreter.Evaluate(stmt);
+        // foreach (var stmt in parsePass.Value.Statements)
+        // {
+        //     var result = interpreter.Evaluate(stmt);
 
-            if (result is KomodoException)
-            {
-                (result as KomodoException)!.Print(sourceFiles);
-                break;
-            }
-        }
+        //     if (result is KomodoException)
+        //     {
+        //         (result as KomodoException)!.Print(sourceFiles);
+        //         break;
+        //     }
+        // }
 
-        stopwatch.Stop();
+        // stopwatch.Stop();
 
-        Console.WriteLine(interpreter.EnvironmentToString());
-        Utility.PrintInfo($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+        // Console.WriteLine(interpreter.EnvironmentToString());
+        // Logger.Info($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
     }
 
     static void DoMakeTests(IEnumerable<string> args)
@@ -170,7 +183,7 @@ static class CLI
         if (!Directory.Exists(outputDirectory))
         {
             Console.WriteLine($"Specified directory {outputDirectory} is not valid or does not exist!");
-            Environment.Exit(-1);
+            Environment.Exit(1);
         }
 
         // Parser Tests
@@ -187,7 +200,7 @@ static class CLI
 
             if (File.Exists(filePath))
             {
-                Utility.PrintInfo($"Test Case '{name}' already exists.");
+                Logger.Info($"Test Case '{name}' already exists.");
                 continue;
             }
 
@@ -199,7 +212,7 @@ static class CLI
 
             if (!outputDiagnostics.Empty)
             {
-                Utility.PrintInfo($"Test Case \"{name}\" has unexpected diagnostics:");
+                Logger.Info($"Test Case \"{name}\" has unexpected diagnostics:");
                 outputDiagnostics.Print(new Dictionary<string, TextSource>(new[] { new KeyValuePair<string, TextSource>(source.Name, source) }));
                 continue;
             }
@@ -211,12 +224,14 @@ static class CLI
             });
 
             File.WriteAllText(filePath, outputJson.ToString());
-            Utility.PrintInfo($"Created test case '{name}'.");
+            Logger.Info($"Created test case '{name}'.");
         }
     }
 
     static void Main(string[] args)
     {
+        Logger.MinLevel = LogLevel.ERROR;
+
         var remainingArgs = args.AsEnumerable();
         if (remainingArgs.Count() == 0)
             PrintUsage("", msg: "Expected a command", exitCode: -1);

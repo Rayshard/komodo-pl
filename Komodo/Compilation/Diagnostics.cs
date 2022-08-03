@@ -49,7 +49,7 @@ public record Diagnostic(DiagnosticType Type, TextLocation Location, string Mess
 
                 if (start.Line == end.Line)
                 {
-                    Console.Write(new string(' ', start.Column - 1) + new string('^', end.Column - start.Column));
+                    Console.Write(new string(' ', start.Column - 1) + new string('^', end.Column - start.Column + 1));
                     Console.WriteLine(" " + hint.Message);
                 }
                 else if (lineNumber == start.Line) { Console.WriteLine(new string('^', line.Length - start.Column)); }

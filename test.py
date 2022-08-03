@@ -10,6 +10,7 @@ import traceback
 from typing import Any, Dict, List, Optional, TypeVar, Generic
 import json
 import textwrap
+import termcolor
 
 T = TypeVar("T")
 
@@ -158,6 +159,20 @@ if __name__ == "__main__":
 
     test_cases = get_test_cases(TESTS_DIR)
 
+    successes: List[TestResult] = []
+    failures: List[TestResult] = []
+    
     for tc in test_cases:
         result = TestCase.run(KMD_BIN, tc)
-        print(result)
+        if result.is_success():
+            successes.append(result)
+        else:
+            failures.append(result)
+
+    for success in successes:
+        print(termcolor.colored(success, 'green'))
+
+    for failure in failures:
+        print(termcolor.colored(failure, 'red'))
+    
+    print(f"{termcolor.colored('Report', 'blue')}: {termcolor.colored(f'Passed {len(successes)}', 'green')}, {termcolor.colored(f'Failed {len(failures)}', 'red')}")
