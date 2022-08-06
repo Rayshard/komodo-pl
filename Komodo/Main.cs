@@ -7,9 +7,11 @@ using Komodo.Compilation.CST;
 using Komodo.Interpretation;
 using Komodo.Utilities;
 
-static class CLI
+
+
+static class Entry
 {
-    static Regex CreateSettableOptionRegex(string name, Regex valueRegex) => new Regex($"--{name}\\s*=\\s*(?<Value>({valueRegex.ToString()}))");
+    static Regex CreateSettableOptionRegex(string name, Regex valueRegex) => new Regex($"--{name}=(?<Value>({valueRegex.ToString()}))");
 
     static void PrintUsage(string command = "", string msg = "", int? exitCode = null)
     {

@@ -10,6 +10,8 @@ public static class Logger
 
     private static void Log(LogLevel level, string log)
     {
+        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
+        
         if (level < MinLevel)
             return;
 
@@ -23,7 +25,7 @@ public static class Logger
             default: throw new NotImplementedException(level.ToString());
         }
 
-        Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture)} [{Enum.GetName(level)}] {log}");
+        Console.Error.WriteLine($"{time} [{Enum.GetName(level)}] {log}");
         Console.ResetColor();
     }
 
