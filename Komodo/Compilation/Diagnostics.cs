@@ -19,7 +19,7 @@ public record Diagnostic(DiagnosticType Type, TextLocation Location, string Mess
         else if (Type == DiagnosticType.Warning) { Console.ForegroundColor = ConsoleColor.Yellow; }
         else { Console.ForegroundColor = ConsoleColor.Gray; }
 
-        Console.WriteLine($"[{Type.ToString().ToUpper()}] {source.Name}:{source.GetPosition(Location.Start)} {Message}");
+        Console.Error.WriteLine($"[{Type.ToString().ToUpper()}] {source.Name}:{source.GetPosition(Location.Start)} {Message}");
         Console.ResetColor();
 
         // Print hints
@@ -39,26 +39,26 @@ public record Diagnostic(DiagnosticType Type, TextLocation Location, string Mess
                 var line = source.Lines[lineNumber].Text;
 
                 Console.ForegroundColor = ConsoleColor.DarkBlue;
-                Console.Write($"{lineNumber} |\t".PadLeft(preLineWidth));
+                Console.Error.Write($"{lineNumber} |\t".PadLeft(preLineWidth));
                 Console.ResetColor();
-                Console.WriteLine(line);
+                Console.Error.WriteLine(line);
 
                 // Print hint
                 Console.ForegroundColor = ConsoleColor.DarkBlue;
-                Console.Write("|\t".PadLeft(preLineWidth));
+                Console.Error.Write("|\t".PadLeft(preLineWidth));
 
                 if (start.Line == end.Line)
                 {
-                    Console.Write(new string(' ', start.Column - 1) + new string('^', end.Column - start.Column + 1));
-                    Console.WriteLine(" " + hint.Message);
+                    Console.Error.Write(new string(' ', start.Column - 1) + new string('^', end.Column - start.Column + 1));
+                    Console.Error.WriteLine(" " + hint.Message);
                 }
-                else if (lineNumber == start.Line) { Console.WriteLine(new string('^', line.Length - start.Column)); }
+                else if (lineNumber == start.Line) { Console.Error.WriteLine(new string('^', line.Length - start.Column)); }
                 else if (lineNumber == end.Line)
                 {
-                    Console.Write(new string('^', end.Column - 1));
-                    Console.WriteLine(" " + hint.Message);
+                    Console.Error.Write(new string('^', end.Column - 1));
+                    Console.Error.WriteLine(" " + hint.Message);
                 }
-                else { Console.WriteLine(new string('^', line.Length)); }
+                else { Console.Error.WriteLine(new string('^', line.Length)); }
 
                 Console.ResetColor();
             }

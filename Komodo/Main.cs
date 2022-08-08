@@ -99,7 +99,7 @@ static class Entry
         if (options.Count() != 0)
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
-        var sourceFiles = new Dictionary<string, TextSource>() { { "std", new TextSource("std", "") } };
+        var sourceMap = new Dictionary<string, TextSource>() { { "std", new TextSource("std", "") } };
         var diagnostics = new Diagnostics();
 
         var sourceFileResult = TextSource.Load(inputFilePath);
@@ -110,41 +110,14 @@ static class Entry
         }
 
         var sourceFile = sourceFileResult.UnwrapSuccess();
-        sourceFiles.Add(sourceFile.Name, sourceFile);
+        sourceMap.Add(sourceFile.Name, sourceFile);
 
-        var typecheckEnvironment = new Compilation.TypeSystem.Environment();
-        var operatorOverloads = new Compilation.TypeSystem.TSOperator[]
+        var module = Compiler.Compile(sourceMap, sourceFile.Name, printTokens, printCST);
+        if (module is null)
         {
-            new Compilation.TypeSystem.TSOperator.BinaryAdd(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinarySubtract(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinaryMultipy(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinaryDivide(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-        };
-
-        foreach (var overload in operatorOverloads)
-            typecheckEnvironment.AddOperatorOverload(new Compilation.TypeSystem.Environment.OperatorOverload(overload, new TextLocation("std", 0, 0)), new TextLocation("std", 0, 0), diagnostics);
-
-        var input = new Pass<TextSource>(sourceFile);
-        var lexPass = input?.Bind("Lexing", Lexer.Lex, diagnostics);
-        var parsePass = lexPass?.Bind("Parsing", Parser.ParseModule, diagnostics);
-        var tcPass = parsePass?.Bind("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics), diagnostics);
-
-        if (lexPass.Value is null || parsePass.Value is null || tcPass.Value is null)
-        {
-            diagnostics.Print(sourceFiles);
+            Logger.Error("Compilation was unsuccessful. Check diagnostics for further information.");
             Environment.Exit(1);
         }
-
-        if (printTokens)
-        {
-            foreach (var token in lexPass.Value)
-                Console.WriteLine(token);
-        }
-
-        if (printCST)
-            Console.WriteLine(JsonSerializer.Serialize(parsePass.Value));
-
-        diagnostics.Print(sourceFiles);
 
         //Console.WriteLine(typecheckEnvironment.ToString());
 
