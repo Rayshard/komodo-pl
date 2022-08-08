@@ -100,19 +100,19 @@ static class Entry
             PrintUsage("run", msg: $"Invalid option: {options.First()}", exitCode: -1);
 
         var sourceMap = new Dictionary<string, TextSource>() { { "std", new TextSource("std", "") } };
-        var diagnostics = new Diagnostics();
 
-        var sourceFileResult = TextSource.Load(inputFilePath);
-        if (sourceFileResult.IsFailure)
+        try
         {
-            Logger.Error(sourceFileResult.UnwrapFailure());
+            var source = TextSource.Load(inputFilePath);
+            sourceMap.Add(source!.Name, source);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e.Message);
             Environment.Exit(1);
         }
 
-        var sourceFile = sourceFileResult.UnwrapSuccess();
-        sourceMap.Add(sourceFile.Name, sourceFile);
-
-        var module = Compiler.Compile(sourceMap, sourceFile.Name, printTokens, printCST);
+        var module = Compiler.Compile(sourceMap, inputFilePath, printTokens, printCST);
         if (module is null)
         {
             Logger.Error("Compilation was unsuccessful. Check diagnostics for further information.");

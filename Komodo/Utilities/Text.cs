@@ -85,9 +85,5 @@ public record TextSource
 
     public TextLocation GetLocation(int offset, int length) => new TextLocation(Name, offset, offset + length);
 
-    public static Result<TextSource, string> Load(string path)
-    {
-        try { return new Result<TextSource, string>.Success(new TextSource(path, System.IO.File.ReadAllText(path))); }
-        catch (Exception e) { return new Result<TextSource, string>.Failure(e.Message); }
-    }
+    public static TextSource Load(string path) => new TextSource(path, System.IO.File.ReadAllText(path));
 }
