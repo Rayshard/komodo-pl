@@ -192,5 +192,6 @@ public static class JsonSerializer
 
         return new JsonObject(properties);
     }
+
     #endregion
 }

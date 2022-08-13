@@ -205,20 +205,28 @@ static class Entry
 
     static void Main(string[] args)
     {
-        Logger.MinLevel = LogLevel.ERROR;
+        var program = new Compilation.Bytecode.Program("My Program", ("MyModule", "Main"));
+        var function = program.Entry;
+        function.Entry.Append(new Compilation.Bytecode.Instructions.PushI64(123));
+        function.Entry.Append(new Compilation.Bytecode.Instructions.PushI64(456));
+        function.Entry.Append(new Compilation.Bytecode.Instructions.AddI64());
 
-        var remainingArgs = args.AsEnumerable();
-        if (remainingArgs.Count() == 0)
-            PrintUsage("", msg: "Expected a command", exitCode: -1);
+        Console.WriteLine(Utility.ToFormattedString(XMLSerializer.Serialize(program)));
 
-        var command = remainingArgs.ElementAt(0);
-        remainingArgs = remainingArgs.Skip(1);
+        // Logger.MinLevel = LogLevel.ERROR;
 
-        switch (command)
-        {
-            case "run": DoRun(remainingArgs); break;
-            case "make-tests": DoMakeTests(remainingArgs); break;
-            default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
-        }
+        // var remainingArgs = args.AsEnumerable();
+        // if (remainingArgs.Count() == 0)
+        //     PrintUsage("", msg: "Expected a command", exitCode: -1);
+
+        // var command = remainingArgs.ElementAt(0);
+        // remainingArgs = remainingArgs.Skip(1);
+
+        // switch (command)
+        // {
+        //     case "run": DoRun(remainingArgs); break;
+        //     case "make-tests": DoMakeTests(remainingArgs); break;
+        //     default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
+        // }
     }
 }
