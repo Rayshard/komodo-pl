@@ -207,11 +207,15 @@ static class Entry
     {
         var program = new Compilation.Bytecode.Program("My Program", ("MyModule", "Main"));
         var function = program.Entry;
-        function.Entry.Append(new Compilation.Bytecode.Instructions.PushI64(123));
-        function.Entry.Append(new Compilation.Bytecode.Instructions.PushI64(456));
-        function.Entry.Append(new Compilation.Bytecode.Instructions.AddI64());
+        function.Entry.Append(new Compilation.Bytecode.Instruction.PushI64(123));
+        function.Entry.Append(new Compilation.Bytecode.Instruction.PushI64(456));
+        function.Entry.Append(new Compilation.Bytecode.Instruction.AddI64());
+        function.Entry.Append(new Compilation.Bytecode.Instruction.Syscall(Compilation.Bytecode.SyscallCode.ExitProcess));
 
-        Console.WriteLine(Utility.ToFormattedString(XMLSerializer.Serialize(program)));
+        //Console.WriteLine(Utility.ToFormattedString(XMLSerializer.Serialize(program)));
+
+        var interpreter = new Interpreter(program);
+        interpreter.Run();
 
         // Logger.MinLevel = LogLevel.ERROR;
 

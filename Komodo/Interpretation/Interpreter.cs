@@ -1,108 +1,77 @@
-using Komodo.Compilation.CST;
-using Komodo.Utilities;
+using Komodo.Compilation.Bytecode;
 
 namespace Komodo.Interpretation;
 
-public interface IResult { }
-
-public interface IKomodoValue : IResult { }
-
-public record KomodoValue<T>(T Value) : IKomodoValue;
-
-public record KomodoException(string Message, TextLocation Location) : IResult
+public interface Value
 {
-    public override string ToString() => $"Exception at {Location}: {Message}";
-
-    public void Print(Dictionary<string, TextSource> sources)
-    {
-        var source = sources[Location.SourceName];
-
-        Console.WriteLine($"[Exception at {source.Name}:{source.GetPosition(Location.Start)}] {Message}");
-    }
-
-    public static KomodoException DivisionByZero(TextLocation location) => new KomodoException("Division by zero", location);
-    public static KomodoException VariableRedefinition(Token token) => new KomodoException("Variable has aleady been defined", token.Location);
-    public static KomodoException UnknownVariable(Token token) => new KomodoException($"Variable '{token.Value}' was never defined", token.Location);
+    public record I64(Int64 Value) : Value;
 }
+
+public record InstructionPointer(string Module, string Function, string BasicBlock, int Index)
+{
+    public override string ToString() => $"{Module}.{Function}.{BasicBlock}.{Index}";
+}
+
+public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
 public class Interpreter
 {
-    private Dictionary<string, IKomodoValue> environment;
+    public Program Program { get; }
+    public InterpreterState State { get; private set; }
 
-    public Interpreter()
+    private Queue<Request> requests = new Queue<Request>();
+
+    public Interpreter(Program program)
     {
-        environment = new Dictionary<string, IKomodoValue>();
+        State = InterpreterState.NotStarted;
+        Program = program;
     }
 
-    public string EnvironmentToString()
+    public void Run()
     {
-        using var writer = new StringWriter();
+        State = InterpreterState.Running;
 
-        writer.WriteLine("========== Environment ==========");
+        var thread = new Thread(this, new InstructionPointer(Program.Entry.Parent.Name, Program.Entry.Name, Program.Entry.Entry.Name, 0));
+        thread.Run();
 
-        foreach (var (id, value) in environment)
-            writer.WriteLine($" -> {id}: {value}");
-
-
-        writer.WriteLine("============== End ==============");
-
-        return writer.ToString();
-    }
-
-    public IResult Evaluate(INode node) => node switch
-    {
-        Literal l => Evaluate(l),
-        BinopExpression b => Evaluate(b),
-        ParenthesizedExpression p => Evaluate(p.Expression),
-        Identifier i => Evaluate(i),
-        VariableDeclaration vd => Evaluate(vd),
-        _ => throw new NotImplementedException(node.NodeType.ToString())
-    };
-
-    private IResult Evaluate(Literal node)
-    {
-        switch (node.LiteralType)
+        while (State == InterpreterState.Running)
         {
-            case LiteralType.Int: return new KomodoValue<int>(int.Parse(node.Token.Value));
-            default: throw new NotImplementedException(node.LiteralType.ToString());
-        }
-    }
-
-    private IResult Evaluate(BinopExpression node)
-    {
-        var leftResult = Evaluate(node.Left);
-        var rightResult = Evaluate(node.Right);
-
-        switch ((leftResult, node.Op.Operation, rightResult))
-        {
-            case (KomodoException exception, _, _): return exception;
-            case (_, _, KomodoException exception): return exception;
-            case (KomodoValue<int> l, BinaryOperation.Add, KomodoValue<int> r): return new KomodoValue<int>(l.Value + r.Value);
-            case (KomodoValue<int> l, BinaryOperation.Sub, KomodoValue<int> r): return new KomodoValue<int>(l.Value - r.Value);
-            case (KomodoValue<int> l, BinaryOperation.Multiply, KomodoValue<int> r): return new KomodoValue<int>(l.Value * r.Value);
-            case (KomodoValue<int> l, BinaryOperation.Divide, KomodoValue<int> r):
+            // Process requests
+            if (requests.TryDequeue(out var request))
+            {
+                switch (request)
                 {
-                    if (r.Value == 0) { return KomodoException.DivisionByZero(node.Right.Location); }
-                    else { return new KomodoValue<int>(l.Value / r.Value); }
+                    case Request.Exit r:
+                        {
+                            State = InterpreterState.ShuttingDown;
+
+                            //TODO: send each thread the terminate signal
+                            r.Sender.Send(new Signal.Terminate());
+                            r.Complete();
+                        }
+                        break;
+                    default: request.Deny($"Unknown request: {request}"); break;
                 }
-            default: throw new NotImplementedException((leftResult.GetType(), node.Op.Operation, rightResult.GetType()).ToString());
+            }
         }
+
+        while (requests.TryDequeue(out var request))
+            request.Deny("Interpreter has temrinated.");
+
+        State = InterpreterState.Terminated;
     }
 
-    private IResult Evaluate(Identifier node)
+    public void Request(Request request)
     {
-        if (environment.ContainsKey(node.Token.Value)) { return environment[node.Token.Value]; }
-        else { return KomodoException.UnknownVariable(node.Token); }
-    }
+        if (State != InterpreterState.Running)
+        {
+            request.Deny($"Interpreter is not running. Current state is '{State}'.");
+            return;
+        }
 
-    private IResult Evaluate(VariableDeclaration node)
-    {
-        var value = Evaluate(node.Expression);
-        if (value is KomodoException) { return value; }
-        else if (value is not IKomodoValue) { throw new Exception($"Expected KomodoValue but got {value}"); }
-        else if (environment.ContainsKey(node.Identifier.Value)) { return KomodoException.VariableRedefinition(node.Identifier); }
+        requests.Enqueue(request);
 
-        environment.Add(node.Identifier.Value, (IKomodoValue)value);
-        return value;
+        while (!request.Processed)
+            ;
     }
 }
