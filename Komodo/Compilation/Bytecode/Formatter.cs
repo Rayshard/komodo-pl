@@ -77,7 +77,7 @@ public static class Formatter
         return node.AsArray().Select(n => deserializer(n!));
     }
 
-    public static T DeserializeEnum<T>(JsonNode node) where T : struct => Enum.Parse<T>(node.GetValue<string>());
+    private static T DeserializeEnum<T>(JsonNode node) where T : struct => Enum.Parse<T>(node.GetValue<string>());
 
     public static Program DeserializeProgram(JsonNode node)
     {
