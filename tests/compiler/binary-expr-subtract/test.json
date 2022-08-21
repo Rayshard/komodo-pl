@@ -1,0 +1,7 @@
+{
+  "args": ["run", "test.kmd"],
+  "exitcode": 0,
+  "stdin": [],
+  "stdout": [],
+  "stderr": []
+}
