@@ -2,23 +2,17 @@ namespace Komodo.Interpretation;
 
 public class StackFrame
 {
-    public InstructionPointer IP { get; }
-    public InstructionPointer? ReturnIP { get; }
+    public InstructionPointer IP;
 
-    private Value[] arguments;
-    public IEnumerable<Value> Arguments => arguments;
+    public int FramePointer { get; }
+    public Value[] Arguments { get; }
+    public Value?[] Locals { get; }
 
-    private Dictionary<string, Value?> locals = new Dictionary<string, Value?>();
-
-    public StackFrame(InstructionPointer ip, InstructionPointer? returnIP, IEnumerable<Value> args, HashSet<string> locals)
+    public StackFrame(InstructionPointer ip, int fp, IEnumerable<Value> args, IEnumerable<Value?> locals)
     {
         IP = ip;
-        ReturnIP = returnIP;
-        arguments = args.ToArray();
-
-        foreach (var name in locals)
-            this.locals.Add(name, null);
+        FramePointer = fp;
+        Arguments = args.ToArray();
+        Locals = locals.ToArray();
     }
-
-    public Value? GetLocal(string name) => locals[name];
 }

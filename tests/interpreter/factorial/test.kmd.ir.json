@@ -1,0 +1,47 @@
+{
+  "name": "My Program",
+  "entry": {
+    "module": "MyModule",
+    "function": "Factorial"
+  },
+  "modules": [
+    {
+      "name": "MyModule",
+      "functions": [
+        {
+          "name": "Factorial",
+          "args": ["I64"],
+          "locals": [],
+          "ret": "I64",
+          "basicBlocks": [
+            {
+              "name": "__entry__",
+              "instructions": [
+                {
+                  "opcode": "LoadArg",
+                  "index": 0
+                },
+                {
+                  "opcode": "PushI64",
+                  "index": 0
+                },
+                {
+                  "opcode": "Eq",
+                  "type": "I64"
+                },
+                {
+                  "opcode": "DecI64"
+                },
+                {
+                  "opcode": "Call",
+                  "module": "MyModule",
+                  "function": "Factorial"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
