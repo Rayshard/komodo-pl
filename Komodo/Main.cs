@@ -1,12 +1,11 @@
 ﻿namespace Komodo;
 
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Xml;
 using Komodo.Compilation;
 using Komodo.Compilation.CST;
 using Komodo.Interpretation;
 using Komodo.Utilities;
+using Newtonsoft.Json.Linq;
 
 abstract record Option(string Name)
 {
@@ -193,14 +192,14 @@ static class Entry
         var inputFilePath = args.ElementAt(0);
 
         if (!File.Exists(inputFilePath)) { PrintUsage("run-ir", msg: $"File does not exist at {inputFilePath}", exitCode: -1); }
-        else if (!inputFilePath.EndsWith(".kmdir")) { PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmdir)", exitCode: -1); }
+        else if (!inputFilePath.EndsWith(".kmd.ir.json")) { PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmd.ir.json)", exitCode: -1); }
 
         Compilation.Bytecode.Program? program = null;
 
         try
         {
-            var node = JsonNode.Parse(File.ReadAllText(inputFilePath))!;
-            program = Compilation.Bytecode.Formatter.DeserializeProgram(node);
+            var json = JToken.Parse(File.ReadAllText(inputFilePath))!;
+            program = Compilation.Bytecode.Formatter.DeserializeProgram(json);
         }
         catch (Exception e)
         {
@@ -269,11 +268,10 @@ static class Entry
                 continue;
             }
 
-            var outputJson = new JsonObject(new[] {
-                KeyValuePair.Create<string, JsonNode?>("input", JsonValue.Create(input)),
-                KeyValuePair.Create<string, JsonNode?>("function", JsonValue.Create(functionName)),
-                KeyValuePair.Create<string, JsonNode?>("expected", JsonSerializer.Serialize(outputCSTNode)),
-            });
+            var outputJson = new JObject();
+            outputJson.Add("input", input);
+            outputJson.Add("function", functionName);
+            outputJson.Add("expected", JToken.Parse(JsonSerializer.Serialize(outputCSTNode).ToJsonString()));
 
             File.WriteAllText(filePath, outputJson.ToString());
             Logger.Info($"Created test case '{name}'.");

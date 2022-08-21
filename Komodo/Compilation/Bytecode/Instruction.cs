@@ -1,3 +1,5 @@
+using Newtonsoft.Json.Schema;
+
 namespace Komodo.Compilation.Bytecode;
 
 public enum Opcode

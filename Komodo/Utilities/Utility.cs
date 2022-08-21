@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Xml;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
 
 namespace Komodo.Utilities;
 
@@ -36,4 +38,19 @@ public static class Utility
 
     public static string Stringify<T>(IEnumerable<T> items, string delimiter, (string Prefix, string Suffix) wrapper) => $"{wrapper.Prefix}{string.Join(delimiter, items)}{wrapper.Suffix}";
     public static string Stringify<T>(IEnumerable<T> items, string delimiter) => Stringify(items, delimiter, ("", ""));
+
+    public static JSchema EnumToJSchema<T>() where T : struct, Enum => JSchema.Parse($@"
+        {{ 'enum': [{Stringify(Enum.GetNames<T>().Select(name => $"'{name}'"), ", ")}]}}
+    ");
+
+    public static void ValidateJSON(JToken json, JSchema schema)
+    {
+        if (!json.IsValid(schema, out IList<string> errorMessages))
+        {
+            foreach (var errorMessage in errorMessages)
+                Logger.Error(errorMessage);
+
+            throw new Exception("Invalid JSON");
+        }
+    }
 }

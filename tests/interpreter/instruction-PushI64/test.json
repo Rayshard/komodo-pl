@@ -1,5 +1,5 @@
 {
-  "args": ["run-ir", "test.kmdir"],
+  "args": ["run-ir", "test.kmd.ir.json"],
   "exitcode": 12,
   "stdin": [],
   "stdout": [],

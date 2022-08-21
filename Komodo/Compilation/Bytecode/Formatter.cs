@@ -1,10 +1,14 @@
 using System.Text.Json.Nodes;
 using System.Xml;
+using Komodo.Utilities;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
 
 namespace Komodo.Compilation.Bytecode;
 
 public static class Formatter
 {
+
     public static XmlElement Serialize(XmlDocument document, Bytecode.Instruction instruction)
     {
         XmlElement element = document.CreateElement(instruction.Opcode.ToString());
@@ -69,31 +73,16 @@ public static class Formatter
         return document;
     }
 
-    public static IEnumerable<T> DeserializeArray<T>(JsonNode node, Func<JsonNode, T> deserializer)
+    private static IEnumerable<T> DeserializeArray<T>(JToken json, Func<JToken, T> deserializer) => json.Select(t => deserializer(t!));
+    private static T DeserializeEnum<T>(JToken json) where T : struct, Enum => Enum.Parse<T>(json.ToString());
+
+    public static Program DeserializeProgram(JToken json)
     {
-        if (node is not JsonArray)
-            throw new Exception($"Unexpected node: {node}");
+        Utility.ValidateJSON(json, Schemas.Program());
 
-        return node.AsArray().Select(n => deserializer(n!));
-    }
-
-    private static T DeserializeEnum<T>(JsonNode node) where T : struct => Enum.Parse<T>(node.GetValue<string>());
-
-    public static Program DeserializeProgram(JsonNode node)
-    {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
-
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
-        else if (!jsonObject.ContainsKey("entry")) { throw new Exception($"Expected property: entry"); }
-        else if (!jsonObject.ContainsKey("modules")) { throw new Exception($"Expected property: modules"); }
-        else if (jsonObject.Count != 3) { throw new Exception($"Object has unexpected properties."); }
-
-        var name = jsonObject["name"]!.GetValue<string>();
-        var entry = DeserializeProgramEntry(jsonObject["entry"]!);
-        var modules = DeserializeArray(jsonObject["modules"]!, DeserializeModule);
+        var name = json["name"]!.ToString();
+        var entry = (json["entry"]!["module"]!.ToString(), json["entry"]!["function"]!.ToString());
+        var modules = DeserializeArray(json["modules"]!, DeserializeModule);
 
         var program = new Program(name, entry);
 
@@ -119,19 +108,12 @@ public static class Formatter
         return (module, function);
     }
 
-    public static Module DeserializeModule(JsonNode node)
+    public static Module DeserializeModule(JToken json)
     {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
+        Utility.ValidateJSON(json, Schemas.Module());
 
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
-        else if (!jsonObject.ContainsKey("functions")) { throw new Exception($"Expected property: functions"); }
-        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-        var name = jsonObject["name"]!.GetValue<string>();
-        var functions = DeserializeArray(jsonObject["functions"]!, DeserializeFunction);
+        var name = json["name"]!.ToString();
+        var functions = DeserializeArray(json["functions"]!, DeserializeFunction);
 
         var module = new Module(name);
 
@@ -141,25 +123,15 @@ public static class Formatter
         return module;
     }
 
-    public static Function DeserializeFunction(JsonNode node)
+    public static Function DeserializeFunction(JToken json)
     {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
+        Utility.ValidateJSON(json, Schemas.Function());
 
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
-        else if (!jsonObject.ContainsKey("args")) { throw new Exception($"Expected property: args"); }
-        else if (!jsonObject.ContainsKey("locals")) { throw new Exception($"Expected property: locals"); }
-        else if (!jsonObject.ContainsKey("ret")) { throw new Exception($"Expected property: ret"); }
-        else if (!jsonObject.ContainsKey("basicBlocks")) { throw new Exception($"Expected property: basicBlocks"); }
-        else if (jsonObject.Count != 5) { throw new Exception($"Object has unexpected properties."); }
-
-        var name = jsonObject["name"]!.GetValue<string>();
-        var args = DeserializeArray(jsonObject["args"]!, DeserializeEnum<DataType>);
-        var locals = DeserializeArray(jsonObject["locals"]!, DeserializeFunctionLocal);
-        var ret = DeserializeEnum<DataType>(jsonObject["ret"]!);
-        var basicBlocks = DeserializeArray(jsonObject["basicBlocks"]!, DeserializeBasicBlock);
+        var name = json["name"]!.ToString();
+        var args = DeserializeArray(json["args"]!, DeserializeEnum<DataType>);
+        var locals = DeserializeArray(json["locals"]!, DeserializeEnum<DataType>);
+        var ret = DeserializeEnum<DataType>(json["ret"]!);
+        var basicBlocks = DeserializeArray(json["basicBlocks"]!, DeserializeBasicBlock);
 
         var function = new Function(name, args, locals, ret);
 
@@ -169,35 +141,12 @@ public static class Formatter
         return function;
     }
 
-    public static KeyValuePair<string, DataType> DeserializeFunctionLocal(JsonNode node)
+    public static BasicBlock DeserializeBasicBlock(JToken json)
     {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
+        Utility.ValidateJSON(json, Schemas.BasicBlock());
 
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
-        else if (!jsonObject.ContainsKey("type")) { throw new Exception($"Expected property: type"); }
-        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-        var name = jsonObject["name"]!.GetValue<string>();
-        var dataType = DeserializeEnum<DataType>(jsonObject["type"]!);
-        return new KeyValuePair<string, DataType>(name, dataType);
-    }
-
-    public static BasicBlock DeserializeBasicBlock(JsonNode node)
-    {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
-
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
-        else if (!jsonObject.ContainsKey("instructions")) { throw new Exception($"Expected property: instructions"); }
-        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-        var name = jsonObject["name"]!.GetValue<string>();
-        var instructions = DeserializeArray(jsonObject["instructions"]!, DeserializeInstruction);
+        var name = json["name"]!.ToString();
+        var instructions = DeserializeArray(json["instructions"]!, DeserializeInstruction);
 
         var basicBlock = new BasicBlock(name);
 
@@ -207,43 +156,17 @@ public static class Formatter
         return basicBlock;
     }
 
-    public static Instruction DeserializeInstruction(JsonNode node)
+    public static Instruction DeserializeInstruction(JToken json)
     {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
+        Utility.ValidateJSON(json, Schemas.Instruction());
 
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("opcode"))
-            throw new Exception($"Expected property: opcode");
-
-        var opcode = Enum.Parse<Opcode>(jsonObject["opcode"]!.GetValue<string>());
+        var opcode = DeserializeEnum<Opcode>(json["opcode"]!);
 
         switch (opcode)
         {
-            case Opcode.PushI64:
-                {
-                    if (!jsonObject.ContainsKey("value")) { throw new Exception($"Expected property: value"); }
-                    else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-                    var value = jsonObject["value"]!.GetValue<Int64>();
-                    return new Instruction.PushI64(value);
-                }
-            case Opcode.AddI64:
-                {
-                    if (jsonObject.Count != 1)
-                        throw new Exception($"Object has unexpected properties.");
-
-                    return new Instruction.AddI64();
-                }
-            case Opcode.Syscall:
-                {
-                    if (!jsonObject.ContainsKey("code")) { throw new Exception($"Expected property: code"); }
-                    else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-                    var code = DeserializeEnum<SyscallCode>(jsonObject["code"]!);
-                    return new Instruction.Syscall(code);
-                }
+            case Opcode.PushI64: return new Instruction.PushI64((Int64)json["value"]!);
+            case Opcode.AddI64: return new Instruction.AddI64();
+            case Opcode.Syscall: return new Instruction.Syscall(DeserializeEnum<SyscallCode>(json["code"]!));
             default: throw new Exception($"Unexpected opcode: {opcode}");
         }
     }
