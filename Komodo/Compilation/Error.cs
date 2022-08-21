@@ -72,7 +72,7 @@ public record Error(ErrorCode Code, string Message, LineHint[]? LineHints, TextL
 
     public static Error OperatorOverloadDoesNotExist(OperatorKind op, IEnumerable<TSType> args, TextLocation errorLocation)
     {
-        var message = $"There is no overload for '{op}' that takes operands {Utility.StringifyEnumerable("(", args, ")", ", ")}";
+        var message = $"There is no overload for '{op}' that takes operands {Utility.Stringify(args, ", ", ("(", ")"))}";
         var lineHints = new LineHint[] { };
         
         return new Error(ErrorCode.OperatorOverloadDoesNotExist, message, lineHints, errorLocation);

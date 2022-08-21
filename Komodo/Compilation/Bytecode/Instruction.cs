@@ -9,7 +9,7 @@ public enum Opcode
 
 public enum SyscallCode
 {
-    ExitProcess,
+    Exit,
 }
 
 public abstract record Instruction(Opcode Opcode)

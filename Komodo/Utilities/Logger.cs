@@ -8,10 +8,10 @@ public static class Logger
 {
     public static LogLevel MinLevel { get; set; }
 
-    private static void Log(LogLevel level, string log)
+    private static void Log(LogLevel level, string log, bool startOnNewLine)
     {
         var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
-        
+
         if (level < MinLevel)
             return;
 
@@ -25,12 +25,15 @@ public static class Logger
             default: throw new NotImplementedException(level.ToString());
         }
 
+        if (startOnNewLine)
+            log = Environment.NewLine + log;
+
         Console.Error.WriteLine($"{time} [{Enum.GetName(level)}] {log}");
         Console.ResetColor();
     }
 
-    public static void Debug(string debug) => Log(LogLevel.DEBUG, debug);
-    public static void Info(string info) => Log(LogLevel.INFO, info);
-    public static void Warning(string warning) => Log(LogLevel.WARNING, warning);
-    public static void Error(string error) => Log(LogLevel.ERROR, error);
+    public static void Debug(string debug, bool startOnNewLine = false) => Log(LogLevel.DEBUG, debug, startOnNewLine);
+    public static void Info(string info, bool startOnNewLine = false) => Log(LogLevel.INFO, info, startOnNewLine);
+    public static void Warning(string warning, bool startOnNewLine = false) => Log(LogLevel.WARNING, warning, startOnNewLine);
+    public static void Error(string error, bool startOnNewLine = false) => Log(LogLevel.ERROR, error, startOnNewLine);
 }

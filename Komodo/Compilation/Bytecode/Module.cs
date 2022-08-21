@@ -2,24 +2,13 @@ namespace Komodo.Compilation.Bytecode;
 
 public class Module
 {
-    private Dictionary<string, Function> functions = new Dictionary<string, Function>();
-
-    public Program Parent { get; }
     public string Name { get; }
 
+    private Dictionary<string, Function> functions = new Dictionary<string, Function>();
     public IEnumerable<Function> Functions => functions.Values;
 
-    public Module(Program parent, string name)
-    {
-        Parent = parent;
-        Name = name;
-    }
+    public Module(string name) => Name = name;
 
-    public Function CreateFunction(string name)
-    {
-        functions.Add(name, new Function(this, name));
-        return GetFunction(name);
-    }
-
+    public void AddFunction(Function function) => functions.Add(function.Name, function);
     public Function GetFunction(string name) => functions[name];
 }

@@ -1,31 +1,31 @@
 namespace Komodo.Compilation.Bytecode;
 
-
 public class Function
 {
     public const string ENTRY_NAME = "__entry__";
 
-    private Dictionary<string, BasicBlock> basicBlocks = new Dictionary<string, BasicBlock>();
-
-    public Module Parent {get;}
     public string Name { get; }
+    public DataType ReturnType { get; }
 
+    private Dictionary<string, BasicBlock> basicBlocks = new Dictionary<string, BasicBlock>();
     public IEnumerable<BasicBlock> BasicBlocks => basicBlocks.Values;
-    public BasicBlock Entry => basicBlocks[ENTRY_NAME];
 
-    public Function(Module parent, string name)
+    private DataType[] arguments;
+    public IEnumerable<DataType> Arguments => arguments;
+
+    private Dictionary<string, DataType> locals;
+
+    public Function(string name, IEnumerable<DataType> args, IEnumerable<KeyValuePair<string, DataType>> locals, DataType returnType)
     {
-        Parent = parent;
         Name = name;
+        ReturnType = returnType;
 
-        CreateBasicBlock(ENTRY_NAME);
+        arguments = args.ToArray();
+        this.locals = new Dictionary<string, DataType>(locals);
     }
 
-    public BasicBlock CreateBasicBlock(string name) 
-    {
-        basicBlocks.Add(name, new BasicBlock(this, name));
-        return GetBasicBlock(name);
-    }
-
+    public void AddBasicBlock(BasicBlock basicBlock) => basicBlocks.Add(basicBlock.Name, basicBlock);
     public BasicBlock GetBasicBlock(string name) => basicBlocks[name];
+
+    public DataType GetLocal(string name) => locals[name];
 }

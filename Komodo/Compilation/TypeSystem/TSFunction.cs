@@ -33,5 +33,5 @@ public record TSFunction(TSType[] Parameters, TSType Return) : TSType
         return function.Return.IsSameAs(Return);
     }
 
-    public override string ToString() => $"{Utility.StringifyEnumerable("(", Parameters, ")", ", ")} -> {Return}";
+    public override string ToString() => $"{Utility.Stringify(Parameters, ", ", ("(", ")"))} -> {Return}";
 }

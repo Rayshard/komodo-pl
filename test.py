@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from email import message
 from io import StringIO
 import sys
 import os
 import subprocess
 from pathlib import Path
+from time import time
 import traceback
-from typing import Any, Dict, List, Optional, TypeVar, Generic
+from typing import Any, Dict, List, TypeVar, Generic
 import json
 import textwrap
 import termcolor
@@ -68,21 +68,16 @@ class TestResult:
 
 @dataclass
 class TestCase:
-    directory: str
+    name: str
+    path: Path
     args: List[str]
     exit_code: int
     stdin: str
     stdout: str
     stderr: str
 
-    @property
-    def name(self) -> str:
-        return os.path.basename(self.directory)
-
-    def from_directory(directory: str) -> "TestCase":
-        test_file_path = Path.joinpath(directory, "test.json")
-
-        with open(test_file_path, "r") as file:
+    def from_file(name: str, path: Path) -> "TestCase":
+        with open(path, "r") as file:
             data = json.load(file)
 
         assert isinstance(data, dict)
@@ -106,7 +101,8 @@ class TestCase:
         assert all([isinstance(item, str) for item in data["stderr"]])
 
         return TestCase(
-            directory=directory,
+            name=name,
+            path=path,
             args=data["args"],
             exit_code=data["exitcode"],
             stdin=data["stdin"],
@@ -119,7 +115,7 @@ class TestCase:
             [kmd_bin_path] + tc.args,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=tc.directory,
+            cwd=tc.path.parent,
         )
 
         return TestResult(
@@ -132,18 +128,24 @@ class TestCase:
 
 def get_test_cases(test_suite_dir: Path) -> List[TestCase]:
     test_cases: List[TestCase] = []
-    directories = [
-        Path(path).resolve() for path in os.scandir(test_suite_dir) if path.is_dir()
-    ]
+    test_suite_dir = test_suite_dir.resolve()
 
-    for directory in directories:
-        try:
-            test_cases.append(TestCase.from_directory(directory))
-        except Exception as e:
-            print(f"Unable to load test case from {directory}:")
-            traceback.print_exception(e)
-            continue
+    def helper(directory: Path) -> None:
+        test_file_path = directory.joinpath("test.json")
 
+        if test_file_path.exists():
+            try:
+                name = os.path.relpath(directory, test_suite_dir)
+                test_cases.append(TestCase.from_file(name, test_file_path))
+            except Exception as e:
+                print(f"Unable to load test case from {directory}:")
+                traceback.print_exception(e)
+        else:
+            for path in os.scandir(directory):
+                if path.is_dir():
+                    helper(Path(path).resolve())
+
+    helper(test_suite_dir)
     return test_cases
 
 
@@ -161,7 +163,9 @@ if __name__ == "__main__":
 
     successes: List[TestResult] = []
     failures: List[TestResult] = []
-    
+
+    start_time = time()
+
     for tc in test_cases:
         result = TestCase.run(KMD_BIN, tc)
         if result.is_success():
@@ -169,10 +173,18 @@ if __name__ == "__main__":
         else:
             failures.append(result)
 
+    total_time = time() - start_time
+
     for success in successes:
-        print(termcolor.colored(success, 'green'))
+        print(termcolor.colored(success, "green"))
 
     for failure in failures:
-        print(termcolor.colored(failure, 'red'))
+        print(termcolor.colored(failure, "red"))
+
+    print(
+        f"{termcolor.colored('Testing took', 'blue')}: {termcolor.colored(f'{total_time} seconds', 'yellow')}"
+    )
     
-    print(f"{termcolor.colored('Report', 'blue')}: {termcolor.colored(f'Passed {len(successes)}', 'green')}, {termcolor.colored(f'Failed {len(failures)}', 'red')}")
+    print(
+        f"{termcolor.colored('Report', 'blue')}: {termcolor.colored(f'Passed {len(successes)}', 'green')}, {termcolor.colored(f'Failed {len(failures)}', 'red')}"
+    )

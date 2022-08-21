@@ -2,12 +2,49 @@
 
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Xml;
 using Komodo.Compilation;
 using Komodo.Compilation.CST;
 using Komodo.Interpretation;
 using Komodo.Utilities;
 
+abstract record Option(string Name)
+{
+    public record Flag(string Name) : Option(Name)
+    {
+        static Regex Pattern = new Regex("^--(?<Name>([a-zA-Z]+))$");
 
+        new public static Option? Parse(string text)
+        {
+            var match = Pattern.Match(text);
+            return match.Success ? new Flag(match.Groups["Name"].Value) : null;
+        }
+    }
+
+    public record Parameter(string Name, string Value) : Option(Name)
+    {
+        static Regex Pattern = new Regex("--(?<Name>([a-zA-Z]+))=(?<Value>([a-zA-Z]+))");
+
+        new public static Option? Parse(string text)
+        {
+            var match = Pattern.Match(text);
+            return match.Success ? new Parameter(match.Groups["Name"].Value, match.Groups["Value"].Value) : null;
+        }
+    }
+
+    public static Option? Parse(string text)
+    {
+        var flag = Flag.Parse(text);
+        if (flag is not null)
+            return flag;
+
+        var parameter = Parameter.Parse(text);
+        if (parameter is not null)
+            return parameter;
+
+        return null;
+    }
+}
 
 static class Entry
 {
@@ -24,7 +61,7 @@ static class Entry
         {
             case "":
                 {
-                    message = String.Join(
+                    message += String.Join(
                         Environment.NewLine,
                         "Usage: komodo [command] [command-options] [arguments]",
                         "",
@@ -36,7 +73,7 @@ static class Entry
                 break;
             case "run":
                 {
-                    message = String.Join(
+                    message += String.Join(
                         Environment.NewLine,
                         "Usage: komodo run [options] [input file path]",
                         "",
@@ -47,9 +84,17 @@ static class Entry
                     );
                 }
                 break;
+            case "run-ir":
+                {
+                    message += String.Join(
+                        Environment.NewLine,
+                        "Usage: komodo run-ir [input file path]"
+                    );
+                }
+                break;
             case "make-tests":
                 {
-                    message = String.Join(
+                    message += String.Join(
                         Environment.NewLine,
                         "Usage: komodo make-tests [output directory]"
                     );
@@ -70,6 +115,23 @@ static class Entry
                 .Bind("Lexing", Lexer.Lex, diagnostics)
                 .Bind("Parsing", Parser.ParseModule, diagnostics)
                 .Bind("TypeChecking", (input, diagnostics) => TypeChecker.TypeCheck(input, tcEnv, diagnostics), diagnostics).Value;
+    }
+
+    static (Dictionary<string, Option> Options, IEnumerable<string> Remainder) ParseOptions(IEnumerable<string> args)
+    {
+        var options = new Dictionary<string, Option>();
+        var items = args.TakeWhile(x => x.StartsWith('-')).ToHashSet();
+
+        foreach (var item in items)
+        {
+            var option = Option.Parse(item);
+            if (option is null)
+                throw new Exception($"Cannot parse option: {item}");
+
+            options.Add(option.Name, option);
+        }
+
+        return (options, args.Skip(options.Count));
     }
 
     static void DoRun(IEnumerable<string> args)
@@ -118,34 +180,49 @@ static class Entry
             Logger.Error("Compilation was unsuccessful. Check diagnostics for further information.");
             Environment.Exit(1);
         }
+    }
 
-        //Console.WriteLine(typecheckEnvironment.ToString());
+    static void DoRunIR(IEnumerable<string> args)
+    {
+        if (args.Count() == 0)
+            PrintUsage("run-ir", exitCode: -1);
 
-        // Run the interpreter
+        if (args.Count() != 1)
+            PrintUsage("run-ir", msg: "Expected one input file path", exitCode: -1);
 
-        // Logger.Info($"Running {sourceFile.Name} ...");
+        var inputFilePath = args.ElementAt(0);
+        if (!inputFilePath.EndsWith(".kmdir"))
+            PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmdir)", exitCode: -1);
 
-        // Interpreter interpreter = new Interpreter();
+        var xmlDoc = new XmlDocument();
+        Compilation.Bytecode.Program? program = null;
 
-        // var stopwatch = new System.Diagnostics.Stopwatch();
+        try
+        {
+            xmlDoc.Load(inputFilePath);
+            program = Compilation.Bytecode.Formatter.Deserialize(xmlDoc);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e.Message);
+            PrintUsage("run-ir", msg: "Expected a valid komodo ir file", exitCode: -1);
+        }
 
-        // stopwatch.Start();
+        if (program is null)
+            throw new NullReferenceException();
 
-        // foreach (var stmt in parsePass.Value.Statements)
-        // {
-        //     var result = interpreter.Evaluate(stmt);
+        //Console.WriteLine(Utility.ToFormattedString(Compilation.Bytecode.Formatter.Serialize(program)));
 
-        //     if (result is KomodoException)
-        //     {
-        //         (result as KomodoException)!.Print(sourceFiles);
-        //         break;
-        //     }
-        // }
+        var interpreter = new Interpreter(program);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        // stopwatch.Stop();
+        var exitcode = interpreter.Run();
+        stopwatch.Stop();
 
-        // Console.WriteLine(interpreter.EnvironmentToString());
-        // Logger.Info($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+        Logger.Info($"Exited with code {exitcode}");
+        Logger.Info($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
+
+        Environment.Exit((int)exitcode);
     }
 
     static void DoMakeTests(IEnumerable<string> args)
@@ -205,32 +282,46 @@ static class Entry
 
     static void Main(string[] args)
     {
-        var program = new Compilation.Bytecode.Program("My Program", ("MyModule", "Main"));
-        var function = program.Entry;
-        function.Entry.Append(new Compilation.Bytecode.Instruction.PushI64(123));
-        function.Entry.Append(new Compilation.Bytecode.Instruction.PushI64(456));
-        function.Entry.Append(new Compilation.Bytecode.Instruction.AddI64());
-        function.Entry.Append(new Compilation.Bytecode.Instruction.Syscall(Compilation.Bytecode.SyscallCode.ExitProcess));
+        Logger.MinLevel = LogLevel.ERROR;
 
-        //Console.WriteLine(Utility.ToFormattedString(XMLSerializer.Serialize(program)));
+        var (options, remainingArgs) = ParseOptions(args);
 
-        var interpreter = new Interpreter(program);
-        interpreter.Run();
+        if (options.ContainsKey("loglevel"))
+        {
+            var option = options["loglevel"];
 
-        // Logger.MinLevel = LogLevel.ERROR;
+            try
+            {
+                if (option is Option.Parameter parameter)
+                {
+                    LogLevel level;
+                    if(!Enum.TryParse<LogLevel>(parameter.Value, out level))
+                       throw new Exception($"'loglevel' can only be one of {String.Join('|', Enum.GetNames(typeof(LogLevel)))}"); 
 
-        // var remainingArgs = args.AsEnumerable();
-        // if (remainingArgs.Count() == 0)
-        //     PrintUsage("", msg: "Expected a command", exitCode: -1);
+                    Logger.MinLevel = level;
+                }
+                else { throw new Exception("'loglevel' is a parameter"); }
+            }
+            catch (Exception e) { PrintUsage(msg: $"Invalid option: {e}", exitCode: -1); }
 
-        // var command = remainingArgs.ElementAt(0);
-        // remainingArgs = remainingArgs.Skip(1);
+            options.Remove("loglevel");
+        }
 
-        // switch (command)
-        // {
-        //     case "run": DoRun(remainingArgs); break;
-        //     case "make-tests": DoMakeTests(remainingArgs); break;
-        //     default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
-        // }
+        if (options.Count() != 0)
+            PrintUsage(msg: $"Invalid option: {options.First().Value.Name}", exitCode: -1);
+
+        if (remainingArgs.Count() == 0)
+            PrintUsage(exitCode: -1);
+
+        var command = remainingArgs.ElementAt(0);
+        remainingArgs = remainingArgs.Skip(1);
+
+        switch (command)
+        {
+            case "run": DoRun(remainingArgs); break;
+            case "run-ir": DoRunIR(remainingArgs); break;
+            case "make-tests": DoMakeTests(remainingArgs); break;
+            default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
+        }
     }
 }

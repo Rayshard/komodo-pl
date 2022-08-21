@@ -19,8 +19,7 @@ public static class Utility
 
     public static string ToFormattedString(XmlDocument document)
     {
-        var sb = new StringBuilder();
-        var settings = new XmlWriterSettings
+        XmlWriterSettings settings = new XmlWriterSettings
         {
             Indent = true,
             IndentChars = "    ",
@@ -28,11 +27,13 @@ public static class Utility
             NewLineHandling = NewLineHandling.Replace
         };
 
-        using var writer = XmlWriter.Create(sb, settings);
-            document.Save(writer);
-            
-        return sb.ToString();
+        using MemoryStream ms = new MemoryStream();
+        using XmlWriter writer = XmlWriter.Create(ms, settings);
+
+        document.Save(writer);
+        return Encoding.UTF8.GetString(ms.ToArray());
     }
 
-    public static string StringifyEnumerable<T>(string prefix, IEnumerable<T> items, string suffix, string delimiter) => $"{prefix}{string.Join(delimiter, items)}{suffix}";
+    public static string Stringify<T>(IEnumerable<T> items, string delimiter, (string Prefix, string Suffix) wrapper) => $"{wrapper.Prefix}{string.Join(delimiter, items)}{wrapper.Suffix}";
+    public static string Stringify<T>(IEnumerable<T> items, string delimiter) => Stringify(items, delimiter, ("", ""));
 }

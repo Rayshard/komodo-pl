@@ -1,77 +1,82 @@
 using Komodo.Compilation.Bytecode;
+using Komodo.Utilities;
 
 namespace Komodo.Interpretation;
-
-public interface Value
-{
-    public record I64(Int64 Value) : Value;
-}
-
-public record InstructionPointer(string Module, string Function, string BasicBlock, int Index)
-{
-    public override string ToString() => $"{Module}.{Function}.{BasicBlock}.{Index}";
-}
 
 public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
 public class Interpreter
 {
-    public Program Program { get; }
     public InterpreterState State { get; private set; }
+    public Program Program { get; }
+    public InstructionPointer IP { get; private set; }
 
-    private Queue<Request> requests = new Queue<Request>();
+    private Stack<Value> stack = new Stack<Value>();
 
     public Interpreter(Program program)
     {
         State = InterpreterState.NotStarted;
         Program = program;
+        IP = new InstructionPointer(Program.Entry.Module, Program.Entry.Function, Function.ENTRY_NAME, 0);
     }
 
-    public void Run()
+    public Int64 Run()
     {
-        State = InterpreterState.Running;
+        Int64 exitcode = 0;
 
-        var thread = new Thread(this, new InstructionPointer(Program.Entry.Parent.Name, Program.Entry.Name, Program.Entry.Entry.Name, 0));
-        thread.Run();
+        State = InterpreterState.Running;
 
         while (State == InterpreterState.Running)
         {
-            // Process requests
-            if (requests.TryDequeue(out var request))
+            var instruction = Program.GetModule(IP.Module).GetFunction(IP.Function).GetBasicBlock(IP.BasicBlock)[IP.Index];
+            var nextIP = new InstructionPointer(IP.Module, IP.Function, IP.BasicBlock, IP.Index + 1);
+
+            Logger.Debug($"{IP}: {instruction}");
+
+            switch (instruction)
             {
-                switch (request)
-                {
-                    case Request.Exit r:
+                case Instruction.Syscall instr:
+                    {
+                        switch (instr.Code)
                         {
-                            State = InterpreterState.ShuttingDown;
-
-                            //TODO: send each thread the terminate signal
-                            r.Sender.Send(new Signal.Terminate());
-                            r.Complete();
+                            case SyscallCode.Exit:
+                                {
+                                    exitcode = PopStack<Value.I64>().Value;
+                                    State = InterpreterState.ShuttingDown;
+                                }
+                                break;
+                            default: throw new NotImplementedException(instr.Code.ToString());
                         }
-                        break;
-                    default: request.Deny($"Unknown request: {request}"); break;
-                }
-            }
-        }
+                    }
+                    break;
+                case Instruction.PushI64 instr: stack.Push(new Value.I64(instr.Value)); break;
+                case Instruction.AddI64:
+                    {
+                        var op1 = PopStack<Value.I64>().Value;
+                        var op2 = PopStack<Value.I64>().Value;
 
-        while (requests.TryDequeue(out var request))
-            request.Deny("Interpreter has temrinated.");
+                        stack.Push(new Value.I64(op1 + op2));
+                    }
+                    break;
+                default: throw new NotImplementedException(instruction.Opcode.ToString());
+            }
+
+            Logger.Debug(StackToString(), startOnNewLine: true);
+            IP = nextIP;
+        }
 
         State = InterpreterState.Terminated;
+        return exitcode;
     }
 
-    public void Request(Request request)
+    private T PopStack<T>()
     {
-        if (State != InterpreterState.Running)
-        {
-            request.Deny($"Interpreter is not running. Current state is '{State}'.");
-            return;
-        }
+        var stackTop = stack.Peek();
+        if (stackTop is not T)
+            throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
 
-        requests.Enqueue(request);
-
-        while (!request.Processed)
-            ;
+        return (T)stack.Pop();
     }
+
+    public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
 }

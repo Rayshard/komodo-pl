@@ -2,20 +2,14 @@ namespace Komodo.Compilation.Bytecode;
 
 public class BasicBlock
 {
-    private List<Instruction> instructions = new List<Instruction>();
-
-    public Function Parent { get; }
     public string Name { get; }
 
-    public IEnumerable<Instruction> Instructions => instructions.AsEnumerable();
+    private List<Instruction> instructions = new List<Instruction>();
+    public IEnumerable<Instruction> Instructions => instructions;
 
-    public BasicBlock(Function parent, string name)
-    {
-        Parent = parent;
-        Name = name;
-    }
+    public BasicBlock(string name) => Name = name;
 
     public void Append(Instruction instruction) => instructions.Add(instruction);
 
-    public Instruction this[int key] => instructions[key];
+    public Instruction this[int idx] => instructions[idx];
 }
