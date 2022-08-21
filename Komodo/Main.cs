@@ -191,20 +191,20 @@ static class Entry
             PrintUsage("run-ir", msg: "Expected one input file path", exitCode: -1);
 
         var inputFilePath = args.ElementAt(0);
-        if (!inputFilePath.EndsWith(".kmdir"))
-            PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmdir)", exitCode: -1);
 
-        var xmlDoc = new XmlDocument();
+        if (!File.Exists(inputFilePath)) { PrintUsage("run-ir", msg: $"File does not exist at {inputFilePath}", exitCode: -1); }
+        else if (!inputFilePath.EndsWith(".kmdir")) { PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmdir)", exitCode: -1); }
+
         Compilation.Bytecode.Program? program = null;
 
         try
         {
-            xmlDoc.Load(inputFilePath);
-            program = Compilation.Bytecode.Formatter.Deserialize(xmlDoc);
+            var node = JsonNode.Parse(File.ReadAllText(inputFilePath))!;
+            program = Compilation.Bytecode.Formatter.DeserializeProgram(node);
         }
         catch (Exception e)
         {
-            Logger.Error(e.Message);
+            Logger.Error(e.Message + "\n" + e.StackTrace);
             PrintUsage("run-ir", msg: "Expected a valid komodo ir file", exitCode: -1);
         }
 
@@ -295,8 +295,8 @@ static class Entry
                 if (option is Option.Parameter parameter)
                 {
                     LogLevel level;
-                    if(!Enum.TryParse<LogLevel>(parameter.Value, out level))
-                       throw new Exception($"'loglevel' can only be one of {String.Join('|', Enum.GetNames(typeof(LogLevel)))}"); 
+                    if (!Enum.TryParse<LogLevel>(parameter.Value, out level))
+                        throw new Exception($"'loglevel' can only be one of {String.Join('|', Enum.GetNames(typeof(LogLevel)))}");
 
                     Logger.MinLevel = level;
                 }

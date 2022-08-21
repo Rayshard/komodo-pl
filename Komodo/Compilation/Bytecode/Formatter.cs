@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Xml;
 
 namespace Komodo.Compilation.Bytecode;
@@ -68,126 +69,182 @@ public static class Formatter
         return document;
     }
 
-    public static Program Deserialize(XmlDocument document)
+    public static IEnumerable<T> DeserializeArray<T>(JsonNode node, Func<JsonNode, T> deserializer)
     {
-        Program? program = null;
+        if (node is not JsonArray)
+            throw new Exception($"Unexpected node: {node}");
 
-        foreach (XmlNode node in document.ChildNodes)
-        {
-            if (node is XmlDeclaration) { continue; }
-            else if (node is XmlElement && node.Name == "program" && program is null) { program = DeserializeProgram((XmlElement)node); }
-            else { throw new Exception($"Unexpected node: {node.Name}"); }
-        }
-
-        return program ?? throw new InvalidDataException("Expected one 'program' element");
+        return node.AsArray().Select(n => deserializer(n!));
     }
 
-    public static Program DeserializeProgram(XmlElement element)
+    public static T DeserializeEnum<T>(JsonNode node) where T : struct => Enum.Parse<T>(node.GetValue<string>());
+
+    public static Program DeserializeProgram(JsonNode node)
     {
-        if (element.Name != "program") { throw new InvalidDataException("Expected 'program' element"); }
-        else if (!element.HasAttribute("entryModule")) { throw new InvalidDataException("Element has no attribute 'entryModule'"); }
-        else if (!element.HasAttribute("entryFunction")) { throw new InvalidDataException("Element has no attribute 'entryFunction'"); }
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
 
-        var program = new Program(element.Name, (element.GetAttribute("entryModule"), element.GetAttribute("entryFunction")));
+        var jsonObject = node.AsObject();
 
-        foreach (XmlNode node in element.ChildNodes)
-        {
-            if (node is not XmlElement)
-                throw new InvalidDataException($"Unexpected node: {node.Name}");
+        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
+        else if (!jsonObject.ContainsKey("entry")) { throw new Exception($"Expected property: entry"); }
+        else if (!jsonObject.ContainsKey("modules")) { throw new Exception($"Expected property: modules"); }
+        else if (jsonObject.Count != 3) { throw new Exception($"Object has unexpected properties."); }
 
-            program.AddModule(DeserializeModule((XmlElement)node));
-        }
+        var name = jsonObject["name"]!.GetValue<string>();
+        var entry = DeserializeProgramEntry(jsonObject["entry"]!);
+        var modules = DeserializeArray(jsonObject["modules"]!, DeserializeModule);
+
+        var program = new Program(name, entry);
+
+        foreach (var module in modules)
+            program.AddModule(module);
 
         return program;
     }
 
-    public static Module DeserializeModule(XmlElement element)
+    public static (string Module, string Function) DeserializeProgramEntry(JsonNode node)
     {
-        if (element.Name != "module") { throw new InvalidDataException("Expected 'module' element"); }
-        else if (!element.HasAttribute("name")) { throw new InvalidDataException("Element has no attribute 'name'"); }
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
 
-        var module = new Module(element.GetAttribute("name"));
+        var jsonObject = node.AsObject();
 
-        foreach (XmlNode node in element.ChildNodes)
-        {
-            if (node is not XmlElement)
-                throw new InvalidDataException($"Unexpected node: {node.Name}");
+        if (!jsonObject.ContainsKey("module")) { throw new Exception($"Expected property: module"); }
+        else if (!jsonObject.ContainsKey("function")) { throw new Exception($"Expected property: function"); }
+        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
 
-            module.AddFunction(DeserializeFunction((XmlElement)node));
-        }
+        var module = jsonObject["module"]!.GetValue<string>();
+        var function = jsonObject["function"]!.GetValue<string>();
+        return (module, function);
+    }
+
+    public static Module DeserializeModule(JsonNode node)
+    {
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
+
+        var jsonObject = node.AsObject();
+
+        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
+        else if (!jsonObject.ContainsKey("functions")) { throw new Exception($"Expected property: functions"); }
+        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
+
+        var name = jsonObject["name"]!.GetValue<string>();
+        var functions = DeserializeArray(jsonObject["functions"]!, DeserializeFunction);
+
+        var module = new Module(name);
+
+        foreach (var function in functions)
+            module.AddFunction(function);
 
         return module;
     }
 
-    public static Function DeserializeFunction(XmlElement element)
+    public static Function DeserializeFunction(JsonNode node)
     {
-        if (element.Name != "function") { throw new InvalidDataException("Expected 'function' element"); }
-        else if (!element.HasAttribute("name")) { throw new InvalidDataException("Element has no attribute 'name'"); }
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
 
-        var function = new Function(element.GetAttribute("name"));
+        var jsonObject = node.AsObject();
 
-        foreach (XmlNode node in element.ChildNodes)
-        {
-            if (node is not XmlElement)
-                throw new InvalidDataException($"Unexpected node: {node.Name}");
+        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
+        else if (!jsonObject.ContainsKey("args")) { throw new Exception($"Expected property: args"); }
+        else if (!jsonObject.ContainsKey("locals")) { throw new Exception($"Expected property: locals"); }
+        else if (!jsonObject.ContainsKey("ret")) { throw new Exception($"Expected property: ret"); }
+        else if (!jsonObject.ContainsKey("basicBlocks")) { throw new Exception($"Expected property: basicBlocks"); }
+        else if (jsonObject.Count != 5) { throw new Exception($"Object has unexpected properties."); }
 
-            switch(node.Name)
-            {
-                case "basicBlock": function.AddBasicBlock(DeserializeBasicBlock((XmlElement)node)); break;
-                case "basicBlock": function.AddBasicBlock(DeserializeBasicBlock((XmlElement)node)); break;
-                default: throw new InvalidDataException($"Unexpected node: {node.Name}");
-            }
-            
-        }
+        var name = jsonObject["name"]!.GetValue<string>();
+        var args = DeserializeArray(jsonObject["args"]!, DeserializeEnum<DataType>);
+        var locals = DeserializeArray(jsonObject["locals"]!, DeserializeFunctionLocal);
+        var ret = DeserializeEnum<DataType>(jsonObject["ret"]!);
+        var basicBlocks = DeserializeArray(jsonObject["basicBlocks"]!, DeserializeBasicBlock);
+
+        var function = new Function(name, args, locals, ret);
+
+        foreach (var basicBlock in basicBlocks)
+            function.AddBasicBlock(basicBlock);
 
         return function;
     }
 
-    public static BasicBlock DeserializeBasicBlock(XmlElement element)
+    public static KeyValuePair<string, DataType> DeserializeFunctionLocal(JsonNode node)
     {
-        if (element.Name != "basicBlock") { throw new InvalidDataException("Expected 'basicBlock' element"); }
-        else if (!element.HasAttribute("name")) { throw new InvalidDataException("Element has no attribute 'name'"); }
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
 
-        var basicBlock = new BasicBlock(element.GetAttribute("name"));
+        var jsonObject = node.AsObject();
 
-        foreach (XmlNode node in element.ChildNodes)
-        {
-            if (node is not XmlElement)
-                throw new InvalidDataException($"Unexpected node: {node.Name}");
+        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
+        else if (!jsonObject.ContainsKey("type")) { throw new Exception($"Expected property: type"); }
+        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
 
-            basicBlock.Append(DeserializeInstruction((XmlElement)node));
-        }
+        var name = jsonObject["name"]!.GetValue<string>();
+        var dataType = DeserializeEnum<DataType>(jsonObject["type"]!);
+        return new KeyValuePair<string, DataType>(name, dataType);
+    }
+
+    public static BasicBlock DeserializeBasicBlock(JsonNode node)
+    {
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
+
+        var jsonObject = node.AsObject();
+
+        if (!jsonObject.ContainsKey("name")) { throw new Exception($"Expected property: name"); }
+        else if (!jsonObject.ContainsKey("instructions")) { throw new Exception($"Expected property: instructions"); }
+        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
+
+        var name = jsonObject["name"]!.GetValue<string>();
+        var instructions = DeserializeArray(jsonObject["instructions"]!, DeserializeInstruction);
+
+        var basicBlock = new BasicBlock(name);
+
+        foreach (var instruction in instructions)
+            basicBlock.Append(instruction);
 
         return basicBlock;
     }
 
-    public static Instruction DeserializeInstruction(XmlElement element)
+    public static Instruction DeserializeInstruction(JsonNode node)
     {
-        switch (element.Name)
-        {
-            case "PushI64":
-                {
-                    if (!element.HasAttribute("value")) { throw new InvalidDataException("Element has no attribute 'value'"); }
-                    else if (element.Attributes.Count != 1) { throw new InvalidDataException("Element has too many attributes"); }
+        if (node is not JsonObject)
+            throw new Exception($"Unexpected node: {node}");
 
-                    return new Instruction.PushI64(Int64.Parse(element.GetAttribute("value")));
-                }
-            case "AddI64":
+        var jsonObject = node.AsObject();
+
+        if (!jsonObject.ContainsKey("opcode"))
+            throw new Exception($"Expected property: opcode");
+
+        var opcode = Enum.Parse<Opcode>(jsonObject["opcode"]!.GetValue<string>());
+
+        switch (opcode)
+        {
+            case Opcode.PushI64:
                 {
-                    if (element.Attributes.Count != 0)
-                        throw new InvalidDataException("Element has too many attributes");
+                    if (!jsonObject.ContainsKey("value")) { throw new Exception($"Expected property: value"); }
+                    else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
+
+                    var value = jsonObject["value"]!.GetValue<Int64>();
+                    return new Instruction.PushI64(value);
+                }
+            case Opcode.AddI64:
+                {
+                    if (jsonObject.Count != 1)
+                        throw new Exception($"Object has unexpected properties.");
 
                     return new Instruction.AddI64();
                 }
-            case "Syscall":
+            case Opcode.Syscall:
                 {
-                    if (!element.HasAttribute("code")) { throw new InvalidDataException("Element has no attribute 'code'"); }
-                    else if (element.Attributes.Count != 1) { throw new InvalidDataException("Element has too many attributes"); }
+                    if (!jsonObject.ContainsKey("code")) { throw new Exception($"Expected property: code"); }
+                    else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
 
-                    try { return new Instruction.Syscall(Enum.Parse<SyscallCode>(element.GetAttribute("code"))); }
-                    catch { throw new InvalidDataException($"'{element.GetAttribute("code")}' is not a valid Syscall code"); }
+                    var code = DeserializeEnum<SyscallCode>(jsonObject["code"]!);
+                    return new Instruction.Syscall(code);
                 }
-            default: throw new InvalidDataException($"Unexpected element: {element}");
+            default: throw new Exception($"Unexpected opcode: {opcode}");
         }
     }
 }

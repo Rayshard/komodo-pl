@@ -1,14 +1,35 @@
-<?xml version="1.0" encoding="utf-8"?>
-<program name="My Program" entryModule="MyModule" entryFunction="Main">
-    <module name="MyModule">
-        <function name="Main" args="1" return="I64">
-            <local name="x" type="I64" />
-            <local name="y" type="I64" />
-            <local name="z" type="I64" />
-            <basicBlock name="__entry__">
-                <PushI64 value="12" />
-                <Syscall code="Exit" />
-            </basicBlock>
-        </function>
-    </module>
-</program>
+{
+  "name": "My Program",
+  "entry": {
+    "module": "MyModule",
+    "function": "Main"
+  },
+  "modules": [
+    {
+      "name": "MyModule",
+      "functions": [
+        {
+          "name": "Main",
+          "args": [],
+          "locals": [],
+          "ret": "Unit",
+          "basicBlocks": [
+            {
+              "name": "__entry__",
+              "instructions": [
+                {
+                  "opcode": "PushI64",
+                  "value": 12
+                },
+                {
+                  "opcode": "Syscall",
+                  "code": "Exit"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
