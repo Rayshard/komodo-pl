@@ -282,6 +282,22 @@ static class Entry
     {
         Logger.MinLevel = LogLevel.ERROR;
 
+        var sources = new Dictionary<string, TextSource>();
+        sources.Add("test", new TextSource("test", "\"my \\\\\""));
+
+        
+        try
+        {
+            var node = SExpression.Parser.Parse(new TextSourceReader(sources["test"]));
+            Console.WriteLine(node.Value);
+        }
+        catch (SExpression.Parser.ParseException e)
+        {
+            Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}");
+        }
+
+        return;
+
         var (options, remainingArgs) = ParseOptions(args);
 
         if (options.ContainsKey("loglevel"))

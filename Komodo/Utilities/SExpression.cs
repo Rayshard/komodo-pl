@@ -11,12 +11,17 @@ public abstract record SExpression
         {
             public override string ToString()
             {
-                string result = Value;
-                Value.Replace("\\", "\\\\"); // Escape backslashes
-                Value.Replace("\"", "\\\""); // Escape quotes
-                Value.Replace("\n", "\\n"); // Escape new lines
-                Value.Replace("\t", "\\t"); // Escape tabs
-                return result;
+                string result = Value
+                    .Replace("\\", "\\\\")  // Escape backslashes
+                    .Replace("\"", "\\\"")  // Escape quotes
+                    .Replace("\n", "\\n")   // Escape new lines
+                    .Replace("\r", "\\r")   // Escape tabs
+                    .Replace("\t", "\\t")   // Escape tabs
+                    .Replace("\b", "\\b")   // Escape tabs
+                    .Replace("\v", "\\v")   // Escape tabs
+                    .Replace("\0", "\\0");  // Escape tabs
+
+                return $"\"{result}\"";
             }
         }
 
@@ -56,7 +61,7 @@ public abstract record SExpression
         {
             int start = stream.Offset;
 
-            if (stream.Peek() != '(')
+            if (stream.Read() != '(')
                 throw new ParseException("Lists must start with '('", stream.GetLocation(start));
 
             stream.SkipWhileWhiteSpace();
@@ -124,7 +129,7 @@ public abstract record SExpression
                             stream.Read();
                             return new Node(new Atom.Quoted(inner), stream.GetLocation(start));
                         }
-                    case '\0': throw new ParseException("Expected ')' but found EOF", stream.GetLocation(stream.Offset));
+                    case '\0': throw new ParseException("Expected '\"' but found EOF", stream.GetLocation(stream.Offset));
                     default: inner += stream.Read(); break;
                 }
             }
