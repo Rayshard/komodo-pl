@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
@@ -8,6 +9,10 @@ namespace Komodo.Utilities;
 
 public static class Utility
 {
+    private static Regex HexCharRegex = new Regex("^[a-fA-F0-9]$");
+    
+    public static bool IsHex(this char c) => HexCharRegex.Match(c.ToString()).Success;
+
     public static string PrettyPrintJSON(string json)
     {
         using JsonDocument document = JsonDocument.Parse(json);

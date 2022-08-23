@@ -1,0 +1,15 @@
+(program MyProgram
+    (entry MyModule Factorial)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (return Unit)
+            (basicBlock __entry__
+                (PushI64 12)
+                (Syscall Exit)
+            )
+        )
+    )
+)
+

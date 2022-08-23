@@ -70,7 +70,7 @@ public record TextSource
 
         var position = new Position(1, 1);
 
-        for(int lineNumber = 1; lineNumber <= Lines.Count; lineNumber++)
+        for (int lineNumber = 1; lineNumber <= Lines.Count; lineNumber++)
         {
             var lineStart = Lines[lineNumber].Start;
 
@@ -86,4 +86,101 @@ public record TextSource
     public TextLocation GetLocation(int offset, int length) => new TextLocation(Name, offset, offset + length);
 
     public static TextSource Load(string path) => new TextSource(path, System.IO.File.ReadAllText(path));
+}
+
+public class TextSourceReader
+{
+    public TextSource Source { get; }
+
+    private int offset; //TODO: this should be a long
+    public int Offset
+    {
+        get => offset;
+        set => offset = Math.Min(Math.Max(value, 0), Source.Length);
+    }
+
+    public Position Position => Source.GetPosition(Offset);
+    public bool EndOfStream => offset >= Source.Length;
+
+    public TextSourceReader(TextSource source) => Source = source;
+
+    public char Peek() => offset == Source.Length ? '\0' : Source.Text[offset];
+
+    public char? PeekIf(Func<char, bool> predicate)
+    {
+        var peeked = Peek();
+        return predicate(peeked) ? peeked : null;
+    }
+
+    public bool PeekIf(Func<char, bool> predicate, ref char result)
+    {
+        var character = PeekIf(predicate);
+
+        if (!character.HasValue)
+            return false;
+
+        result = character.Value;
+        return true;
+    }
+
+    public string PeekWhile(Func<char, bool> predicate, uint maxChars = uint.MaxValue)
+    {
+        int start = offset;
+        string result = ReadWhile(predicate, maxChars);
+
+        offset = start;
+        return result;
+    }
+
+    public bool PeekWhile(Func<char, bool> predicate, out string result, uint maxChars = uint.MaxValue)
+    {
+        result = PeekWhile(predicate, maxChars);
+        return result.Length != 0;
+    }
+
+    public char Read() => offset == Source.Length ? '\0' : Source.Text[offset++];
+    public char? ReadIf(Func<char, bool> predicate) => predicate(Peek()) ? Read() : null;
+
+    public bool ReadIf(Func<char, bool> predicate, ref char result)
+    {
+        var character = ReadIf(predicate);
+
+        if (!character.HasValue)
+            return false;
+
+        result = character.Value;
+        return true;
+    }
+
+    public bool ReadIf(char c)
+    {
+        if (Peek() == c)
+        {
+            Read();
+            return true;
+        }
+        return false;
+    }
+
+    public string ReadWhile(Func<char, bool> predicate, uint maxChars = uint.MaxValue)
+    {
+        string result = "";
+
+        while (!EndOfStream && predicate(Peek()))
+            result += Read();
+
+        return result;
+    }
+
+    public bool ReadWhile(Func<char, bool> predicate, out string result, uint maxChars = uint.MaxValue)
+    {
+        result = ReadWhile(predicate, maxChars);
+        return result.Length != 0;
+    }
+
+    public char? SkipIfWhiteSpace() => ReadIf(Char.IsWhiteSpace);
+    public string SkipWhileWhiteSpace() => ReadWhile(Char.IsWhiteSpace);
+
+    public TextLocation GetLocation(int endpoint)
+        => endpoint <= offset ? Source.GetLocation(endpoint, offset - endpoint) : Source.GetLocation(offset, endpoint - offset);
 }
