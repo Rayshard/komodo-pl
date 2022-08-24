@@ -3,92 +3,54 @@ using System.Text.RegularExpressions;
 
 namespace Komodo.Utilities;
 
-public abstract record SExpression
+public abstract record SExpression(TextLocation? Location)
 {
-    public abstract record Atom(string Value) : SExpression
+    public record UnquotedSymbol : SExpression
     {
-        public record Quoted(string Value) : Atom(Value)
-        {
-            public override string ToString()
-            {
-                string result = Value
-                    .Replace("\\", "\\\\")  // Escape backslashes
-                    .Replace("\"", "\\\"")  // Escape quotes
-                    .Replace("\n", "\\n")   // Escape new lines
-                    .Replace("\r", "\\r")   // Escape tabs
-                    .Replace("\t", "\\t")   // Escape tabs
-                    .Replace("\b", "\\b")   // Escape tabs
-                    .Replace("\v", "\\v")   // Escape tabs
-                    .Replace("\0", "\\0");  // Escape tabs
+        public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$");
 
-                return $"\"{result}\"";
-            }
-        }
+        public string Value { get; }
 
-        public record Unquoted(string Value) : Atom(VerifyValue(Value))
-        {
-            public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$");
+        public UnquotedSymbol(string value, TextLocation? location = null) : base(location) => Value = VerifyValue(value);
 
-            public override string ToString() => Value;
+        public UnquotedSymbol ExpectValue(string value)
+            => Value == value ? this : throw new FormatException($"Expected {value}, but found {Value}", this);
 
-            private static string VerifyValue(string value)
-                => Regex.IsMatch(value) ? value : throw new InvalidOperationException($"Invalid unquoted value: {value}");
-        }
-    }
+        public override string ToString() => Value;
 
-    public record List(IEnumerable<SExpression> Items) : SExpression
-    {
-        public List() : this(new SExpression[] { }) { }
+        private static string VerifyValue(string value)
+            => Regex.IsMatch(value) ? value : throw new InvalidOperationException($"Invalid unquoted symbol value: {value}");
 
-        public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
-    }
-
-    public static class Parser
-    {
-        public class ParseException : Exception
-        {
-            public TextLocation Location { get; }
-
-            public ParseException(string message, TextLocation location) : base(message) => Location = location;
-        }
-
-        public record Node(SExpression Value, TextLocation Location) : SExpression
-        {
-            public override string ToString() => Value.ToString();
-        }
-
-        public static Node ParseList(TextSourceReader stream)
+        new public static UnquotedSymbol Parse(TextSourceReader stream)
         {
             int start = stream.Offset;
+            var value = stream.ReadWhile(c => UnquotedSymbol.Regex.IsMatch(c.ToString()));
 
-            if (stream.Read() != '(')
-                throw new ParseException("Lists must start with '('", stream.GetLocation(start));
+            if (value.Length == 0)
+                throw new ParseException("Encountered invalid character to start unquoted atom", stream.GetLocation(stream.Offset + 1));
 
-            stream.SkipWhileWhiteSpace();
+            return new UnquotedSymbol(value, stream.GetLocation(start));
+        }
+    }
 
-            var items = new System.Collections.Generic.List<SExpression>();
+    public record QuotedSymbol(string Value, TextLocation? Location = null) : SExpression(Location)
+    {
+        public override string ToString()
+        {
+            string result = Value
+                .Replace("\\", "\\\\")  // Escape backslashes
+                .Replace("\"", "\\\"")  // Escape quotes
+                .Replace("\n", "\\n")   // Escape new lines
+                .Replace("\r", "\\r")   // Escape tabs
+                .Replace("\t", "\\t")   // Escape tabs
+                .Replace("\b", "\\b")   // Escape tabs
+                .Replace("\v", "\\v")   // Escape tabs
+                .Replace("\0", "\\0");  // Escape tabs
 
-            while (true)
-            {
-                switch (stream.Peek())
-                {
-                    case ')':
-                        {
-                            stream.Read();
-                            return new Node(new List(items), stream.GetLocation(start));
-                        }
-                    case '\0': throw new ParseException("Expected ')' but found EOF", stream.GetLocation(stream.Offset));
-                    default: items.Add(Parse(stream)); break;
-                }
-
-                if (!stream.PeekIf(c => Char.IsWhiteSpace(c) || c == ')').HasValue)
-                    throw new ParseException("Expected whitespace or ')'", stream.GetLocation(stream.Offset + 1));
-
-                stream.SkipWhileWhiteSpace();
-            }
+            return $"\"{result}\"";
         }
 
-        public static Node ParseQuotedAtom(TextSourceReader stream)
+        new public static QuotedSymbol Parse(TextSourceReader stream)
         {
             int start = stream.Offset;
 
@@ -127,35 +89,133 @@ public abstract record SExpression
                     case '"':
                         {
                             stream.Read();
-                            return new Node(new Atom.Quoted(inner), stream.GetLocation(start));
+                            return new QuotedSymbol(inner, stream.GetLocation(start));
                         }
                     case '\0': throw new ParseException("Expected '\"' but found EOF", stream.GetLocation(stream.Offset));
                     default: inner += stream.Read(); break;
                 }
             }
         }
+    }
 
-        public static Node ParseUnquotedAtom(TextSourceReader stream)
+    public record List(IEnumerable<SExpression> Items, TextLocation? Location = null) : SExpression(Location), IEnumerable<SExpression>
+    {
+        public List(TextLocation? location = null) : this(new SExpression[] { }, location) { }
+
+        public List ExpectLength(int length)
+            => Items.Count() == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count()}", this);
+
+        public List ExpectLength(uint? min, uint? max)
+        {
+            if (min.HasValue && max.HasValue && max < min)
+                throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'");
+            else if (min.HasValue && Items.Count() < min)
+                throw new FormatException($"Expected list of length at least {min}, but found list of length {Items.Count()}", this);
+            else if (max.HasValue && Items.Count() > max)
+                throw new FormatException($"Expected list of length at most {max}, but found list of length {Items.Count()}", this);
+            else
+                return this;
+        }
+
+        public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
+
+        public IEnumerator<SExpression> GetEnumerator() => Items.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public SExpression this[int idx] => Items.ElementAt(idx);
+
+        new public static List Parse(TextSourceReader stream)
         {
             int start = stream.Offset;
-            var value = stream.ReadWhile(c => Atom.Unquoted.Regex.IsMatch(c.ToString()));
 
-            if (value.Length == 0)
-                throw new ParseException("Encountered invalid character to start unquoted atom", stream.GetLocation(stream.Offset + 1));
+            if (stream.Read() != '(')
+                throw new ParseException("Lists must start with '('", stream.GetLocation(start));
 
-            return new Node(new Atom.Unquoted(value), stream.GetLocation(start));
-        }
-
-        public static Node Parse(TextSourceReader stream)
-        {
             stream.SkipWhileWhiteSpace();
 
-            return stream.Peek() switch
+            var items = new System.Collections.Generic.List<SExpression>();
+
+            while (true)
             {
-                '(' => ParseList(stream),
-                '"' => ParseQuotedAtom(stream),
-                _ => ParseUnquotedAtom(stream)
-            };
+                switch (stream.Peek())
+                {
+                    case ')':
+                        {
+                            stream.Read();
+                            return new List(items, stream.GetLocation(start));
+                        }
+                    case '\0': throw new ParseException("Expected ')' but found EOF", stream.GetLocation(stream.Offset));
+                    default: items.Add(SExpression.Parse(stream)); break;
+                }
+
+                if (!stream.PeekIf(c => Char.IsWhiteSpace(c) || c == ')').HasValue)
+                    throw new ParseException("Expected whitespace or ')'", stream.GetLocation(stream.Offset + 1));
+
+                stream.SkipWhileWhiteSpace();
+            }
         }
+    }
+
+    #region Formatting
+    public class FormatException : Exception
+    {
+        public SExpression Node { get; }
+
+        public TextLocation? Location => Node.Location;
+
+        public FormatException(string message, SExpression node) : base(message) => Node = node;
+    }
+
+    public UnquotedSymbol ExpectUnquotedSymbol()
+        => this as UnquotedSymbol ?? throw new FormatException($"Expected unquoted symbol, but found {this.GetType()}", this);
+
+    public QuotedSymbol ExpectQuotedSymbol()
+        => this as QuotedSymbol ?? throw new FormatException($"Expected quoted symbol, but found {this.GetType()}", this);
+
+    public List ExpectList()
+            => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
+
+    public bool IsList() => this is List;
+    public bool IsQuotedSymbol() => this is QuotedSymbol;
+    public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public T AsEnum<T>() where T : struct, Enum
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Enum.TryParse<T>(value, false, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a valid {typeof(T)}", this);
+    }
+
+    public Int64 AsInt64()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Int64.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not an Int64", this);
+    }
+    #endregion
+
+    public class ParseException : Exception
+    {
+        public TextLocation Location { get; }
+
+        public ParseException(string message, TextLocation location) : base(message) => Location = location;
+    }
+
+    public static SExpression Parse(TextSourceReader stream)
+    {
+        stream.SkipWhileWhiteSpace();
+
+        return stream.Peek() switch
+        {
+            '(' => List.Parse(stream),
+            '"' => QuotedSymbol.Parse(stream),
+            _ => UnquotedSymbol.Parse(stream)
+        };
     }
 }

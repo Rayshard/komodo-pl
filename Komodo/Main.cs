@@ -191,24 +191,42 @@ static class Entry
 
         var inputFilePath = args.ElementAt(0);
 
-        if (!File.Exists(inputFilePath)) { PrintUsage("run-ir", msg: $"File does not exist at {inputFilePath}", exitCode: -1); }
-        else if (!inputFilePath.EndsWith(".kmd.ir.json")) { PrintUsage("run-ir", msg: "Expected a komodo ir file (a file ending in .kmd.ir.json)", exitCode: -1); }
+        if (!File.Exists(inputFilePath))
+        {
+            Logger.Error($"File does not exist at {inputFilePath}");
+            return;
+        }
+        else if (!inputFilePath.EndsWith(".kmd.ir"))
+        {
+            Logger.Error("Expected a komodo ir file (a file ending in .kmd.ir)");
+            return;
+        }
 
-        Compilation.Bytecode.Program? program = null;
+        var sources = new Dictionary<string, TextSource>();
+        sources.Add(inputFilePath, new TextSource(inputFilePath, File.ReadAllText(inputFilePath)));
+
+        Compilation.Bytecode.Program program;
 
         try
         {
-            var json = JToken.Parse(File.ReadAllText(inputFilePath))!;
-            program = Compilation.Bytecode.Formatter.DeserializeProgram(json);
+            var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
+            program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+        }
+        catch (SExpression.ParseException e)
+        {
+            Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}");
+            return;
+        }
+        catch (SExpression.FormatException e)
+        {
+            Logger.Error($"{e.Location!.ToTerminalLink(sources)} {e.Message}");
+            return;
         }
         catch (Exception e)
         {
             Logger.Error(e.Message + "\n" + e.StackTrace);
-            PrintUsage("run-ir", msg: "Expected a valid komodo ir file", exitCode: -1);
+            return;
         }
-
-        if (program is null)
-            throw new NullReferenceException();
 
         //Console.WriteLine(Utility.ToFormattedString(Compilation.Bytecode.Formatter.Serialize(program)));
 
@@ -281,22 +299,6 @@ static class Entry
     static void Main(string[] args)
     {
         Logger.MinLevel = LogLevel.ERROR;
-
-        var sources = new Dictionary<string, TextSource>();
-        sources.Add("test", new TextSource("test", "\"my \\\\\""));
-
-        
-        try
-        {
-            var node = SExpression.Parser.Parse(new TextSourceReader(sources["test"]));
-            Console.WriteLine(node.Value);
-        }
-        catch (SExpression.Parser.ParseException e)
-        {
-            Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}");
-        }
-
-        return;
 
         var (options, remainingArgs) = ParseOptions(args);
 

@@ -1,10 +1,10 @@
 (program MyProgram
-    (entry MyModule Factorial)
+    (entry MyModule Main)
     (module MyModule
         (function Main
             (args)
             (locals)
-            (return Unit)
+            (ret Unit)
             (basicBlock __entry__
                 (PushI64 12)
                 (Syscall Exit)

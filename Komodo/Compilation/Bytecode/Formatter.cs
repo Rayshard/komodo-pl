@@ -1,172 +1,182 @@
-using System.Text.Json.Nodes;
-using System.Xml;
 using Komodo.Utilities;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Schema;
 
 namespace Komodo.Compilation.Bytecode;
 
 public static class Formatter
 {
-
-    public static XmlElement Serialize(XmlDocument document, Bytecode.Instruction instruction)
+    public static SExpression Serialize(Program program)
     {
-        XmlElement element = document.CreateElement(instruction.Opcode.ToString());
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol("program"));
+        nodes.Add(new SExpression.UnquotedSymbol(program.Name));
+
+        var entryNode = new SExpression.List(new []
+        {
+            new SExpression.UnquotedSymbol("entry"),
+            new SExpression.UnquotedSymbol(program.Entry.Module),
+            new SExpression.UnquotedSymbol(program.Entry.Function),
+        });
+
+        nodes.AddRange(program.Modules.Select(Serialize));
+
+        return new SExpression.List(nodes);
+    }
+
+public static SExpression Serialize(Module module)
+    {
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol("module"));
+        nodes.Add(new SExpression.UnquotedSymbol(module.Name));
+        nodes.AddRange(module.Functions.Select(Serialize));
+
+        return new SExpression.List(nodes);
+    }
+
+    public static SExpression Serialize(Function function)
+    {
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol("function"));
+        nodes.Add(new SExpression.UnquotedSymbol(function.Name));
+
+        var argsNodes = new List<SExpression>();
+        argsNodes.Add(new SExpression.UnquotedSymbol("args"));
+        argsNodes.AddRange(function.Arguments.Select(arg => new SExpression.UnquotedSymbol(arg.ToString())));
+        nodes.Add(new SExpression.List(argsNodes));
+
+        var localsNodes = new List<SExpression>();
+        localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
+        localsNodes.AddRange(function.Locals.Select(arg => new SExpression.UnquotedSymbol(arg.ToString())));
+        nodes.Add(new SExpression.List(localsNodes));
+
+        var retNode = new SExpression.List(new []
+        {
+            new SExpression.UnquotedSymbol("ret"),
+            new SExpression.UnquotedSymbol(function.ReturnType.ToString()),
+        });
+        nodes.Add(new SExpression.List(retNode));
+
+        nodes.AddRange(function.BasicBlocks.Select(Serialize));
+
+        return new SExpression.List(nodes);
+    }
+
+    public static SExpression Serialize(BasicBlock basicBlock)
+    {
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol("basicBlock"));
+        nodes.Add(new SExpression.UnquotedSymbol(basicBlock.Name));
+        nodes.AddRange(basicBlock.Instructions.Select(Serialize));
+        return new SExpression.List(nodes);
+    }
+
+    public static SExpression Serialize(Instruction instruction)
+    {
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol(instruction.Opcode.ToString()));
 
         switch (instruction)
         {
-            case Bytecode.Instruction.Syscall instr: element.SetAttribute("code", instr.Code.ToString()); break;
-            case Bytecode.Instruction.PushI64 instr: element.SetAttribute("value", instr.Value.ToString()); break;
-            case Bytecode.Instruction.AddI64: break;
+            case Instruction.Syscall instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Code.ToString())); break;
+            case Instruction.PushI64 instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Value.ToString())); break;
+            case Instruction.AddI64: break;
             default: throw new NotImplementedException(instruction.Opcode.ToString());
         }
 
-        return element;
+        return new SExpression.List(nodes);
     }
 
-    public static XmlElement Serialize(XmlDocument document, Bytecode.BasicBlock basicBlock)
+    public static Program DeserializeProgram(SExpression sexpr)
     {
-        XmlElement element = document.CreateElement("basicBlock");
-        element.SetAttribute("name", basicBlock.Name);
+        var list = sexpr.ExpectList().ExpectLength(3, null);
+        list[0].ExpectUnquotedSymbol().ExpectValue("program");
 
-        foreach (var instruction in basicBlock.Instructions)
-            element.AppendChild(Serialize(document, instruction));
+        var name = list[1].ExpectUnquotedSymbol().Value;
 
-        return element;
-    }
+        var entryNode = list[2].ExpectList().ExpectLength(3);
+        entryNode.ElementAt(0).ExpectUnquotedSymbol().ExpectValue("entry");
 
-    public static XmlElement Serialize(XmlDocument document, Bytecode.Function function)
-    {
-        XmlElement element = document.CreateElement("function");
-        element.SetAttribute("name", function.Name);
-
-        foreach (var bb in function.BasicBlocks)
-            element.AppendChild(Serialize(document, bb));
-
-        return element;
-    }
-
-    public static XmlElement Serialize(XmlDocument document, Bytecode.Module module)
-    {
-        XmlElement element = document.CreateElement("module");
-        element.SetAttribute("name", module.Name);
-
-        foreach (var function in module.Functions)
-            element.AppendChild(Serialize(document, function));
-
-        return element;
-    }
-
-    public static XmlDocument Serialize(Bytecode.Program program)
-    {
-        XmlDocument document = new XmlDocument();
-        XmlElement element = document.CreateElement("program");
-
-        element.SetAttribute("name", program.Name);
-        element.SetAttribute("entryModule", program.Entry.Module);
-        element.SetAttribute("entryFunction", program.Entry.Function);
-
-        foreach (var module in program.Modules)
-            element.AppendChild(Serialize(document, module));
-
-        document.AppendChild(element);
-        return document;
-    }
-
-    private static IEnumerable<T> DeserializeArray<T>(JToken json, Func<JToken, T> deserializer) => json.Select(t => deserializer(t!));
-    private static T DeserializeEnum<T>(JToken json) where T : struct, Enum => Enum.Parse<T>(json.ToString());
-
-    public static Program DeserializeProgram(JToken json)
-    {
-        Utility.ValidateJSON(json, Schemas.Program());
-
-        var name = json["name"]!.ToString();
-        var entry = (json["entry"]!["module"]!.ToString(), json["entry"]!["function"]!.ToString());
-        var modules = DeserializeArray(json["modules"]!, DeserializeModule);
-
-        var program = new Program(name, entry);
-
-        foreach (var module in modules)
-            program.AddModule(module);
+        var entryModule = entryNode.ElementAt(1).ExpectUnquotedSymbol().Value;
+        var entryFunction = entryNode.ElementAt(2).ExpectUnquotedSymbol().Value;
+        var program = new Program(name, (entryModule, entryFunction));
+        
+        foreach (var item in list.Skip(3))
+            program.AddModule(DeserializeModule(item));
 
         return program;
     }
 
-    public static (string Module, string Function) DeserializeProgramEntry(JsonNode node)
+    public static Module DeserializeModule(SExpression sexpr)
     {
-        if (node is not JsonObject)
-            throw new Exception($"Unexpected node: {node}");
+        var list = sexpr.ExpectList().ExpectLength(2, null);
+        list[0].ExpectUnquotedSymbol().ExpectValue("module");
 
-        var jsonObject = node.AsObject();
-
-        if (!jsonObject.ContainsKey("module")) { throw new Exception($"Expected property: module"); }
-        else if (!jsonObject.ContainsKey("function")) { throw new Exception($"Expected property: function"); }
-        else if (jsonObject.Count != 2) { throw new Exception($"Object has unexpected properties."); }
-
-        var module = jsonObject["module"]!.GetValue<string>();
-        var function = jsonObject["function"]!.GetValue<string>();
-        return (module, function);
-    }
-
-    public static Module DeserializeModule(JToken json)
-    {
-        Utility.ValidateJSON(json, Schemas.Module());
-
-        var name = json["name"]!.ToString();
-        var functions = DeserializeArray(json["functions"]!, DeserializeFunction);
-
+        var name = list[1].ExpectUnquotedSymbol().Value;
         var module = new Module(name);
 
-        foreach (var function in functions)
-            module.AddFunction(function);
+        foreach (var item in list.Skip(2))
+            module.AddFunction(DeserializeFunction(item));
 
         return module;
     }
 
-    public static Function DeserializeFunction(JToken json)
+    public static Function DeserializeFunction(SExpression sexpr)
     {
-        Utility.ValidateJSON(json, Schemas.Function());
+        var list = sexpr.ExpectList().ExpectLength(6, null);
+        list[0].ExpectUnquotedSymbol().ExpectValue("function");
 
-        var name = json["name"]!.ToString();
-        var args = DeserializeArray(json["args"]!, DeserializeEnum<DataType>);
-        var locals = DeserializeArray(json["locals"]!, DeserializeEnum<DataType>);
-        var ret = DeserializeEnum<DataType>(json["ret"]!);
-        var basicBlocks = DeserializeArray(json["basicBlocks"]!, DeserializeBasicBlock);
+        var name = list[1].ExpectUnquotedSymbol().Value;
+        var argsNode = list[2].ExpectList().ExpectLength(1, null);
+        var localsNode = list[3].ExpectList().ExpectLength(1, null);
+        var retNode = list[4].ExpectList().ExpectLength(2);
+        
+        argsNode[0].ExpectUnquotedSymbol().ExpectValue("args");
+        localsNode[0].ExpectUnquotedSymbol().ExpectValue("locals");
+        retNode[0].ExpectUnquotedSymbol().ExpectValue("ret");
 
+        var args = argsNode.Skip(1).Select(node => node.AsEnum<DataType>());
+        var locals = localsNode.Skip(1).Select(node => node.AsEnum<DataType>());
+        var ret = retNode.ElementAt(1).AsEnum<DataType>();
         var function = new Function(name, args, locals, ret);
-
-        foreach (var basicBlock in basicBlocks)
-            function.AddBasicBlock(basicBlock);
+        
+        foreach (var item in list.Skip(5))
+            function.AddBasicBlock(DeserializeBasicBlock(item));
 
         return function;
     }
 
-    public static BasicBlock DeserializeBasicBlock(JToken json)
+    public static BasicBlock DeserializeBasicBlock(SExpression sexpr)
     {
-        Utility.ValidateJSON(json, Schemas.BasicBlock());
+        var list = sexpr.ExpectList().ExpectLength(3, null);
+        list[0].ExpectUnquotedSymbol().ExpectValue("basicBlock");
 
-        var name = json["name"]!.ToString();
-        var instructions = DeserializeArray(json["instructions"]!, DeserializeInstruction);
-
+        var name = list[1].ExpectUnquotedSymbol().Value;
         var basicBlock = new BasicBlock(name);
 
-        foreach (var instruction in instructions)
-            basicBlock.Append(instruction);
+        foreach (var item in list.Skip(2))
+            basicBlock.Append(DeserializeInstruction(item));
 
         return basicBlock;
     }
 
-    public static Instruction DeserializeInstruction(JToken json)
+    public static Instruction DeserializeInstruction(SExpression sexpr)
     {
-        Utility.ValidateJSON(json, Schemas.Instruction());
-
-        var opcode = DeserializeEnum<Opcode>(json["opcode"]!);
+        var list = sexpr.ExpectList().ExpectLength(1, null);
+        var opcode = list[0].AsEnum<Opcode>();
 
         switch (opcode)
         {
-            case Opcode.PushI64: return new Instruction.PushI64((Int64)json["value"]!);
-            case Opcode.AddI64: return new Instruction.AddI64();
-            case Opcode.Syscall: return new Instruction.Syscall(DeserializeEnum<SyscallCode>(json["code"]!));
+            case Opcode.PushI64: {
+                list.ExpectLength(2, null);
+                return new Instruction.PushI64(list[1].AsInt64());
+            }
+            case Opcode.AddI64: {
+                list.ExpectLength(1, null);
+                return new Instruction.AddI64();
+            }
+            case Opcode.Syscall: {
+                list.ExpectLength(2, null);
+                return new Instruction.Syscall(list[1].AsEnum<SyscallCode>());
+            }
             default: throw new Exception($"Unexpected opcode: {opcode}");
         }
     }
