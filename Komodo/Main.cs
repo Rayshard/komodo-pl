@@ -228,7 +228,7 @@ static class Entry
             return;
         }
 
-        //Console.WriteLine(Utility.ToFormattedString(Compilation.Bytecode.Formatter.Serialize(program)));
+        Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
 
         var interpreter = new Interpreter(program);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();

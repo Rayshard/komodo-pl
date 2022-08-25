@@ -13,6 +13,8 @@ public static class Utility
     
     public static bool IsHex(this char c) => HexCharRegex.Match(c.ToString()).Success;
 
+    public static string WithIndent(this string s, string indent = "    ") => string.Join('\n', s.Split('\n').Select(line => indent + line));
+
     public static string PrettyPrintJSON(string json)
     {
         using JsonDocument document = JsonDocument.Parse(json);
