@@ -85,6 +85,8 @@ public record TextSource
 
     public TextLocation GetLocation(int offset, int length) => new TextLocation(Name, offset, offset + length);
 
+    public string GetTerminalLink(int offset) => $"{Name}:{GetPosition(offset)}";
+
     public static TextSource Load(string path) => new TextSource(path, System.IO.File.ReadAllText(path));
 }
 

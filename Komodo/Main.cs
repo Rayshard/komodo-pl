@@ -91,6 +91,14 @@ static class Entry
                     );
                 }
                 break;
+            case "format":
+                {
+                    message += String.Join(
+                        Environment.NewLine,
+                        "Usage: komodo format [input file path]"
+                    );
+                }
+                break;
             case "make-tests":
                 {
                     message += String.Join(
@@ -196,9 +204,9 @@ static class Entry
             Logger.Error($"File does not exist at {inputFilePath}");
             return;
         }
-        else if (!inputFilePath.EndsWith(".kmd.ir"))
+        else if (!inputFilePath.EndsWith(".kmdir"))
         {
-            Logger.Error("Expected a komodo ir file (a file ending in .kmd.ir)");
+            Logger.Error("Expected a komodo ir file (a file ending in .kmdir)");
             return;
         }
 
@@ -240,6 +248,81 @@ static class Entry
         Logger.Info($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
 
         Environment.Exit((int)exitcode);
+    }
+
+    static void DoFormat(IEnumerable<string> args)
+    {
+        if (args.Count() == 0)
+            PrintUsage("format", exitCode: -1);
+
+        var (options, remainingArgs) = ParseOptions(args);
+        var expectedFileType = "";
+
+        if (options.ContainsKey("type"))
+        {
+            var option = options["type"];
+
+            try
+            {
+                if (option is Option.Parameter parameter) { expectedFileType = parameter.Value; }
+                else { throw new Exception("'loglevel' is a parameter"); }
+            }
+            catch (Exception e) { PrintUsage("format", msg: $"Invalid option: {e}", exitCode: -1); }
+
+            options.Remove("type");
+        }
+
+        if (options.Count() != 0)
+            PrintUsage("format", msg: $"Invalid option: {options.First().Value.Name}", exitCode: -1);
+
+        if (remainingArgs.Count() != 1)
+            PrintUsage("format", msg: "Expected one input file path", exitCode: -1);
+
+        var inputFilePath = remainingArgs.ElementAt(0);
+
+        if (!File.Exists(inputFilePath))
+        {
+            Logger.Error($"File does not exist at {inputFilePath}");
+            Environment.Exit(-1);
+        }
+
+        var source = new TextSource(inputFilePath, File.ReadAllText(inputFilePath));
+
+        switch (expectedFileType)
+        {
+            case "kmdir":
+                {
+                    try
+                    {
+                        var sexpr = SExpression.Parse(new TextSourceReader(source));
+                        var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+
+                        Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
+                    }
+                    catch (SExpression.ParseException e)
+                    {
+                        Logger.Error($"{source.GetTerminalLink(e.Location.Start)} {e.Message}");
+                        Environment.Exit(-1);
+                    }
+                    catch (SExpression.FormatException e)
+                    {
+                        Logger.Error($"{source.GetTerminalLink(e.Location!.Start)} {e.Message}");
+                        Environment.Exit(-1);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Error(e.Message + "\n" + e.StackTrace);
+                        Environment.Exit(-1);
+                    }
+                }
+                break;
+            default:
+                {
+                    Logger.Error($"Formatting for '{expectedFileType}' files is not supported.");
+                    Environment.Exit(-1);
+                }
+                break;
+        }
     }
 
     static void DoMakeTests(IEnumerable<string> args)
@@ -336,6 +419,7 @@ static class Entry
         {
             case "run": DoRun(remainingArgs); break;
             case "run-ir": DoRunIR(remainingArgs); break;
+            case "format": DoFormat(remainingArgs); break;
             case "make-tests": DoMakeTests(remainingArgs); break;
             default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
         }

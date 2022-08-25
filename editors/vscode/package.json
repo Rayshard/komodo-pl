@@ -3,15 +3,19 @@
   "displayName": "Komodo Language Support",
   "description": "The official VSCode extenstion for the Komodo Programming Language",
   "version": "0.0.1",
+  "license": "MIT",
   "repository": {
-		"type": "git",
-		"url": "https://github.com/Rayshard/komodo-pl/tree/main/Komodo/editors/vscode"
-	},
+    "type": "git",
+    "url": "https://github.com/Rayshard/komodo-pl/tree/main/Komodo/editors/vscode"
+  },
   "engines": {
     "vscode": "^1.69.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Linters",
+    "Debuggers",
+    "Formatters"
   ],
   "activationEvents": [
     "onLanguage:komodo-lang"
@@ -21,10 +25,10 @@
     "configuration": {
       "title": "Komodo",
       "properties": {
-        "komodo.binaryPath": {
+        "komodo.executablePath": {
           "type": "string",
-          "default": false,
-          "description": "The path to the komodo binary file."
+          "default": "komodo",
+          "description": "The path to the Komodo binary."
         }
       }
     },
@@ -36,7 +40,7 @@
         ],
         "extensions": [
           "kmd",
-          "kmd.ir"
+          "kmdir"
         ]
       }
     ],
@@ -51,16 +55,20 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.69.0",
     "@types/glob": "^7.2.0",
     "@types/mocha": "^9.1.1",
     "@types/node": "16.x",
+    "@types/tmp": "^0.2.3",
+    "@types/vscode": "^1.69.0",
     "@typescript-eslint/eslint-plugin": "^5.31.0",
     "@typescript-eslint/parser": "^5.31.0",
+    "@vscode/test-electron": "^2.1.5",
     "eslint": "^8.20.0",
     "glob": "^8.0.3",
     "mocha": "^10.0.0",
-    "typescript": "^4.7.4",
-    "@vscode/test-electron": "^2.1.5"
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "tmp": "^0.2.1"
   }
 }

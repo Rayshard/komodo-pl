@@ -1,34 +1,67 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-function activate(context) {
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
-    console.log('Congratulations, your extension "komodo-formatter" is now active!');
-    let command1 = vscode.languages.registerDocumentFormattingEditProvider('komodo-lang', {
-        provideDocumentFormattingEdits(document) {
-            const textRange = new vscode.Range(document.lineAt(0).range.start, document.lineAt(document.lineCount - 1).range.end);
-            const text = document.getText();
-            return [vscode.TextEdit.replace(textRange, text + "\nThis is appended")];
+const fs = require("fs");
+const child_process = require("child_process");
+const util = require("util");
+const tmp = require("tmp");
+const path = require("path");
+const exec = util.promisify(child_process.exec);
+const tmpFile = tmp.fileSync();
+const DEFAULT_SETTINGS = {
+    executablePath: ""
+};
+async function runCommand(executablePath, args) {
+    const command = `${executablePath} ${args.join(" ")}`;
+    console.log(`Running command: ${command}`);
+    try {
+        const { stdout, stderr } = await exec(command);
+        if (stderr) {
+            console.error(stderr);
         }
-    });
-    // The command has been defined in the package.json file
-    // Now provide the implementation of the command with registerCommand
-    // The commandId parameter must match the command field in package.json
-    let command2 = vscode.commands.registerCommand('komodo-formatter.helloWorld', () => {
-        // The code you place here will be executed every time your command is executed
-        // Display a message box to the user
-        vscode.window.showInformationMessage('Hello World from KomodoFormatter!');
-    });
-    context.subscriptions.push(command1, command2);
+        return stdout;
+    }
+    catch (e) {
+        console.error(`Command failed with code ${e.code}: ${e.cmd}`);
+        console.error(e.stderr);
+        return null;
+    }
+}
+function isValidSettings(settings) {
+    if (!fs.statSync(settings.executablePath).isFile()) {
+        console.error(`Invalid executable path set: ${settings.executablePath}`);
+        return false;
+    }
+    return true;
+}
+function activate(context) {
+    const settings = vscode.workspace.getConfiguration('').get('komodo', DEFAULT_SETTINGS);
+    console.log(`Settings = ${JSON.stringify(settings, null, 4)}`);
+    if (!isValidSettings(settings)) {
+        return;
+    }
+    context.subscriptions.push(vscode.languages.registerDocumentFormattingEditProvider('komodo-lang', {
+        async provideDocumentFormattingEdits(document) {
+            const textRange = new vscode.Range(document.lineAt(0).range.start, document.lineAt(document.lineCount - 1).range.end);
+            const extension = path.extname(document.fileName).substring(1);
+            // We run formatter command on temp file instead of actual file so we can get actual
+            // file contents whether or not the document is saved
+            try {
+                fs.writeFileSync(tmpFile.name, document.getText(textRange));
+                const stdout = await runCommand(settings.executablePath, ["format", `--type=${extension}`, tmpFile.name]);
+                return stdout ? [vscode.TextEdit.replace(textRange, stdout)] : [];
+            }
+            catch (e) {
+                console.error(e);
+                return [];
+            }
+        }
+    }));
 }
 exports.activate = activate;
-// this method is called when your extension is deactivated
-function deactivate() { }
+function deactivate() {
+    tmpFile.removeCallback();
+}
 exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map
