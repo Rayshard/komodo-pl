@@ -379,49 +379,59 @@ static class Entry
         }
     }
 
-    static void Main(string[] args)
+    static int Main(string[] args)
     {
         Logger.MinLevel = LogLevel.ERROR;
 
-        var (options, remainingArgs) = ParseOptions(args);
-
-        if (options.ContainsKey("loglevel"))
+        var kmdRoot = new CLI.Command("kmd", (Dictionary<string, object> options, Dictionary<string, object> parameters) =>
         {
-            var option = options["loglevel"];
+            Console.WriteLine(Utility.Stringify(options, ","));
+            Console.WriteLine(Utility.Stringify(parameters, ","));
+        });
 
-            try
-            {
-                if (option is Option.Parameter parameter)
-                {
-                    LogLevel level;
-                    if (!Enum.TryParse<LogLevel>(parameter.Value, out level))
-                        throw new Exception($"'loglevel' can only be one of {String.Join('|', Enum.GetNames(typeof(LogLevel)))}");
+        kmdRoot.AddOption(new CLI.Option("loglevel", false, value => Enum.Parse<LogLevel>(value)));
 
-                    Logger.MinLevel = level;
-                }
-                else { throw new Exception("'loglevel' is a parameter"); }
-            }
-            catch (Exception e) { PrintUsage(msg: $"Invalid option: {e}", exitCode: -1); }
+        return kmdRoot.Run(args);
 
-            options.Remove("loglevel");
-        }
+        // var (options, remainingArgs) = ParseOptions(args);
 
-        if (options.Count() != 0)
-            PrintUsage(msg: $"Invalid option: {options.First().Value.Name}", exitCode: -1);
+        // if (options.ContainsKey("loglevel"))
+        // {
+        //     var option = options["loglevel"];
 
-        if (remainingArgs.Count() == 0)
-            PrintUsage(exitCode: -1);
+        //     try
+        //     {
+        //         if (option is Option.Parameter parameter)
+        //         {
+        //             LogLevel level;
+        //             if (!Enum.TryParse<LogLevel>(parameter.Value, out level))
+        //                 throw new Exception($"'loglevel' can only be one of {String.Join('|', Enum.GetNames(typeof(LogLevel)))}");
 
-        var command = remainingArgs.ElementAt(0);
-        remainingArgs = remainingArgs.Skip(1);
+        //             Logger.MinLevel = level;
+        //         }
+        //         else { throw new Exception("'loglevel' is a parameter"); }
+        //     }
+        //     catch (Exception e) { PrintUsage(msg: $"Invalid option: {e}", exitCode: -1); }
 
-        switch (command)
-        {
-            case "run": DoRun(remainingArgs); break;
-            case "run-ir": DoRunIR(remainingArgs); break;
-            case "format": DoFormat(remainingArgs); break;
-            case "make-tests": DoMakeTests(remainingArgs); break;
-            default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
-        }
+        //     options.Remove("loglevel");
+        // }
+
+        // if (options.Count() != 0)
+        //     PrintUsage(msg: $"Invalid option: {options.First().Value.Name}", exitCode: -1);
+
+        // if (remainingArgs.Count() == 0)
+        //     PrintUsage(exitCode: -1);
+
+        // var command = remainingArgs.ElementAt(0);
+        // remainingArgs = remainingArgs.Skip(1);
+
+        // switch (command)
+        // {
+        //     case "run": DoRun(remainingArgs); break;
+        //     case "run-ir": DoRunIR(remainingArgs); break;
+        //     case "format": DoFormat(remainingArgs); break;
+        //     case "make-tests": DoMakeTests(remainingArgs); break;
+        //     default: PrintUsage("", msg: $"Unknown command: {command}", exitCode: -1); break;
+        // }
     }
 }
