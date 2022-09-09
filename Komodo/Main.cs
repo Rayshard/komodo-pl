@@ -45,6 +45,20 @@ abstract record Option(string Name)
     }
 }
 
+record KMDCommand : CLI.Command
+{
+    public KMDCommand() : base("kmd", "Execute a command for the Komodo compiler.")
+    {
+        AddParameter(new CLI.Parameter.Option("loglevel", value => Enum.Parse<LogLevel>(value), "the logging level", LogLevel.ERROR));
+    }
+
+    protected override void OnRun(CLI.Arguments arguments)
+    {
+        var loglevel = arguments.Get<LogLevel>("loglevel");
+        Console.WriteLine(Utility.Stringify(arguments, ","));
+    }
+}
+
 static class Entry
 {
     static Regex CreateSettableOptionRegex(string name, Regex valueRegex) => new Regex($"--{name}=(?<Value>({valueRegex.ToString()}))");
@@ -382,16 +396,16 @@ static class Entry
     static int Main(string[] args)
     {
         Logger.MinLevel = LogLevel.ERROR;
+        return new KMDCommand().Run(args);
+        // var kmdRoot = new CLI.Command("kmd", (Dictionary<string, object> options, Dictionary<string, object> parameters) =>
+        // {
+        //     Console.WriteLine(Utility.Stringify(options, ","));
+        //     Console.WriteLine(Utility.Stringify(parameters, ","));
+        // });
 
-        var kmdRoot = new CLI.Command("kmd", (Dictionary<string, object> options, Dictionary<string, object> parameters) =>
-        {
-            Console.WriteLine(Utility.Stringify(options, ","));
-            Console.WriteLine(Utility.Stringify(parameters, ","));
-        });
+        //kmdRoot.AddOption(new CLI.Option("loglevel", false, value => Enum.Parse<LogLevel>(value)));
 
-        kmdRoot.AddOption(new CLI.Option("loglevel", false, value => Enum.Parse<LogLevel>(value)));
-
-        return kmdRoot.Run(args);
+        //return kmdRoot.Run(args);
 
         // var (options, remainingArgs) = ParseOptions(args);
 
