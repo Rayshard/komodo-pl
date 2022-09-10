@@ -271,6 +271,11 @@ public static class Formatter
                     list.ExpectLength(2, null);
                     return new Instruction.Syscall(list[1].AsEnum<SyscallCode>());
                 }
+            case Opcode.PrintI64:
+                {
+                    list.ExpectLength(1, null);
+                    return new Instruction.PrintI64();
+                }
             default: throw new Exception($"Unexpected opcode: {opcode}");
         }
     }

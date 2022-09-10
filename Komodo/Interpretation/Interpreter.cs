@@ -63,6 +63,12 @@ public class Interpreter
                         stack.Push(new Value.I64(op1 + op2));
                     }
                     break;
+                    case Instruction.PrintI64:
+                    {
+                        var value = PopStack<Value.I64>().Value;
+                        Console.WriteLine(value);
+                    }
+                    break;
                 default: throw new NotImplementedException(instruction.Opcode.ToString());
             }
 

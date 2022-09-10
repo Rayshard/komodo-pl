@@ -6,7 +6,7 @@
             (locals)
             (ret Unit)
             (basicBlock __entry__
-                (PushI64 12)
+                (PushI64 0)
                 (Syscall Exit)
             )
         )

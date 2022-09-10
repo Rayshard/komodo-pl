@@ -6,6 +6,7 @@ public enum Opcode
 {
     PushI64,
     AddI64,
+    PrintI64,
     Syscall,
 }
 
@@ -29,5 +30,10 @@ public abstract record Instruction(Opcode Opcode)
     public record AddI64() : Instruction(Opcode.AddI64)
     {
         public override string ToString() => "AddI64";
+    }
+
+    public record PrintI64() : Instruction(Opcode.PrintI64)
+    {
+        public override string ToString() => "PrintI64";
     }
 }

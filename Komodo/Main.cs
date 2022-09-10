@@ -54,18 +54,13 @@ static class Entry
         var sources = new Dictionary<string, TextSource>();
         sources.Add(inputFilePath, new TextSource(inputFilePath, File.ReadAllText(inputFilePath)));
 
-        Compilation.Bytecode.Program program;
-
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
-            program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
-
-            Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
-
+            var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
             var interpreter = new Interpreter(program);
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var exitcode = interpreter.Run();
             stopwatch.Stop();
 
@@ -200,6 +195,8 @@ static class Entry
             "run",
             "Executes the input Komodo file.",
             new CLI.Parameter[] {
+                new CLI.Parameter.Boolean("print-tokens", "print the parsed file's tokens to standard output"),
+                new CLI.Parameter.Boolean("print-cst", "print the parsed file's concrete syntax tree to standard output"),
                 new CLI.Parameter.Positional("file", value => value, "the input file to run")
             },
             new CLI.Command[] { },

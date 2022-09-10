@@ -1,42 +1,18 @@
-{
-  "name": "My Program",
-  "entry": {
-    "module": "MyModule",
-    "function": "Main"
-  },
-  "modules": [
-    {
-      "name": "MyModule",
-      "functions": [
-        {
-          "name": "Main",
-          "args": [],
-          "locals": [],
-          "ret": "Unit",
-          "basicBlocks": [
-            {
-              "name": "__entry__",
-              "instructions": [
-                {
-                  "opcode": "PushI64",
-                  "value": 11
-                },
-                {
-                  "opcode": "PushI64",
-                  "value": 22
-                },
-                {
-                  "opcode": "AddI64"
-                },
-                {
-                  "opcode": "Syscall",
-                  "code": "Exit"
-                }
-              ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 11)
+                (PushI64 22)
+                (AddI64)
+                (PrintI64)
+                (PushI64 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)
