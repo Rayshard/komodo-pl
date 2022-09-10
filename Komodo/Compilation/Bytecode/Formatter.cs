@@ -276,6 +276,44 @@ public static class Formatter
                     list.ExpectLength(1, null);
                     return new Instruction.PrintI64();
                 }
+            case Opcode.Call:
+                {
+                    list.ExpectLength(3, null);
+
+                    var module = list[1].ExpectUnquotedSymbol().Value;
+                    var function = list[2].ExpectUnquotedSymbol().Value;
+                    return new Instruction.Call(module, function);
+                }
+            case Opcode.LoadArg:
+                {
+                    list.ExpectLength(2, null);
+                    return new Instruction.LoadArg(list[1].AsUInt64());
+                }
+            case Opcode.EqI64:
+                {
+                    list.ExpectLength(1, null);
+                    return new Instruction.EqI64();
+                }
+            case Opcode.DecI64:
+                {
+                    list.ExpectLength(1, null);
+                    return new Instruction.DecI64();
+                }
+            case Opcode.MulI64:
+                {
+                    list.ExpectLength(1, null);
+                    return new Instruction.MulI64();
+                }
+            case Opcode.JNZ:
+                {
+                    list.ExpectLength(2, null);
+                    return new Instruction.JNZ(list[1].ExpectUnquotedSymbol().Value);
+                }
+            case Opcode.Return:
+                {
+                    list.ExpectLength(1, null);
+                    return new Instruction.Return();
+                }
             default: throw new Exception($"Unexpected opcode: {opcode}");
         }
     }
