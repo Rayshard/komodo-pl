@@ -188,3 +188,6 @@ if __name__ == "__main__":
     print(
         f"{termcolor.colored('Report', 'blue')}: {termcolor.colored(f'Passed {len(successes)}', 'green')}, {termcolor.colored(f'Failed {len(failures)}', 'red')}"
     )
+
+    if len(failures) != 0:
+        exit(-1)
