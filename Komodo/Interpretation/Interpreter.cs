@@ -26,7 +26,7 @@ public class Interpreter
         State = InterpreterState.Running;
 
         var entryIP = new InstructionPointer(Program.Entry.Module, Program.Entry.Function, Function.ENTRY_NAME, 0);
-        PushStackFrame(entryIP, new Value[] { }, 0);
+        callStack.Push(new StackFrame(entryIP, stack.Count, new Value[] { }, new Value?[] { }));
 
         while (State == InterpreterState.Running)
         {
@@ -63,10 +63,54 @@ public class Interpreter
                         stack.Push(new Value.I64(op1 + op2));
                     }
                     break;
-                    case Instruction.PrintI64:
+                case Instruction.MulI64:
+                    {
+                        var op1 = PopStack<Value.I64>().Value;
+                        var op2 = PopStack<Value.I64>().Value;
+
+                        stack.Push(new Value.I64(op1 * op2));
+                    }
+                    break;
+                case Instruction.EqI64:
+                    {
+                        var op1 = PopStack<Value.I64>().Value;
+                        var op2 = PopStack<Value.I64>().Value;
+
+                        stack.Push(new Value.I64(op1 == op2 ? 1 : 0));
+                    }
+                    break;
+                    case Instruction.DecI64:
+                    {
+                        var value = PopStack<Value.I64>().Value;
+                        stack.Push(new Value.I64(value - 1));
+                    }
+                    break;
+                case Instruction.PrintI64:
                     {
                         var value = PopStack<Value.I64>().Value;
                         Console.WriteLine(value);
+                    }
+                    break;
+                case Instruction.Call instr:
+                    {
+                        var function = Program.GetModule(instr.Module).GetFunction(instr.Function);
+                        var arguments = function.Arguments.Select(p => PopStack(p));
+                        var start = new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0);
+
+                        callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
+                    }
+                    break;
+                    case Instruction.Return instr:
+                    {
+                        var expectedReturnType = GetFunctionFromIP(stackFrame.IP).ReturnType;
+                        PopStackFrame(expectedReturnType == DataType.Unit ? null : PopStack(expectedReturnType));
+                    }
+                    break;
+                case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
+                case Instruction.JNZ instr:
+                    {
+                        if (PopStack<Value.I64>().Value != 0)
+                            stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
                     }
                     break;
                 default: throw new NotImplementedException(instruction.Opcode.ToString());
@@ -83,8 +127,13 @@ public class Interpreter
     private Instruction FetchInstruction(InstructionPointer ip)
         => Program.GetModule(ip.Module).GetFunction(ip.Function).GetBasicBlock(ip.BasicBlock)[ip.Index];
 
+    private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
+
     private T PopStack<T>()
     {
+        if (stack.Count == 0)
+            throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
+
         var stackTop = stack.Peek();
         if (stackTop is not T)
             throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
@@ -92,12 +141,21 @@ public class Interpreter
         return (T)stack.Pop();
     }
 
-    private void PushStackFrame(InstructionPointer start, IEnumerable<Value> args, int numLocals)
-        => callStack.Push(new StackFrame(start, stack.Count, args, new Value?[numLocals]));
+    private Value PopStack(DataType dt)
+    {
+        if (stack.Count == 0)
+            throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
+
+        var stackTop = stack.Peek();
+        if (stackTop.DataType != dt)
+            throw new InvalidCastException($"Unable to pop '{dt}' off stack. Found '{stackTop.DataType}'");
+
+        return stack.Pop();
+    }
 
     private void PopStackFrame(Value? returnValue)
     {
-        if (callStack.TryPeek(out var frame))
+        if (callStack.TryPop(out var frame))
         {
             while (stack.Count > frame.FramePointer)
                 stack.Pop();
@@ -109,4 +167,6 @@ public class Interpreter
     }
 
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
+
+    public Function GetFunctionFromIP(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function);
 }

@@ -198,6 +198,16 @@ public abstract record SExpression(TextLocation? Location)
 
         throw new FormatException($"'{value}' is not an Int64", this);
     }
+
+    public UInt64 AsUInt64()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (UInt64.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a UInt64", this);
+    }
     #endregion
 
     public class ParseException : Exception
