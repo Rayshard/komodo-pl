@@ -93,9 +93,7 @@ public static class Formatter
         {
             Instruction.Push instr => new string[] { instr.Value.AsSExpression().ToString() },
             Instruction.Assert instr => new string[] { instr.Value.AsSExpression().ToString() },
-            Instruction.Add instr => new string[] { instr.DataType.ToString() }.AppendIf(instr.Value is not null, instr.Value!.AsSExpression().ToString()),
-            Instruction.Mul instr => new string[] { instr.DataType.ToString() }.AppendIf(instr.Value is not null, instr.Value!.AsSExpression().ToString()),
-            Instruction.Eq instr => new string[] { instr.DataType.ToString() }.AppendIf(instr.Value is not null, instr.Value!.AsSExpression().ToString()),
+            Instruction.Binop instr => new string[] { instr.DataType.ToString() }.AppendIf(instr.Value is not null, instr.Value!.AsSExpression().ToString()),
             Instruction.Dec instr => new string[] { instr.DataType.ToString() },
             Instruction.Return instr => new string[] { },
             Instruction.Print instr => new string[] { instr.DataType.ToString()},

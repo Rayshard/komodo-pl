@@ -16,13 +16,11 @@ public enum Opcode
     Eq,
     Dec,
     Mul,
+
     Print,
 }
 
-public enum SyscallCode
-{
-    Exit,
-}
+public enum SyscallCode { Exit }
 
 public abstract record Instruction(Opcode Opcode)
 {
@@ -75,18 +73,22 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Add(DataType DataType, Value? Value = null) : Instruction(Opcode.Add)
+    public record Binop(Opcode Opcode, DataType DataType, Value? Value = null) : Instruction(Verify(Opcode))
     {
         protected override IEnumerable<SExpression> OperandsAsSExpressions =>
             new[] { new SExpression.UnquotedSymbol(DataType.ToString()) }
             .AppendIf(Value is not null, Value!.AsSExpression());
 
-        new public static Add Deserialize(SExpression sexpr)
+        public static Opcode Verify(Opcode opcode) => opcode switch
+        {
+            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq => opcode,
+            _ => throw new ArgumentException($"'{opcode}' is not a binop!")
+        };
+
+        new public static Binop Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2, 3);
-            list[0].ExpectEnum(Opcode.Add);
-
-            return new Add(list[1].AsEnum<DataType>(), list.Count() == 3 ? Value.Deserialize(list[2]) : null);
+            return new Binop(list[0].AsEnum<Opcode>(), list[1].AsEnum<DataType>(), list.Count() == 3 ? Value.Deserialize(list[2]) : null);
         }
     }
 
@@ -133,21 +135,6 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Eq(DataType DataType, Value? Value = null) : Instruction(Opcode.Eq)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions =>
-            new[] { new SExpression.UnquotedSymbol(DataType.ToString()) }
-            .AppendIf(Value is not null, Value!.AsSExpression());
-
-        new public static Eq Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2, 3);
-            list[0].ExpectEnum(Opcode.Eq);
-
-            return new Eq(list[1].AsEnum<DataType>(), list.Count() == 3 ? Value.Deserialize(list[2]) : null);
-        }
-    }
-
     public record Dec(DataType DataType) : Instruction(Opcode.Dec)
     {
         protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
@@ -158,21 +145,6 @@ public abstract record Instruction(Opcode Opcode)
             list[0].ExpectEnum(Opcode.Dec);
 
             return new Dec(list[1].AsEnum<DataType>());
-        }
-    }
-
-    public record Mul(DataType DataType, Value? Value = null) : Instruction(Opcode.Mul)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions =>
-            new[] { new SExpression.UnquotedSymbol(DataType.ToString()) }
-            .AppendIf(Value is not null, Value!.AsSExpression());
-
-        new public static Mul Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2, 3);
-            list[0].ExpectEnum(Opcode.Mul);
-
-            return new Mul(list[1].AsEnum<DataType>(), list.Count() == 3 ? Value.Deserialize(list[2]) : null);
         }
     }
 
@@ -205,14 +177,14 @@ public abstract record Instruction(Opcode Opcode)
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
         Opcode.Push => Push.Deserialize(sexpr),
-        Opcode.Add => Add.Deserialize(sexpr),
+        Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Print => Print.Deserialize(sexpr),
         Opcode.Call => Call.Deserialize(sexpr),
         Opcode.LoadArg => LoadArg.Deserialize(sexpr),
-        Opcode.Eq => Eq.Deserialize(sexpr),
+        Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Dec.Deserialize(sexpr),
-        Opcode.Mul => Mul.Deserialize(sexpr),
+        Opcode.Mul => Binop.Deserialize(sexpr),
         Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),

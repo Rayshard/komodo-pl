@@ -84,38 +84,17 @@ public class Interpreter
                 }
                 break;
             case Instruction.Push instr: stack.Push(instr.Value); break;
-            case Instruction.Add instr:
+            case Instruction.Binop instr:
                 {
-                    Value result = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
+                    Value result = (instr.Opcode, PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
                     {
-                        (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
+                        (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
+                        (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
+                        (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
                     stack.Push(result);
-                }
-                break;
-            case Instruction.Mul instr:
-                {
-                    Value result = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
-                    {
-                        (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
-                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
-                    };
-
-                    stack.Push(result);
-                }
-                break;
-            case Instruction.Eq instr:
-                {
-                    var equal = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
-                    {
-                        (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
-                        (Value.Bool(var op1), Value.Bool(var op2)) => op1 == op2,
-                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
-                    };
-
-                    stack.Push(new Value.Bool(equal));
                 }
                 break;
             case Instruction.Dec instr:
