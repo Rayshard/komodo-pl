@@ -57,7 +57,7 @@ static class Entry
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
-            var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
             var interpreter = new Interpreter(program);
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -96,7 +96,7 @@ static class Entry
                     try
                     {
                         var sexpr = SExpression.Parse(new TextSourceReader(source));
-                        var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+                        var program = Compilation.Bytecode.Program.Deserialize(sexpr);
 
                         Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
                         return 0;

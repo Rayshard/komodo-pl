@@ -173,11 +173,14 @@ public abstract record SExpression(TextLocation? Location)
         => this as QuotedSymbol ?? throw new FormatException($"Expected quoted symbol, but found {this.GetType()}", this);
 
     public List ExpectList()
-            => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
+        => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
 
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;
     public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public void ExpectEnum<T>(T value) where T : struct, Enum
+        => ExpectUnquotedSymbol().ExpectValue(value.ToString());
 
     public T AsEnum<T>() where T : struct, Enum
     {
