@@ -5,19 +5,6 @@ namespace Komodo.Interpretation;
 
 public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
-public class InterpreterException : Exception
-{
-    public InstructionPointer IP { get; }
-    public Exception BaseException { get; }
-
-    public InterpreterException(InstructionPointer ip, Exception baseException)
-        : base($"An error occurredat {ip}: {baseException.Message}", baseException)
-    {
-        IP = ip;
-        BaseException = baseException;
-    }
-}
-
 public class Interpreter
 {
     public InterpreterState State { get; private set; }
@@ -58,7 +45,16 @@ public class Interpreter
                 Logger.Debug($"Current Stack:{stackAsString}");
                 stackFrame.IP = stackFrame.IP + 1;
             }
-            catch (Exception e) { throw new InterpreterException(stackFrame.IP, e); }
+            catch (Exception e)
+            {
+                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}");
+
+                if (e.StackTrace is not null)
+                    Logger.Debug(e.StackTrace, true);
+
+                exitcode = 1;
+                break;
+            }
         }
 
         State = InterpreterState.Terminated;
@@ -142,6 +138,17 @@ public class Interpreter
                         case Value.I64(var i): Console.WriteLine(i); break;
                         case Value.Bool(var b): Console.WriteLine(b ? "true" : "false"); break;
                         default: throw new Exception($"Cannot apply operation to {value.DataType}.");
+                    }
+                }
+                break;
+            case Instruction.Assert:
+                {
+                    if(!PopStack<Value.Bool>().Value)
+                    {
+                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}");
+                        
+                        exitcode = 1;
+                        State = InterpreterState.ShuttingDown;
                     }
                 }
                 break;

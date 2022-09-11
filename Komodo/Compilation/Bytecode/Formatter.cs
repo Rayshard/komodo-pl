@@ -54,7 +54,7 @@ public static class Formatter
 
         builder.AppendLine(")");
 
-       // Append returns
+        // Append returns
         builder.Append($"    (returns");
 
         foreach (var ret in function.Returns)
@@ -100,6 +100,15 @@ public static class Formatter
                 }
             },
             Instruction.Add instr => new string[] { },
+            Instruction.Dec instr => new string[] { },
+            Instruction.Mul instr => new string[] { },
+            Instruction.Eq instr => new string[] { },
+            Instruction.Return instr => new string[] { },
+            Instruction.Print instr => new string[] { },
+            Instruction.Call instr => new string[] { instr.Module, instr.Function },
+            Instruction.LoadArg instr => new string[] { instr.Index.ToString() },
+            Instruction.CJump instr => new string[] { instr.BasicBlock },
+            Instruction.Assert instr => new string[] { },
             Instruction.Syscall instr => new string[] { instr.Code.ToString() },
             _ => throw new NotImplementedException(instruction.Opcode.ToString())
         });

@@ -1,0 +1,7 @@
+{
+  "args": ["run-ir", "test.kmdir"],
+  "exitcode": 1,
+  "stdin": [],
+  "stdout": ["1", "Assertion Failed at MyModule.Main.__entry__.5", ""],
+  "stderr": []
+}

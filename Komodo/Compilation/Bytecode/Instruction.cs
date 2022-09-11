@@ -10,6 +10,7 @@ public enum Opcode
     Return,
     LoadArg,
     CJump,
+    Assert,
 
     Add,
     Eq,
@@ -215,6 +216,19 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
+    public record Assert() : Instruction(Opcode.Assert)
+    {
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+
+        new public static Assert Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(1);
+            list[0].ExpectEnum(Opcode.Assert);
+
+            return new Assert();
+        }
+    }
+
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
         Opcode.Push => Push.Deserialize(sexpr),
@@ -228,6 +242,7 @@ public abstract record Instruction(Opcode Opcode)
         Opcode.Mul => Mul.Deserialize(sexpr),
         Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
+        Opcode.Assert => Assert.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }
