@@ -87,7 +87,7 @@ public static class Formatter
         items.AddRange(instruction switch
         {
             Instruction.PushI64 instr => new string[] { instr.Value.ToString() },
-            Instruction.AddI64 instr => new string[] { },
+            Instruction.Add instr => new string[] { },
             Instruction.Syscall instr => new string[] { instr.Code.ToString() },
             _ => throw new NotImplementedException(instruction.Opcode.ToString())
         });
@@ -169,7 +169,7 @@ public static class Formatter
         {
             case Instruction.Syscall instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Code.ToString())); break;
             case Instruction.PushI64 instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Value.ToString())); break;
-            case Instruction.AddI64: break;
+            case Instruction.Add: break;
             default: throw new NotImplementedException(instruction.Opcode.ToString());
         }
 
@@ -261,20 +261,20 @@ public static class Formatter
                     list.ExpectLength(2, null);
                     return new Instruction.PushI64(list[1].AsInt64());
                 }
-            case Opcode.AddI64:
+            case Opcode.Add:
                 {
                     list.ExpectLength(1, null);
-                    return new Instruction.AddI64();
+                    return new Instruction.Add();
                 }
             case Opcode.Syscall:
                 {
                     list.ExpectLength(2, null);
                     return new Instruction.Syscall(list[1].AsEnum<SyscallCode>());
                 }
-            case Opcode.PrintI64:
+            case Opcode.Print:
                 {
                     list.ExpectLength(1, null);
-                    return new Instruction.PrintI64();
+                    return new Instruction.Print();
                 }
             case Opcode.Call:
                 {
@@ -289,20 +289,20 @@ public static class Formatter
                     list.ExpectLength(2, null);
                     return new Instruction.LoadArg(list[1].AsUInt64());
                 }
-            case Opcode.EqI64:
+            case Opcode.Eq:
                 {
                     list.ExpectLength(1, null);
-                    return new Instruction.EqI64();
+                    return new Instruction.Eq();
                 }
-            case Opcode.DecI64:
+            case Opcode.Dec:
                 {
                     list.ExpectLength(1, null);
-                    return new Instruction.DecI64();
+                    return new Instruction.Dec();
                 }
-            case Opcode.MulI64:
+            case Opcode.Mul:
                 {
                     list.ExpectLength(1, null);
-                    return new Instruction.MulI64();
+                    return new Instruction.Mul();
                 }
             case Opcode.JNZ:
                 {

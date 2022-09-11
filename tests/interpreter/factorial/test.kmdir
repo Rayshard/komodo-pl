@@ -8,7 +8,7 @@
             (basicBlock __entry__
                 (PushI64 5)
                 (Call MyModule Factorial)
-                (PrintI64)
+                (Print)
                 (PushI64 0)
                 (Syscall Exit)
             )
@@ -20,13 +20,13 @@
             (basicBlock __entry__
                 (LoadArg 0)
                 (PushI64 0)
-                (EqI64)
+                (Eq)
                 (JNZ retOneOnZero)
                 (LoadArg 0)
                 (LoadArg 0)
-                (DecI64)
+                (Dec)
                 (Call MyModule Factorial)
-                (MulI64)
+                (Mul)
                 (Return)
             )
             (basicBlock retOneOnZero

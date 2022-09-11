@@ -7,7 +7,7 @@
             (ret Unit)
             (basicBlock __entry__
                 (PushI64 12)
-                (PrintI64)
+                (Print)
                 (PushI64 0)
                 (Syscall Exit)
             )

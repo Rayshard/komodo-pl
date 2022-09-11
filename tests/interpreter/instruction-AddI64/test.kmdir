@@ -8,8 +8,8 @@
             (basicBlock __entry__
                 (PushI64 11)
                 (PushI64 22)
-                (AddI64)
-                (PrintI64)
+                (Add)
+                (Print)
                 (PushI64 0)
                 (Syscall Exit)
             )
