@@ -156,23 +156,7 @@ public static class Formatter
         var nodes = new List<SExpression>();
         nodes.Add(new SExpression.UnquotedSymbol("basicBlock"));
         nodes.Add(new SExpression.UnquotedSymbol(basicBlock.Name));
-        nodes.AddRange(basicBlock.Instructions.Select(Serialize));
-        return new SExpression.List(nodes);
-    }
-
-    public static SExpression Serialize(Instruction instruction)
-    {
-        var nodes = new List<SExpression>();
-        nodes.Add(new SExpression.UnquotedSymbol(instruction.Opcode.ToString()));
-
-        switch (instruction)
-        {
-            case Instruction.Syscall instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Code.ToString())); break;
-            case Instruction.PushI64 instr: nodes.Add(new SExpression.UnquotedSymbol(instr.Value.ToString())); break;
-            case Instruction.Add: break;
-            default: throw new NotImplementedException(instruction.Opcode.ToString());
-        }
-
+        nodes.AddRange(basicBlock.Instructions.Select(instr => instr.AsSExpression()));
         return new SExpression.List(nodes);
     }
 
