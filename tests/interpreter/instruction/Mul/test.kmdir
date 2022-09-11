@@ -11,6 +11,10 @@
                 (Mul I64)
                 (Assert 242)
 
+                (Push 11)
+                (Mul I64 22)
+                (Assert 242)
+
                 (Push 0)
                 (Syscall Exit)
             )

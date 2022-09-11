@@ -86,7 +86,7 @@ public class Interpreter
             case Instruction.Push instr: stack.Push(instr.Value); break;
             case Instruction.Add instr:
                 {
-                    Value result = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
+                    Value result = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
@@ -97,7 +97,7 @@ public class Interpreter
                 break;
             case Instruction.Mul instr:
                 {
-                    Value result = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
+                    Value result = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
@@ -108,7 +108,7 @@ public class Interpreter
                 break;
             case Instruction.Eq instr:
                 {
-                    var equal = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
+                    var equal = (PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
                         (Value.Bool(var op1), Value.Bool(var op2)) => op1 == op2,
@@ -145,10 +145,10 @@ public class Interpreter
                 {
                     var actual = PopStack();
 
-                    if(actual != instr.Value)
+                    if (actual != instr.Value)
                     {
                         Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Expected {instr.Value}, but found {actual}.");
-                        
+
                         exitcode = 1;
                         State = InterpreterState.ShuttingDown;
                     }

@@ -11,6 +11,10 @@
                 (Add I64)
                 (Assert 33)
 
+                (Push 11)
+                (Add I64 22)
+                (Assert 33)
+
                 (Push 0)
                 (Syscall Exit)
             )

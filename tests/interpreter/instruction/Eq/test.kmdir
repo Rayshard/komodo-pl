@@ -12,8 +12,7 @@
                 (Assert false)
 
                 (Push 456)
-                (Push 456)
-                (Eq I64)
+                (Eq I64 456)
                 (Assert true)
                 
                 (Push 0)
