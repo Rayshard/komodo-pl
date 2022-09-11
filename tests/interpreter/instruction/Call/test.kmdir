@@ -4,7 +4,7 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (Call MyModule TestNoArgument)
 
@@ -23,7 +23,7 @@
         (function TestNoArgument
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 1)
                 (Print)
@@ -33,7 +33,7 @@
         (function TestSingleArgument
             (args I64)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (LoadArg 0)
                 (Print)
@@ -43,7 +43,7 @@
         (function TestMultipleArguments
             (args I64 I64 I64)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (LoadArg 0)
                 (Print)

@@ -4,7 +4,7 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 5)
                 (PushI64 4)
@@ -18,7 +18,7 @@
         (function OtherFunction
             (args I64 I64 I64)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (LoadArg 0)
                 (Print)

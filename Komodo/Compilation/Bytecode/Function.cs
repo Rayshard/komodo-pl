@@ -7,7 +7,6 @@ public class Function
     public const string ENTRY_NAME = "__entry__";
 
     public string Name { get; }
-    public DataType ReturnType { get; }
 
     private Dictionary<string, BasicBlock> basicBlocks = new Dictionary<string, BasicBlock>();
     public IEnumerable<BasicBlock> BasicBlocks => basicBlocks.Values;
@@ -18,13 +17,16 @@ public class Function
     private DataType[] locals;
     public IEnumerable<DataType> Locals => locals;
 
-    public Function(string name, IEnumerable<DataType> arguments, IEnumerable<DataType> locals, DataType returnType)
+    private DataType[] returns;
+    public IEnumerable<DataType> Returns => returns;
+
+    public Function(string name, IEnumerable<DataType> arguments, IEnumerable<DataType> locals, IEnumerable<DataType> returns)
     {
         Name = name;
-        ReturnType = returnType;
 
         this.arguments = arguments.ToArray();
         this.locals = locals.ToArray();
+        this.returns = returns.ToArray();
     }
 
     public void AddBasicBlock(BasicBlock basicBlock) => basicBlocks.Add(basicBlock.Name, basicBlock);
@@ -46,15 +48,13 @@ public class Function
 
         var localsNodes = new List<SExpression>();
         localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
-        localsNodes.AddRange(Locals.Select(arg => new SExpression.UnquotedSymbol(arg.ToString())));
+        localsNodes.AddRange(Locals.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
         nodes.Add(new SExpression.List(localsNodes));
 
-        var retNode = new SExpression.List(new[]
-        {
-            new SExpression.UnquotedSymbol("ret"),
-            new SExpression.UnquotedSymbol(ReturnType.ToString()),
-        });
-        nodes.Add(new SExpression.List(retNode));
+        var returnsNodes = new List<SExpression>();
+        returnsNodes.Add(new SExpression.UnquotedSymbol("returns"));
+        returnsNodes.AddRange(Returns.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+        nodes.Add(new SExpression.List(returnsNodes));
 
         nodes.AddRange(BasicBlocks.Select(bb => bb.AsSExpression()));
 
@@ -69,16 +69,17 @@ public class Function
         var name = list[1].ExpectUnquotedSymbol().Value;
         var argsNode = list[2].ExpectList().ExpectLength(1, null);
         var localsNode = list[3].ExpectList().ExpectLength(1, null);
-        var retNode = list[4].ExpectList().ExpectLength(2);
+        var returnsNode = list[4].ExpectList().ExpectLength(1, null);
 
         argsNode[0].ExpectUnquotedSymbol().ExpectValue("args");
         localsNode[0].ExpectUnquotedSymbol().ExpectValue("locals");
-        retNode[0].ExpectUnquotedSymbol().ExpectValue("ret");
+        returnsNode[0].ExpectUnquotedSymbol().ExpectValue("returns");
 
         var args = argsNode.Skip(1).Select(node => node.AsEnum<DataType>());
         var locals = localsNode.Skip(1).Select(node => node.AsEnum<DataType>());
-        var ret = retNode.ElementAt(1).AsEnum<DataType>();
-        var function = new Function(name, args, locals, ret);
+        var returns = returnsNode.Skip(1).Select(node => node.AsEnum<DataType>());
+
+        var function = new Function(name, args, locals, returns);
 
         foreach (var item in list.Skip(5))
             function.AddBasicBlock(BasicBlock.Deserialize(item));

@@ -4,7 +4,7 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 11)
                 (PushI64 22)

@@ -4,7 +4,7 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 5)
                 (Call MyModule Factorial)
@@ -16,7 +16,7 @@
         (function Factorial
             (args I64)
             (locals)
-            (ret I64)
+            (returns I64)
             (basicBlock __entry__
                 (LoadArg 0)
                 (PushI64 0)

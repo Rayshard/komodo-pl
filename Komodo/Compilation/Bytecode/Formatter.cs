@@ -54,8 +54,13 @@ public static class Formatter
 
         builder.AppendLine(")");
 
-        // Append return
-        builder.AppendLine($"    (ret {function.ReturnType})");
+       // Append returns
+        builder.Append($"    (returns");
+
+        foreach (var ret in function.Returns)
+            builder.Append($" {ret}");
+
+        builder.AppendLine(")");
 
         // Append basic blocks
         foreach (var basicBlock in function.BasicBlocks)

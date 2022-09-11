@@ -4,10 +4,10 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 123)
-                (Call MyModule TestReturnUnit)
+                (Call MyModule TestNoReturn)
                 (Print)
 
                 (Call MyModule TestSingleReturn)
@@ -22,10 +22,10 @@
                 (Syscall Exit)
             )
         )
-        (function TestReturnUnit
+        (function TestNoReturn
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
                 (PushI64 456)
                 (Return)
@@ -34,7 +34,7 @@
         (function TestSingleReturn
             (args)
             (locals)
-            (ret I64)
+            (returns I64)
             (basicBlock __entry__
                 (PushI64 789)
                 (Return)
@@ -43,10 +43,12 @@
         (function TestMultipleReturn
             (args)
             (locals)
-            (ret Unit)
+            (returns I64 I64 I64)
             (basicBlock __entry__
-                (PushI64 1)
-                (Syscall Exit)
+                (PushI64 12)
+                (PushI64 11)
+                (PushI64 10)
+                (Return)
             )
         )
     )

@@ -119,12 +119,7 @@ public class Interpreter
                         callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
                     }
                     break;
-                case Instruction.Return instr:
-                    {
-                        var expectedReturnType = GetFunctionFromIP(stackFrame.IP).ReturnType;
-                        PopStackFrame(expectedReturnType == DataType.Unit ? null : PopStack(expectedReturnType));
-                    }
-                    break;
+                case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
                 case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
                 case Instruction.JNZ instr:
                     {
@@ -178,15 +173,18 @@ public class Interpreter
         return stack.Pop();
     }
 
-    private void PopStackFrame(Value? returnValue)
+    private void PopStackFrame(IEnumerable<DataType> expectedReturns)
     {
         if (callStack.TryPop(out var frame))
         {
+            var returnValues = expectedReturns.Select(PopStack).ToArray();
+
             while (stack.Count > frame.FramePointer)
                 stack.Pop();
 
-            if (returnValue is not null)
-                stack.Push(returnValue);
+            // Push return values on to stack in reverse
+            foreach (var value in returnValues.Reverse())
+                stack.Push(value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }
