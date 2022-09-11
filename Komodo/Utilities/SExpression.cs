@@ -230,5 +230,15 @@ public abstract record SExpression(TextLocation? Location)
 
         throw new FormatException($"'{value}' is not a UInt64", this);
     }
+
+    public bool AsBool()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (bool.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a bool", this);
+    }
     #endregion
 }

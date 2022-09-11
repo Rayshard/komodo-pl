@@ -6,7 +6,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (PushI64 123)
+                (Push I64 123)
                 (Call MyModule TestNoReturn)
                 (Print)
 
@@ -18,7 +18,7 @@
                 (Print)
                 (Print)
 
-                (PushI64 0)
+                (Push I64 0)
                 (Syscall Exit)
             )
         )
@@ -27,7 +27,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (PushI64 456)
+                (Push I64 456)
                 (Return)
             )
         )
@@ -36,7 +36,7 @@
             (locals)
             (returns I64)
             (basicBlock __entry__
-                (PushI64 789)
+                (Push I64 789)
                 (Return)
             )
         )
@@ -45,9 +45,9 @@
             (locals)
             (returns I64 I64 I64)
             (basicBlock __entry__
-                (PushI64 12)
-                (PushI64 11)
-                (PushI64 10)
+                (Push I64 12)
+                (Push I64 11)
+                (Push I64 10)
                 (Return)
             )
         )

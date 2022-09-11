@@ -4,10 +4,7 @@ namespace Komodo.Compilation.Bytecode;
 
 public enum Opcode
 {
-    PushI64,
-    PushTrue,
-    PushFalse,
-
+    Push,
     Syscall,
     Call,
     Return,
@@ -51,42 +48,49 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record PushI64(Int64 Value) : Instruction(Opcode.PushI64)
+    public abstract record Push(DataType DataType) : Instruction(Opcode.Push)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(Value.ToString()) };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
-        new public static PushI64 Deserialize(SExpression sexpr)
+        public record I64(Int64 Value) : Push(DataType.I64)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.PushI64);
+            protected override IEnumerable<SExpression> OperandsAsSExpressions => base.OperandsAsSExpressions.Append(new SExpression.UnquotedSymbol(Value.ToString()));
 
-            return new PushI64(list[1].AsInt64());
+            new public static I64 Deserialize(SExpression sexpr)
+            {
+                var list = sexpr.ExpectList().ExpectLength(3);
+                list[0].ExpectEnum(Opcode.Push);
+                list[1].ExpectEnum(DataType.I64);
+
+                return new I64(list[2].AsInt64());
+            }
         }
-    }
 
-    public record PushTrue() : Instruction(Opcode.PushTrue)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
-
-        new public static PushTrue Deserialize(SExpression sexpr)
+        public record Bool(bool Value) : Push(DataType.Bool)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
-            list[0].ExpectEnum(Opcode.PushTrue);
+            protected override IEnumerable<SExpression> OperandsAsSExpressions => base.OperandsAsSExpressions.Append(new SExpression.UnquotedSymbol(Value ? "true" : "false"));
 
-            return new PushTrue();
+            new public static Bool Deserialize(SExpression sexpr)
+            {
+                var list = sexpr.ExpectList().ExpectLength(3);
+                list[0].ExpectEnum(Opcode.Push);
+                list[1].ExpectEnum(DataType.Bool);
+
+                return new Bool(list[2].AsBool());
+            }
         }
-    }
 
-    public record PushFalse() : Instruction(Opcode.PushFalse)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
-
-        new public static PushFalse Deserialize(SExpression sexpr)
+        new public static Push Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
-            list[0].ExpectEnum(Opcode.PushFalse);
+            var list = sexpr.ExpectList().ExpectLength(3);
+            list[0].ExpectEnum(Opcode.Push);
 
-            return new PushFalse();
+            return list[1].AsEnum<DataType>() switch
+            {
+                DataType.I64 => I64.Deserialize(sexpr),
+                DataType.Bool => Bool.Deserialize(sexpr),
+                var dt => throw new NotImplementedException(dt.ToString())
+            };
         }
     }
 
@@ -213,9 +217,7 @@ public abstract record Instruction(Opcode Opcode)
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
-        Opcode.PushI64 => PushI64.Deserialize(sexpr),
-        Opcode.PushTrue => PushTrue.Deserialize(sexpr),
-        Opcode.PushFalse => PushFalse.Deserialize(sexpr),
+        Opcode.Push => Push.Deserialize(sexpr),
         Opcode.Add => Add.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Print => Print.Deserialize(sexpr),

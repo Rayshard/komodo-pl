@@ -8,15 +8,15 @@
             (basicBlock __entry__
                 (Call MyModule TestNoArgument)
 
-                (PushI64 2)
+                (Push I64 2)
                 (Call MyModule TestSingleArgument)
 
-                (PushI64 5)
-                (PushI64 4)
-                (PushI64 3)
+                (Push I64 5)
+                (Push I64 4)
+                (Push I64 3)
                 (Call MyModule TestMultipleArguments)
 
-                (PushI64 0)
+                (Push I64 0)
                 (Syscall Exit)
             )
         )
@@ -25,7 +25,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (PushI64 1)
+                (Push I64 1)
                 (Print)
                 (Return)
             )

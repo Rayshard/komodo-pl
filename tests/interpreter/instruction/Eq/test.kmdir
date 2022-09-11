@@ -6,17 +6,17 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (PushI64 11)
-                (PushI64 22)
+                (Push I64 11)
+                (Push I64 22)
                 (Eq)
                 (Print)
 
-                (PushI64 456)
-                (PushI64 456)
+                (Push I64 456)
+                (Push I64 456)
                 (Eq)
                 (Print)
                 
-                (PushI64 0)
+                (Push I64 0)
                 (Syscall Exit)
             )
         )

@@ -6,7 +6,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (PushI64 45)
+                (Push I64 45)
                 (Syscall Exit)
             )
         )
