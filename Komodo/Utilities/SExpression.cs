@@ -16,6 +16,12 @@ public abstract record SExpression(TextLocation? Location)
         public UnquotedSymbol ExpectValue(string value)
             => Value == value ? this : throw new FormatException($"Expected {value}, but found {Value}", this);
 
+        public UnquotedSymbol ExpectValue(params string[] options)
+            => options.Contains(Value) ? this : throw new FormatException($"Expected one of {Utility.Stringify(options, ", ", ("(", ")"))}, but found {Value}", this);
+
+        public UnquotedSymbol ExpectValue(Regex pattern)
+            => pattern.IsMatch(Value) ? this : throw new FormatException($"Expected value to match patttern \"{pattern}\", but found {Value}", this);
+
         public override string ToString() => Value;
 
         private static string VerifyValue(string value)
