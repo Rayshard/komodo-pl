@@ -9,7 +9,8 @@
                 (Push I64 11)
                 (Push I64 22)
                 (Mul)
-                (Print)
+                (Assert I64 242)
+
                 (Push I64 0)
                 (Syscall Exit)
             )

@@ -25,7 +25,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push I64 1)
+                (Push Bool True)
                 (Print)
                 (Return)
             )
@@ -36,7 +36,7 @@
             (returns)
             (basicBlock __entry__
                 (LoadArg 0)
-                (Print)
+                (Assert I64 2)
                 (Return)
             )
         )
@@ -46,11 +46,14 @@
             (returns)
             (basicBlock __entry__
                 (LoadArg 0)
-                (Print)
+                (Assert I64 3)
+
                 (LoadArg 1)
-                (Print)
+                (Assert I64 4)
+
                 (LoadArg 2)
-                (Print)
+                (Assert I64 5)
+
                 (Return)
             )
         )

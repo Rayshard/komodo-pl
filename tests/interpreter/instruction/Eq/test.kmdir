@@ -9,12 +9,12 @@
                 (Push I64 11)
                 (Push I64 22)
                 (Eq)
-                (Print)
+                (Assert Bool false)
 
                 (Push I64 456)
                 (Push I64 456)
                 (Eq)
-                (Print)
+                (Assert Bool true)
                 
                 (Push I64 0)
                 (Syscall Exit)

@@ -8,15 +8,15 @@
             (basicBlock __entry__
                 (Push I64 123)
                 (Call MyModule TestNoReturn)
-                (Print)
+                (Assert I64 123)
 
                 (Call MyModule TestSingleReturn)
-                (Print)
+                (Assert I64 789)
 
                 (Call MyModule TestMultipleReturn)
-                (Print)
-                (Print)
-                (Print)
+                (Assert I64 10)
+                (Assert I64 11)
+                (Assert I64 12)
 
                 (Push I64 0)
                 (Syscall Exit)

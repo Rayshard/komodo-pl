@@ -21,11 +21,14 @@
             (returns)
             (basicBlock __entry__
                 (LoadArg 0)
-                (Print)
+                (Assert I64 3)
+
                 (LoadArg 1)
-                (Print)
+                (Assert I64 4)
+
                 (LoadArg 2)
-                (Print)
+                (Assert I64 5)
+
                 (Return)
             )
         )

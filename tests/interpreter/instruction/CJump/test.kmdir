@@ -7,15 +7,24 @@
             (returns)
             (basicBlock __entry__
                 (Push Bool false)
-                (CJump exit)
-                (Push I64 1)
+                (CJump badExit)
+                (Push I64 123)
                 (Print)
+
                 (Push Bool true)
-                (CJump exit)
+                (CJump goodExit)
+
                 (Push I64 2)
-                (Print)
+                (Syscall Exit)
             )
-            (basicBlock exit
+            (basicBlock badExit
+                (Push I64 1)
+                (Syscall Exit)
+            )
+            (basicBlock goodExit
+                (Push I64 456)
+                (Print)
+
                 (Push I64 0)
                 (Syscall Exit)
             )

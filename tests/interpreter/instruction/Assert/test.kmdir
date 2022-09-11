@@ -7,13 +7,10 @@
             (returns)
             (basicBlock __entry__
                 (Push Bool true)
-                (Assert)
+                (Assert Bool true)
                 
-                (Push I64 1)
-                (Print)
-
                 (Push Bool false)
-                (Assert)
+                (Assert Bool true)
 
                 (Push I64 2)
                 (Print)

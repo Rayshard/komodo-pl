@@ -112,6 +112,7 @@ public class Interpreter
                     var equal = (PopStack(), PopStack()) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
+                        (Value.Bool(var op1), Value.Bool(var op2)) => op1 == op2,
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -141,11 +142,21 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Assert:
+            case Instruction.Assert instr:
                 {
-                    if(!PopStack<Value.Bool>().Value)
+                    var actual = PopStack();
+                    stack.Push(actual);
+
+                    var equal = instr switch
                     {
-                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}");
+                        Instruction.Assert.I64(var value) => PopStack<Value.I64>().Value == value,
+                        Instruction.Assert.Bool(var value) => PopStack<Value.Bool>().Value == value,
+                        var type => throw new NotImplementedException(type.ToString())
+                    };
+
+                    if(!equal)
+                    {
+                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Stack top was {actual}.");
                         
                         exitcode = 1;
                         State = InterpreterState.ShuttingDown;

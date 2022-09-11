@@ -99,6 +99,14 @@ public static class Formatter
                     var type => throw new NotImplementedException(type.ToString())
                 }
             },
+            Instruction.Assert assert => new string[] {
+                assert.DataType.ToString(),
+                assert switch {
+                    Instruction.Assert.I64(var value) => value.ToString(),
+                    Instruction.Assert.Bool(var value) => value.ToString(),
+                    var type => throw new NotImplementedException(type.ToString())
+                }
+            },
             Instruction.Add instr => new string[] { },
             Instruction.Dec instr => new string[] { },
             Instruction.Mul instr => new string[] { },
@@ -108,7 +116,6 @@ public static class Formatter
             Instruction.Call instr => new string[] { instr.Module, instr.Function },
             Instruction.LoadArg instr => new string[] { instr.Index.ToString() },
             Instruction.CJump instr => new string[] { instr.BasicBlock },
-            Instruction.Assert instr => new string[] { },
             Instruction.Syscall instr => new string[] { instr.Code.ToString() },
             _ => throw new NotImplementedException(instruction.Opcode.ToString())
         });

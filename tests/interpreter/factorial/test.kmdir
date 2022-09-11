@@ -8,7 +8,8 @@
             (basicBlock __entry__
                 (Push I64 5)
                 (Call MyModule Factorial)
-                (Print)
+                (Assert I64 120)
+                
                 (Push I64 0)
                 (Syscall Exit)
             )
