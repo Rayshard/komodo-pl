@@ -22,6 +22,7 @@ public class Interpreter
     public Int64 Run()
     {
         Int64 exitcode = 0;
+        int numInstructionsExecuted = 0;
 
         State = InterpreterState.Running;
 
@@ -38,6 +39,7 @@ public class Interpreter
             try
             {
                 ExecuteNextInstruction(stackFrame, ref exitcode);
+                numInstructionsExecuted++;
 
                 var stackAsString = StackToString();
                 stackAsString = stackAsString.Length == 0 ? " Empty" : ("\n" + stackAsString);
@@ -58,6 +60,8 @@ public class Interpreter
         }
 
         State = InterpreterState.Terminated;
+
+        Logger.Debug($"Number of instructions executed: {numInstructionsExecuted}");
         return exitcode;
     }
 
@@ -158,10 +162,9 @@ public class Interpreter
 
     private T PopStack<T>() where T : Value
     {
-        if (stack.Count == 0)
+        if (!stack.TryPeek(out var stackTop))
             throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
-        var stackTop = stack.Peek();
         if (stackTop is not T)
             throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
 
@@ -170,10 +173,9 @@ public class Interpreter
 
     private Value PopStack(DataType dt)
     {
-        if (stack.Count == 0)
+        if (!stack.TryPeek(out var stackTop))
             throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
-        var stackTop = stack.Peek();
         if (stackTop.DataType != dt)
             throw new InvalidCastException($"Unable to pop '{dt}' off stack. Found '{stackTop.DataType}'");
 

@@ -10,10 +10,10 @@ public static class Logger
 
     private static void Log(LogLevel level, object log, bool startOnNewLine)
     {
-        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
-
         if (level < MinLevel)
             return;
+
+        var time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fffffff", CultureInfo.InvariantCulture);
 
         switch (level)
         {
