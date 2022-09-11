@@ -144,18 +144,10 @@ public class Interpreter
             case Instruction.Assert instr:
                 {
                     var actual = PopStack();
-                    stack.Push(actual);
 
-                    var equal = instr switch
+                    if(actual != instr.Value)
                     {
-                        Instruction.Assert.I64(var value) => PopStack<Value.I64>().Value == value,
-                        Instruction.Assert.Bool(var value) => PopStack<Value.Bool>().Value == value,
-                        var type => throw new NotImplementedException(type.ToString())
-                    };
-
-                    if(!equal)
-                    {
-                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Stack top was {actual}.");
+                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Expected {instr.Value}, but found {actual}.");
                         
                         exitcode = 1;
                         State = InterpreterState.ShuttingDown;

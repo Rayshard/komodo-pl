@@ -7,22 +7,7 @@
             (returns)
             (basicBlock __entry__
                 (Push 11)
-                (Assert I64 11)
-
-                (Push (I64 12))
-                (Assert I64 12)
-
-                (Push true)
-                (Assert Bool true)
-
-                (Push (Bool true))
-                (Assert Bool true)
-
-                (Push false)
-                (Assert Bool false)
-
-                (Push (Bool false))
-                (Assert Bool false)
+                (Assert 11)
 
                 (Push 0)
                 (Syscall Exit)

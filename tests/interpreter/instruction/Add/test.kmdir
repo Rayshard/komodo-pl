@@ -6,12 +6,12 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push I64 11)
-                (Push I64 22)
+                (Push 11)
+                (Push 22)
                 (Add)
-                (Assert I64 33)
+                (Assert 33)
 
-                (Push I64 0)
+                (Push 0)
                 (Syscall Exit)
             )
         )

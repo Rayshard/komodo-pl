@@ -92,14 +92,7 @@ public static class Formatter
         items.AddRange(instruction switch
         {
             Instruction.Push instr => new string[] { instr.Value.AsSExpression().ToString() },
-            Instruction.Assert assert => new string[] {
-                assert.DataType.ToString(),
-                assert switch {
-                    Instruction.Assert.I64(var value) => value.ToString(),
-                    Instruction.Assert.Bool(var value) => value.ToString(),
-                    var type => throw new NotImplementedException(type.ToString())
-                }
-            },
+            Instruction.Assert instr => new string[] { instr.Value.AsSExpression().ToString() },
             Instruction.Add instr => new string[] { },
             Instruction.Dec instr => new string[] { },
             Instruction.Mul instr => new string[] { },

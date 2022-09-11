@@ -62,49 +62,16 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public abstract record Assert(DataType DataType) : Instruction(Opcode.Assert)
+    public record Assert(Value Value) : Instruction(Opcode.Assert)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
-
-        public record I64(Int64 Value) : Assert(DataType.I64)
-        {
-            protected override IEnumerable<SExpression> OperandsAsSExpressions => base.OperandsAsSExpressions.Append(new SExpression.UnquotedSymbol(Value.ToString()));
-
-            new public static I64 Deserialize(SExpression sexpr)
-            {
-                var list = sexpr.ExpectList().ExpectLength(3);
-                list[0].ExpectEnum(Opcode.Assert);
-                list[1].ExpectEnum(DataType.I64);
-
-                return new I64(list[2].AsInt64());
-            }
-        }
-
-        public record Bool(bool Value) : Assert(DataType.Bool)
-        {
-            protected override IEnumerable<SExpression> OperandsAsSExpressions => base.OperandsAsSExpressions.Append(new SExpression.UnquotedSymbol(Value ? "true" : "false"));
-
-            new public static Bool Deserialize(SExpression sexpr)
-            {
-                var list = sexpr.ExpectList().ExpectLength(3);
-                list[0].ExpectEnum(Opcode.Assert);
-                list[1].ExpectEnum(DataType.Bool);
-
-                return new Bool(list[2].AsBool());
-            }
-        }
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { Value.AsSExpression() };
 
         new public static Assert Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Assert);
 
-            return list[1].AsEnum<DataType>() switch
-            {
-                DataType.I64 => I64.Deserialize(sexpr),
-                DataType.Bool => Bool.Deserialize(sexpr),
-                var dt => throw new NotImplementedException(dt.ToString())
-            };
+            return new Assert(Value.Deserialize(list[1]));
         }
     }
 
