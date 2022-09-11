@@ -1,0 +1,58 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (Call MyModule TestNoArgument)
+
+                (PushI64 2)
+                (Call MyModule TestSingleArgument)
+
+                (PushI64 5)
+                (PushI64 4)
+                (PushI64 3)
+                (Call MyModule TestMultipleArguments)
+
+                (PushI64 0)
+                (Syscall Exit)
+            )
+        )
+        (function TestNoArgument
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 1)
+                (Print)
+                (Return)
+            )
+        )
+        (function TestSingleArgument
+            (args I64)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (LoadArg 0)
+                (Print)
+                (Return)
+            )
+        )
+        (function TestMultipleArguments
+            (args I64 I64 I64)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (LoadArg 0)
+                (Print)
+                (LoadArg 1)
+                (Print)
+                (LoadArg 2)
+                (Print)
+                (Return)
+            )
+        )
+    )
+)

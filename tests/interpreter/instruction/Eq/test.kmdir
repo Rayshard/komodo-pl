@@ -1,0 +1,24 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 11)
+                (PushI64 22)
+                (Eq)
+                (Print)
+
+                (PushI64 456)
+                (PushI64 456)
+                (Eq)
+                (Print)
+                
+                (PushI64 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)

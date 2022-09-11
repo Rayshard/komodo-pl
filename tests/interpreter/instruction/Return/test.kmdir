@@ -1,0 +1,53 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 123)
+                (Call MyModule TestReturnUnit)
+                (Print)
+
+                (Call MyModule TestSingleReturn)
+                (Print)
+
+                (Call MyModule TestMultipleReturn)
+                (Print)
+                (Print)
+                (Print)
+
+                (PushI64 0)
+                (Syscall Exit)
+            )
+        )
+        (function TestReturnUnit
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 456)
+                (Return)
+            )
+        )
+        (function TestSingleReturn
+            (args)
+            (locals)
+            (ret I64)
+            (basicBlock __entry__
+                (PushI64 789)
+                (Return)
+            )
+        )
+        (function TestMultipleReturn
+            (args)
+            (locals)
+            (ret Unit)
+            (basicBlock __entry__
+                (PushI64 1)
+                (Syscall Exit)
+            )
+        )
+    )
+)
