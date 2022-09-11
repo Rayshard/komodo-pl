@@ -6,9 +6,9 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push 5)
+                (Push 20)
                 (Call MyModule Factorial)
-                (Assert 120)
+                (Print I64)
                 
                 (Push 0)
                 (Syscall Exit)
@@ -20,8 +20,7 @@
             (returns I64)
             (basicBlock __entry__
                 (LoadArg 0)
-                (Push 0)
-                (Eq I64)
+                (Eq I64 0)
                 (CJump retOneOnZero)
                 (LoadArg 0)
                 (LoadArg 0)
