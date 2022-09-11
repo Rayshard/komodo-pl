@@ -16,6 +16,12 @@ public abstract record SExpression(TextLocation? Location)
         public UnquotedSymbol ExpectValue(string value)
             => Value == value ? this : throw new FormatException($"Expected {value}, but found {Value}", this);
 
+        public UnquotedSymbol ExpectValue(params string[] options)
+            => options.Contains(Value) ? this : throw new FormatException($"Expected one of {Utility.Stringify(options, ", ", ("(", ")"))}, but found {Value}", this);
+
+        public UnquotedSymbol ExpectValue(Regex pattern)
+            => pattern.IsMatch(Value) ? this : throw new FormatException($"Expected value to match patttern \"{pattern}\", but found {Value}", this);
+
         public override string ToString() => Value;
 
         private static string VerifyValue(string value)
@@ -156,6 +162,25 @@ public abstract record SExpression(TextLocation? Location)
         }
     }
 
+    public class ParseException : Exception
+    {
+        public TextLocation Location { get; }
+
+        public ParseException(string message, TextLocation location) : base(message) => Location = location;
+    }
+
+    public static SExpression Parse(TextSourceReader stream)
+    {
+        stream.SkipWhileWhiteSpace();
+
+        return stream.Peek() switch
+        {
+            '(' => List.Parse(stream),
+            '"' => QuotedSymbol.Parse(stream),
+            _ => UnquotedSymbol.Parse(stream)
+        };
+    }
+
     #region Formatting
     public class FormatException : Exception
     {
@@ -173,11 +198,14 @@ public abstract record SExpression(TextLocation? Location)
         => this as QuotedSymbol ?? throw new FormatException($"Expected quoted symbol, but found {this.GetType()}", this);
 
     public List ExpectList()
-            => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
+        => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
 
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;
     public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public void ExpectEnum<T>(T value) where T : struct, Enum
+        => ExpectUnquotedSymbol().ExpectValue(value.ToString());
 
     public T AsEnum<T>() where T : struct, Enum
     {
@@ -208,24 +236,15 @@ public abstract record SExpression(TextLocation? Location)
 
         throw new FormatException($"'{value}' is not a UInt64", this);
     }
+
+    public bool AsBool()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (bool.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a bool", this);
+    }
     #endregion
-
-    public class ParseException : Exception
-    {
-        public TextLocation Location { get; }
-
-        public ParseException(string message, TextLocation location) : base(message) => Location = location;
-    }
-
-    public static SExpression Parse(TextSourceReader stream)
-    {
-        stream.SkipWhileWhiteSpace();
-
-        return stream.Peek() switch
-        {
-            '(' => List.Parse(stream),
-            '"' => QuotedSymbol.Parse(stream),
-            _ => UnquotedSymbol.Parse(stream)
-        };
-    }
 }

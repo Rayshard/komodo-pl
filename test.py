@@ -136,6 +136,10 @@ def get_test_cases(test_suite_dir: Path) -> List[TestCase]:
         if test_file_path.exists():
             try:
                 name = os.path.relpath(directory, test_suite_dir)
+
+                if name == ".":
+                    name = directory.name
+
                 test_cases.append(TestCase.from_file(name, test_file_path))
             except Exception as e:
                 print(f"Unable to load test case from {directory}:")

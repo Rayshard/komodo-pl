@@ -1,0 +1,7 @@
+{
+  "args": ["run-ir", "test.kmdir"],
+  "exitcode": 1,
+  "stdin": [],
+  "stdout": ["Assertion Failed at MyModule.Main.__entry__.3. Stack top was Bool(false).", ""],
+  "stderr": []
+}

@@ -57,7 +57,7 @@ static class Entry
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
-            var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
             var interpreter = new Interpreter(program);
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -71,8 +71,7 @@ static class Entry
         }
         catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }
         catch (SExpression.FormatException e) { Logger.Error($"{e.Location!.ToTerminalLink(sources)} {e.Message}"); }
-        catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
-
+        
         return -1;
     }
 
@@ -96,7 +95,7 @@ static class Entry
                     try
                     {
                         var sexpr = SExpression.Parse(new TextSourceReader(source));
-                        var program = Compilation.Bytecode.Formatter.DeserializeProgram(sexpr);
+                        var program = Compilation.Bytecode.Program.Deserialize(sexpr);
 
                         Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
                         return 0;

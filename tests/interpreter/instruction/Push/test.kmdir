@@ -1,0 +1,23 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (Push I64 12)
+                (Assert I64 12)
+
+                (Push Bool true)
+                (Assert Bool true)
+
+                (Push Bool false)
+                (Assert Bool false)
+
+                (Push I64 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)

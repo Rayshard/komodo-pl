@@ -1,3 +1,5 @@
+using Komodo.Utilities;
+
 namespace Komodo.Compilation.Bytecode;
 
 public class Module
@@ -11,4 +13,29 @@ public class Module
 
     public void AddFunction(Function function) => functions.Add(function.Name, function);
     public Function GetFunction(string name) => functions[name];
+
+    public SExpression AsSExpression()
+    {
+        var nodes = new List<SExpression>();
+        nodes.Add(new SExpression.UnquotedSymbol("module"));
+        nodes.Add(new SExpression.UnquotedSymbol(Name));
+        nodes.AddRange(Functions.Select(function => function.AsSExpression()));
+
+        return new SExpression.List(nodes);
+    }
+
+    public static Module Deserialize(SExpression sexpr)
+    {
+        var list = sexpr.ExpectList().ExpectLength(2, null);
+        list[0].ExpectUnquotedSymbol().ExpectValue("module");
+
+        var name = list[1].ExpectUnquotedSymbol().Value;
+        var module = new Module(name);
+
+        foreach (var item in list.Skip(2))
+            module.AddFunction(Function.Deserialize(item));
+
+        return module;
+    }
+
 }

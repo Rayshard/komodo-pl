@@ -4,13 +4,14 @@
         (function Main
             (args)
             (locals)
-            (ret Unit)
+            (returns)
             (basicBlock __entry__
-                (PushI64 11)
-                (PushI64 22)
-                (AddI64)
-                (PrintI64)
-                (PushI64 0)
+                (Push I64 11)
+                (Push I64 22)
+                (Add)
+                (Assert I64 33)
+
+                (Push I64 0)
                 (Syscall Exit)
             )
         )

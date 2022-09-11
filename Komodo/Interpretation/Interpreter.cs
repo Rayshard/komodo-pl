@@ -34,102 +34,159 @@ public class Interpreter
                 throw new Exception("Exited with an empty call stack");
 
             var stackFrame = callStack.Peek();
-            var instruction = FetchInstruction(stackFrame.IP);
 
-            Logger.Debug($"{stackFrame.IP}: {instruction}");
-
-            switch (instruction)
+            try
             {
-                case Instruction.Syscall instr:
-                    {
-                        switch (instr.Code)
-                        {
-                            case SyscallCode.Exit:
-                                {
-                                    exitcode = PopStack<Value.I64>().Value;
-                                    State = InterpreterState.ShuttingDown;
-                                }
-                                break;
-                            default: throw new NotImplementedException(instr.Code.ToString());
-                        }
-                    }
-                    break;
-                case Instruction.PushI64 instr: stack.Push(new Value.I64(instr.Value)); break;
-                case Instruction.AddI64:
-                    {
-                        var op1 = PopStack<Value.I64>().Value;
-                        var op2 = PopStack<Value.I64>().Value;
+                ExecuteNextInstruction(stackFrame, ref exitcode);
 
-                        stack.Push(new Value.I64(op1 + op2));
-                    }
-                    break;
-                case Instruction.MulI64:
-                    {
-                        var op1 = PopStack<Value.I64>().Value;
-                        var op2 = PopStack<Value.I64>().Value;
+                var stackAsString = StackToString();
+                stackAsString = stackAsString.Length == 0 ? " Empty" : ("\n" + stackAsString);
 
-                        stack.Push(new Value.I64(op1 * op2));
-                    }
-                    break;
-                case Instruction.EqI64:
-                    {
-                        var op1 = PopStack<Value.I64>().Value;
-                        var op2 = PopStack<Value.I64>().Value;
-
-                        stack.Push(new Value.I64(op1 == op2 ? 1 : 0));
-                    }
-                    break;
-                    case Instruction.DecI64:
-                    {
-                        var value = PopStack<Value.I64>().Value;
-                        stack.Push(new Value.I64(value - 1));
-                    }
-                    break;
-                case Instruction.PrintI64:
-                    {
-                        var value = PopStack<Value.I64>().Value;
-                        Console.WriteLine(value);
-                    }
-                    break;
-                case Instruction.Call instr:
-                    {
-                        var function = Program.GetModule(instr.Module).GetFunction(instr.Function);
-                        var arguments = function.Arguments.Select(p => PopStack(p));
-                        var start = new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0);
-
-                        callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
-                    }
-                    break;
-                    case Instruction.Return instr:
-                    {
-                        var expectedReturnType = GetFunctionFromIP(stackFrame.IP).ReturnType;
-                        PopStackFrame(expectedReturnType == DataType.Unit ? null : PopStack(expectedReturnType));
-                    }
-                    break;
-                case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
-                case Instruction.JNZ instr:
-                    {
-                        if (PopStack<Value.I64>().Value != 0)
-                            stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
-                    }
-                    break;
-                default: throw new NotImplementedException(instruction.Opcode.ToString());
+                Logger.Debug($"Current Stack:{stackAsString}");
+                stackFrame.IP = stackFrame.IP + 1;
             }
+            catch (Exception e)
+            {
+                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}");
 
-            Logger.Debug(StackToString(), startOnNewLine: true);
-            stackFrame.IP = stackFrame.IP + 1;
+                if (e.StackTrace is not null)
+                    Logger.Debug(e.StackTrace, true);
+
+                exitcode = 1;
+                break;
+            }
         }
 
         State = InterpreterState.Terminated;
         return exitcode;
     }
 
-    private Instruction FetchInstruction(InstructionPointer ip)
-        => Program.GetModule(ip.Module).GetFunction(ip.Function).GetBasicBlock(ip.BasicBlock)[ip.Index];
+    private void ExecuteNextInstruction(StackFrame stackFrame, ref Int64 exitcode)
+    {
+        var instruction = GetInstructionFromIP(stackFrame.IP);
+
+        Logger.Debug($"{stackFrame.IP}: {instruction}");
+
+        switch (instruction)
+        {
+            case Instruction.Syscall instr:
+                {
+                    switch (instr.Code)
+                    {
+                        case SyscallCode.Exit:
+                            {
+                                exitcode = PopStack<Value.I64>().Value;
+                                State = InterpreterState.ShuttingDown;
+                            }
+                            break;
+                        default: throw new NotImplementedException(instr.Code.ToString());
+                    }
+                }
+                break;
+            case Instruction.Push.I64 instr: stack.Push(new Value.I64(instr.Value)); break;
+            case Instruction.Push.Bool instr: stack.Push(new Value.Bool(instr.Value)); break;
+            case Instruction.Add:
+                {
+                    Value result = (PopStack(), PopStack()) switch
+                    {
+                        (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
+                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                    };
+
+                    stack.Push(result);
+                }
+                break;
+            case Instruction.Mul:
+                {
+                    Value result = (PopStack(), PopStack()) switch
+                    {
+                        (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
+                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                    };
+
+                    stack.Push(result);
+                }
+                break;
+            case Instruction.Eq:
+                {
+                    var equal = (PopStack(), PopStack()) switch
+                    {
+                        (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
+                        (Value.Bool(var op1), Value.Bool(var op2)) => op1 == op2,
+                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                    };
+
+                    stack.Push(new Value.Bool(equal));
+                }
+                break;
+            case Instruction.Dec:
+                {
+                    Value result = PopStack() switch
+                    {
+                        Value.I64(var value) => new Value.I64(value - 1),
+                        var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
+                    };
+
+                    stack.Push(result);
+                }
+                break;
+            case Instruction.Print:
+                {
+                    var value = PopStack();
+
+                    switch (value)
+                    {
+                        case Value.I64(var i): Console.WriteLine(i); break;
+                        case Value.Bool(var b): Console.WriteLine(b ? "true" : "false"); break;
+                        default: throw new Exception($"Cannot apply operation to {value.DataType}.");
+                    }
+                }
+                break;
+            case Instruction.Assert instr:
+                {
+                    var actual = PopStack();
+                    stack.Push(actual);
+
+                    var equal = instr switch
+                    {
+                        Instruction.Assert.I64(var value) => PopStack<Value.I64>().Value == value,
+                        Instruction.Assert.Bool(var value) => PopStack<Value.Bool>().Value == value,
+                        var type => throw new NotImplementedException(type.ToString())
+                    };
+
+                    if(!equal)
+                    {
+                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Stack top was {actual}.");
+                        
+                        exitcode = 1;
+                        State = InterpreterState.ShuttingDown;
+                    }
+                }
+                break;
+            case Instruction.Call instr:
+                {
+                    var function = Program.GetModule(instr.Module).GetFunction(instr.Function);
+                    var arguments = function.Arguments.Select(p => PopStack(p));
+                    var start = new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0);
+
+                    callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
+                }
+                break;
+            case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
+            case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
+            case Instruction.CJump instr:
+                {
+                    if (PopStack<Value.Bool>().Value)
+                        stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
+                }
+                break;
+            default: throw new NotImplementedException(instruction.Opcode.ToString());
+        }
+    }
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
-    private T PopStack<T>()
+    private T PopStack<T>() where T : Value
     {
         if (stack.Count == 0)
             throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
@@ -153,15 +210,18 @@ public class Interpreter
         return stack.Pop();
     }
 
-    private void PopStackFrame(Value? returnValue)
+    private void PopStackFrame(IEnumerable<DataType> expectedReturns)
     {
         if (callStack.TryPop(out var frame))
         {
+            var returnValues = expectedReturns.Select(PopStack).ToArray();
+
             while (stack.Count > frame.FramePointer)
                 stack.Pop();
 
-            if (returnValue is not null)
-                stack.Push(returnValue);
+            // Push return values on to stack in reverse
+            foreach (var value in returnValues.Reverse())
+                stack.Push(value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }
@@ -169,4 +229,7 @@ public class Interpreter
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
 
     public Function GetFunctionFromIP(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function);
+
+    private Instruction GetInstructionFromIP(InstructionPointer ip)
+        => Program.GetModule(ip.Module).GetFunction(ip.Function).GetBasicBlock(ip.BasicBlock)[ip.Index];
 }

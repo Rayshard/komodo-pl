@@ -1,0 +1,36 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (Push I64 5)
+                (Push I64 4)
+                (Push I64 3)
+                (Call MyModule OtherFunction)
+
+                (Push I64 0)
+                (Syscall Exit)
+            )
+        )
+        (function OtherFunction
+            (args I64 I64 I64)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (LoadArg 0)
+                (Assert I64 3)
+
+                (LoadArg 1)
+                (Assert I64 4)
+
+                (LoadArg 2)
+                (Assert I64 5)
+
+                (Return)
+            )
+        )
+    )
+)
