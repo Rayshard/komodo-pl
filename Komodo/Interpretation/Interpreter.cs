@@ -83,8 +83,7 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Push.I64 instr: stack.Push(new Value.I64(instr.Value)); break;
-            case Instruction.Push.Bool instr: stack.Push(new Value.Bool(instr.Value)); break;
+            case Instruction.Push instr: stack.Push(instr.Value); break;
             case Instruction.Add:
                 {
                     Value result = (PopStack(), PopStack()) switch

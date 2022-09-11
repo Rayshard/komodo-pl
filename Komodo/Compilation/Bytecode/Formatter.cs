@@ -91,14 +91,7 @@ public static class Formatter
         items.Add(instruction.Opcode.ToString());
         items.AddRange(instruction switch
         {
-            Instruction.Push push => new string[] {
-                push.DataType.ToString(),
-                push switch {
-                    Instruction.Push.I64(var value) => value.ToString(),
-                    Instruction.Push.Bool(var value) => value.ToString(),
-                    var type => throw new NotImplementedException(type.ToString())
-                }
-            },
+            Instruction.Push instr => new string[] { instr.Value.AsSExpression().ToString() },
             Instruction.Assert assert => new string[] {
                 assert.DataType.ToString(),
                 assert switch {

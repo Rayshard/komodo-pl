@@ -60,4 +60,6 @@ public static class Utility
             throw new Exception("Invalid JSON");
         }
     }
+
+    public static Regex Concat(IEnumerable<Regex> regexes) => new Regex(Stringify(regexes.Select(regex => $"({regex})"), "|"));
 }
