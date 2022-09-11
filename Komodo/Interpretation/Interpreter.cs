@@ -55,6 +55,8 @@ public class Interpreter
                     }
                     break;
                 case Instruction.PushI64 instr: stack.Push(new Value.I64(instr.Value)); break;
+                case Instruction.PushTrue instr: stack.Push(new Value.Bool(true)); break;
+                case Instruction.PushFalse instr: stack.Push(new Value.Bool(false)); break;
                 case Instruction.Add:
                     {
                         Value result = (PopStack(), PopStack()) switch
@@ -79,13 +81,13 @@ public class Interpreter
                     break;
                 case Instruction.Eq:
                     {
-                        Value result = (PopStack(), PopStack()) switch
+                        var equal = (PopStack(), PopStack()) switch
                         {
-                            (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 == op2 ? 1 : 0),
+                            (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
                             var operands => throw new Exception($"Cannot apply operation to {operands}.")
                         };
 
-                        stack.Push(result);
+                        stack.Push(new Value.Bool(equal));
                     }
                     break;
                 case Instruction.Dec:
@@ -105,7 +107,8 @@ public class Interpreter
 
                         switch (value)
                         {
-                            case Value.I64(var i64): Console.WriteLine(i64); break;
+                            case Value.I64(var i): Console.WriteLine(i); break;
+                            case Value.Bool(var b): Console.WriteLine(b ? "true" : "false"); break;
                             default: throw new Exception($"Cannot apply operation to {value.DataType}.");
                         }
                     }
@@ -121,15 +124,9 @@ public class Interpreter
                     break;
                 case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
                 case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
-                case Instruction.JNZ instr:
+                case Instruction.CJump instr:
                     {
-                        bool nonzero = PopStack() switch
-                        {
-                            Value.I64(var value) => value != 0,
-                            var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
-                        };
-
-                        if (nonzero)
+                        if (PopStack<Value.Bool>().Value)
                             stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
                     }
                     break;
@@ -149,7 +146,7 @@ public class Interpreter
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
-    private T PopStack<T>()
+    private T PopStack<T>() where T : Value
     {
         if (stack.Count == 0)
             throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");

@@ -21,7 +21,7 @@
                 (LoadArg 0)
                 (PushI64 0)
                 (Eq)
-                (JNZ retOneOnZero)
+                (CJump retOneOnZero)
                 (LoadArg 0)
                 (LoadArg 0)
                 (Dec)

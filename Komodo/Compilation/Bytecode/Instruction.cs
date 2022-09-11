@@ -5,11 +5,14 @@ namespace Komodo.Compilation.Bytecode;
 public enum Opcode
 {
     PushI64,
+    PushTrue,
+    PushFalse,
+
     Syscall,
     Call,
     Return,
     LoadArg,
-    JNZ,
+    CJump,
 
     Add,
     Eq,
@@ -58,6 +61,32 @@ public abstract record Instruction(Opcode Opcode)
             list[0].ExpectEnum(Opcode.PushI64);
 
             return new PushI64(list[1].AsInt64());
+        }
+    }
+
+    public record PushTrue() : Instruction(Opcode.PushTrue)
+    {
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+
+        new public static PushTrue Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(1);
+            list[0].ExpectEnum(Opcode.PushTrue);
+
+            return new PushTrue();
+        }
+    }
+
+    public record PushFalse() : Instruction(Opcode.PushFalse)
+    {
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+
+        new public static PushFalse Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(1);
+            list[0].ExpectEnum(Opcode.PushFalse);
+
+            return new PushFalse();
         }
     }
 
@@ -156,16 +185,16 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record JNZ(string BasicBlock) : Instruction(Opcode.JNZ)
+    public record CJump(string BasicBlock) : Instruction(Opcode.CJump)
     {
         protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
 
-        new public static JNZ Deserialize(SExpression sexpr)
+        new public static CJump Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.JNZ);
+            list[0].ExpectEnum(Opcode.CJump);
 
-            return new JNZ(list[1].ExpectUnquotedSymbol().Value);
+            return new CJump(list[1].ExpectUnquotedSymbol().Value);
         }
     }
 
@@ -185,6 +214,8 @@ public abstract record Instruction(Opcode Opcode)
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
         Opcode.PushI64 => PushI64.Deserialize(sexpr),
+        Opcode.PushTrue => PushTrue.Deserialize(sexpr),
+        Opcode.PushFalse => PushFalse.Deserialize(sexpr),
         Opcode.Add => Add.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Print => Print.Deserialize(sexpr),
@@ -193,7 +224,7 @@ public abstract record Instruction(Opcode Opcode)
         Opcode.Eq => Eq.Deserialize(sexpr),
         Opcode.Dec => Dec.Deserialize(sexpr),
         Opcode.Mul => Mul.Deserialize(sexpr),
-        Opcode.JNZ => JNZ.Deserialize(sexpr),
+        Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
