@@ -21,13 +21,13 @@
             (basicBlock __entry__
                 (LoadArg 0)
                 (Push 0)
-                (Eq)
+                (Eq I64)
                 (CJump retOneOnZero)
                 (LoadArg 0)
                 (LoadArg 0)
-                (Dec)
+                (Dec I64)
                 (Call MyModule Factorial)
-                (Mul)
+                (Mul I64)
                 (Return)
             )
             (basicBlock retOneOnZero

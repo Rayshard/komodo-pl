@@ -8,12 +8,12 @@
             (basicBlock __entry__
                 (Push 11)
                 (Push 22)
-                (Eq)
+                (Eq I64)
                 (Assert false)
 
                 (Push 456)
                 (Push 456)
-                (Eq)
+                (Eq I64)
                 (Assert true)
                 
                 (Push 0)

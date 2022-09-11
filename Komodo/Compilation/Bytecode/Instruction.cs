@@ -75,29 +75,29 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Add() : Instruction(Opcode.Add)
+    public record Add(DataType DataType) : Instruction(Opcode.Add)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
         new public static Add Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Add);
 
-            return new Add();
+            return new Add(list[1].AsEnum<DataType>());
         }
     }
 
-    public record Print() : Instruction(Opcode.Print)
+    public record Print(DataType DataType) : Instruction(Opcode.Print)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
         new public static Print Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Print);
 
-            return new Print();
+            return new Print(list[1].AsEnum<DataType>());
         }
     }
 
@@ -131,42 +131,42 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Eq() : Instruction(Opcode.Eq)
+    public record Eq(DataType DataType) : Instruction(Opcode.Eq)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
         new public static Eq Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Eq);
 
-            return new Eq();
+            return new Eq(list[1].AsEnum<DataType>());
         }
     }
 
-    public record Dec() : Instruction(Opcode.Dec)
+    public record Dec(DataType DataType) : Instruction(Opcode.Dec)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
         new public static Dec Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Dec);
 
-            return new Dec();
+            return new Dec(list[1].AsEnum<DataType>());
         }
     }
 
-    public record Mul() : Instruction(Opcode.Mul)
+    public record Mul(DataType DataType) : Instruction(Opcode.Mul)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
 
         new public static Mul Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Mul);
 
-            return new Mul();
+            return new Mul(list[1].AsEnum<DataType>());
         }
     }
 

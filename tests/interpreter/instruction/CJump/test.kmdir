@@ -9,7 +9,7 @@
                 (Push false)
                 (CJump badExit)
                 (Push 123)
-                (Print)
+                (Print I64)
 
                 (Push true)
                 (CJump goodExit)
@@ -23,7 +23,7 @@
             )
             (basicBlock goodExit
                 (Push 456)
-                (Print)
+                (Print I64)
 
                 (Push 0)
                 (Syscall Exit)

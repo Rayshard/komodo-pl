@@ -7,7 +7,7 @@
             (returns)
             (basicBlock __entry__
                 (Push 11)
-                (Dec)
+                (Dec I64)
                 (Assert 10)
 
                 (Push 0)

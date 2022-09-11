@@ -13,7 +13,7 @@
                 (Assert true)
 
                 (Push 2)
-                (Print)
+                (Print I64)
             )
         )
     )

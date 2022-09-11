@@ -84,9 +84,9 @@ public class Interpreter
                 }
                 break;
             case Instruction.Push instr: stack.Push(instr.Value); break;
-            case Instruction.Add:
+            case Instruction.Add instr:
                 {
-                    Value result = (PopStack(), PopStack()) switch
+                    Value result = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
@@ -95,9 +95,9 @@ public class Interpreter
                     stack.Push(result);
                 }
                 break;
-            case Instruction.Mul:
+            case Instruction.Mul instr:
                 {
-                    Value result = (PopStack(), PopStack()) switch
+                    Value result = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
@@ -106,9 +106,9 @@ public class Interpreter
                     stack.Push(result);
                 }
                 break;
-            case Instruction.Eq:
+            case Instruction.Eq instr:
                 {
-                    var equal = (PopStack(), PopStack()) switch
+                    var equal = (PopStack(instr.DataType), PopStack(instr.DataType)) switch
                     {
                         (Value.I64(var op1), Value.I64(var op2)) => op1 == op2,
                         (Value.Bool(var op1), Value.Bool(var op2)) => op1 == op2,
@@ -118,9 +118,9 @@ public class Interpreter
                     stack.Push(new Value.Bool(equal));
                 }
                 break;
-            case Instruction.Dec:
+            case Instruction.Dec instr:
                 {
-                    Value result = PopStack() switch
+                    Value result = PopStack(instr.DataType) switch
                     {
                         Value.I64(var value) => new Value.I64(value - 1),
                         var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
@@ -129,9 +129,9 @@ public class Interpreter
                     stack.Push(result);
                 }
                 break;
-            case Instruction.Print:
+            case Instruction.Print instr:
                 {
-                    var value = PopStack();
+                    var value = PopStack(instr.DataType);
 
                     switch (value)
                     {

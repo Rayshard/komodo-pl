@@ -8,7 +8,7 @@
             (basicBlock __entry__
                 (Push 11)
                 (Push 22)
-                (Add)
+                (Add I64)
                 (Assert 33)
 
                 (Push 0)
