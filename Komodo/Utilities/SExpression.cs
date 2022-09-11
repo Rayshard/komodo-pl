@@ -156,6 +156,25 @@ public abstract record SExpression(TextLocation? Location)
         }
     }
 
+    public class ParseException : Exception
+    {
+        public TextLocation Location { get; }
+
+        public ParseException(string message, TextLocation location) : base(message) => Location = location;
+    }
+
+    public static SExpression Parse(TextSourceReader stream)
+    {
+        stream.SkipWhileWhiteSpace();
+
+        return stream.Peek() switch
+        {
+            '(' => List.Parse(stream),
+            '"' => QuotedSymbol.Parse(stream),
+            _ => UnquotedSymbol.Parse(stream)
+        };
+    }
+
     #region Formatting
     public class FormatException : Exception
     {
@@ -212,23 +231,4 @@ public abstract record SExpression(TextLocation? Location)
         throw new FormatException($"'{value}' is not a UInt64", this);
     }
     #endregion
-
-    public class ParseException : Exception
-    {
-        public TextLocation Location { get; }
-
-        public ParseException(string message, TextLocation location) : base(message) => Location = location;
-    }
-
-    public static SExpression Parse(TextSourceReader stream)
-    {
-        stream.SkipWhileWhiteSpace();
-
-        return stream.Peek() switch
-        {
-            '(' => List.Parse(stream),
-            '"' => QuotedSymbol.Parse(stream),
-            _ => UnquotedSymbol.Parse(stream)
-        };
-    }
 }
