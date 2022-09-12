@@ -1,3 +1,5 @@
+using Komodo.Compilation.Bytecode;
+
 namespace Komodo.Interpretation;
 
 public class StackFrame

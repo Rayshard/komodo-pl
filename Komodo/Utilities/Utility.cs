@@ -10,10 +10,12 @@ namespace Komodo.Utilities;
 public static class Utility
 {
     private static Regex HexCharRegex = new Regex("^[a-fA-F0-9]$");
-    
+
     public static bool IsHex(this char c) => HexCharRegex.Match(c.ToString()).Success;
 
     public static string WithIndent(this string s, string indent = "    ") => string.Join('\n', s.Split('\n').Select(line => indent + line));
+
+    public static IEnumerable<T> AppendIf<T>(this IEnumerable<T> enumerable, bool condition, T value) => condition ? enumerable.Append(value) : enumerable;
 
     public static string PrettyPrintJSON(string json)
     {
@@ -60,4 +62,6 @@ public static class Utility
             throw new Exception("Invalid JSON");
         }
     }
+
+    public static Regex Concat(IEnumerable<Regex> regexes) => new Regex(Stringify(regexes.Select(regex => $"({regex})"), "|"));
 }

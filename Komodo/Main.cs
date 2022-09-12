@@ -71,6 +71,7 @@ static class Entry
         }
         catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }
         catch (SExpression.FormatException e) { Logger.Error($"{e.Location!.ToTerminalLink(sources)} {e.Message}"); }
+        catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
         
         return -1;
     }

@@ -6,16 +6,10 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push I64 12)
-                (Assert I64 12)
+                (Push 11)
+                (Assert 11)
 
-                (Push Bool true)
-                (Assert Bool true)
-
-                (Push Bool false)
-                (Assert Bool false)
-
-                (Push I64 0)
+                (Push 0)
                 (Syscall Exit)
             )
         )

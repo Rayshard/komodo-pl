@@ -6,14 +6,14 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push Bool true)
-                (Assert Bool true)
+                (Push true)
+                (Assert true)
                 
-                (Push Bool false)
-                (Assert Bool true)
+                (Push false)
+                (Assert true)
 
-                (Push I64 2)
-                (Print)
+                (Push 2)
+                (Print I64)
             )
         )
     )

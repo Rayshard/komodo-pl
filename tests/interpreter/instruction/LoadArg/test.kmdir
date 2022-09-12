@@ -6,12 +6,12 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push I64 5)
-                (Push I64 4)
-                (Push I64 3)
+                (Push 5)
+                (Push 4)
+                (Push 3)
                 (Call MyModule OtherFunction)
 
-                (Push I64 0)
+                (Push 0)
                 (Syscall Exit)
             )
         )
@@ -21,13 +21,13 @@
             (returns)
             (basicBlock __entry__
                 (LoadArg 0)
-                (Assert I64 3)
+                (Assert 3)
 
                 (LoadArg 1)
-                (Assert I64 4)
+                (Assert 4)
 
                 (LoadArg 2)
-                (Assert I64 5)
+                (Assert 5)
 
                 (Return)
             )

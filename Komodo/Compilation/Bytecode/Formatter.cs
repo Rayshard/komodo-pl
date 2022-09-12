@@ -91,28 +91,12 @@ public static class Formatter
         items.Add(instruction.Opcode.ToString());
         items.AddRange(instruction switch
         {
-            Instruction.Push push => new string[] {
-                push.DataType.ToString(),
-                push switch {
-                    Instruction.Push.I64(var value) => value.ToString(),
-                    Instruction.Push.Bool(var value) => value.ToString(),
-                    var type => throw new NotImplementedException(type.ToString())
-                }
-            },
-            Instruction.Assert assert => new string[] {
-                assert.DataType.ToString(),
-                assert switch {
-                    Instruction.Assert.I64(var value) => value.ToString(),
-                    Instruction.Assert.Bool(var value) => value.ToString(),
-                    var type => throw new NotImplementedException(type.ToString())
-                }
-            },
-            Instruction.Add instr => new string[] { },
-            Instruction.Dec instr => new string[] { },
-            Instruction.Mul instr => new string[] { },
-            Instruction.Eq instr => new string[] { },
+            Instruction.Push instr => new string[] { instr.Value.AsSExpression().ToString() },
+            Instruction.Assert instr => new string[] { instr.Value.AsSExpression().ToString() },
+            Instruction.Binop instr => new string[] { instr.DataType.ToString() }.AppendIf(instr.Value is not null, instr.Value!.AsSExpression().ToString()),
+            Instruction.Dec instr => new string[] { instr.DataType.ToString() },
             Instruction.Return instr => new string[] { },
-            Instruction.Print instr => new string[] { },
+            Instruction.Print instr => new string[] { instr.DataType.ToString()},
             Instruction.Call instr => new string[] { instr.Module, instr.Function },
             Instruction.LoadArg instr => new string[] { instr.Index.ToString() },
             Instruction.CJump instr => new string[] { instr.BasicBlock },
