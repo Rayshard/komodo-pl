@@ -4,7 +4,7 @@ namespace Komodo.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Push,
+    Load,
     Syscall,
     Call,
     Return,
@@ -24,19 +24,19 @@ public enum SyscallCode { Exit }
 
 public abstract record Instruction(Opcode Opcode)
 {
-    protected abstract IEnumerable<SExpression> OperandsAsSExpressions { get; }
+    public abstract IEnumerable<IOperand> Operands { get; }
 
     public SExpression AsSExpression()
     {
         var nodes = new List<SExpression>();
         nodes.Add(new SExpression.UnquotedSymbol(Opcode.ToString()));
-        nodes.AddRange(OperandsAsSExpressions);
+        nodes.AddRange(Operands.Select(op => op.AsSExpression()));
         return new SExpression.List(nodes);
     }
 
     public record Syscall(SyscallCode Code) : Instruction(Opcode.Syscall)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(Code.ToString()) };
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Enumeration<SyscallCode>(Code) };
 
         new public static Syscall Deserialize(SExpression sexpr)
         {
@@ -47,22 +47,22 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Push(Value Value) : Instruction(Opcode.Push)
+    public record Load(Operand.Source Source) : Instruction(Opcode.Load)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { Value.AsSExpression() };
+        public override IEnumerable<IOperand> Operands => new[] { Source };
 
-        new public static Push Deserialize(SExpression sexpr)
+        new public static Load Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.Push);
+            list[0].ExpectEnum(Opcode.Load);
 
-            return new Push(Value.Deserialize(list[1]));
+            return new Load(Operand.DeserializeSource(list[1]));
         }
     }
 
     public record Assert(Value Value) : Instruction(Opcode.Assert)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { Value.AsSExpression() };
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Constant(Value) };
 
         new public static Assert Deserialize(SExpression sexpr)
         {
@@ -75,9 +75,9 @@ public abstract record Instruction(Opcode Opcode)
 
     public record Binop(Opcode Opcode, DataType DataType, Value? Value = null) : Instruction(Verify(Opcode))
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions =>
-            new[] { new SExpression.UnquotedSymbol(DataType.ToString()) }
-            .AppendIf(Value is not null, Value!.AsSExpression());
+        public override IEnumerable<IOperand> Operands =>
+            new[] { new Operand.Enumeration<DataType>(DataType) }
+            .AppendIf<Operand>(Value is not null, new Operand.Constant(Value!));
 
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
@@ -94,8 +94,8 @@ public abstract record Instruction(Opcode Opcode)
 
     public record Print(DataType DataType) : Instruction(Opcode.Print)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
-
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Enumeration<DataType>(DataType) };
+        
         new public static Print Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
@@ -107,10 +107,10 @@ public abstract record Instruction(Opcode Opcode)
 
     public record Call(string Module, string Function) : Instruction(Opcode.Call)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[]
+        public override IEnumerable<IOperand> Operands => new[]
         {
-            new SExpression.UnquotedSymbol(Module),
-            new SExpression.UnquotedSymbol(Function),
+            new Operand.Identifier(Module),
+            new Operand.Identifier(Function),
         };
 
         new public static Call Deserialize(SExpression sexpr)
@@ -122,22 +122,9 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record LoadArg(UInt64 Index) : Instruction(Opcode.LoadArg)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(Index.ToString()) };
-
-        new public static LoadArg Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.LoadArg);
-
-            return new LoadArg(list[1].AsUInt64());
-        }
-    }
-
     public record Dec(DataType DataType) : Instruction(Opcode.Dec)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Enumeration<DataType>(DataType) };
 
         new public static Dec Deserialize(SExpression sexpr)
         {
@@ -150,8 +137,8 @@ public abstract record Instruction(Opcode Opcode)
 
     public record CJump(string BasicBlock) : Instruction(Opcode.CJump)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
-
+        public override IEnumerable<IOperand> Operands => new Operand[] { new Operand.Identifier(BasicBlock) };
+        
         new public static CJump Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
@@ -163,7 +150,7 @@ public abstract record Instruction(Opcode Opcode)
 
     public record Return() : Instruction(Opcode.Return)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        public override IEnumerable<IOperand> Operands => new Operand[] { };
 
         new public static Return Deserialize(SExpression sexpr)
         {
@@ -176,12 +163,11 @@ public abstract record Instruction(Opcode Opcode)
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
-        Opcode.Push => Push.Deserialize(sexpr),
+        Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Print => Print.Deserialize(sexpr),
         Opcode.Call => Call.Deserialize(sexpr),
-        Opcode.LoadArg => LoadArg.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Dec.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),

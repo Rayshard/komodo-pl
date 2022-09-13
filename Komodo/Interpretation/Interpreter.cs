@@ -87,7 +87,7 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Push instr: stack.Push(instr.Value); break;
+            case Instruction.Load instr: stack.Push(SourceOperandToValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
                     Value result = (instr.Opcode, PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
@@ -147,7 +147,6 @@ public class Interpreter
                 }
                 break;
             case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
-            case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
             case Instruction.CJump instr:
                 {
                     if (PopStack<Value.Bool>().Value)
@@ -157,6 +156,14 @@ public class Interpreter
             default: throw new NotImplementedException(instruction.Opcode.ToString());
         }
     }
+
+    private Value SourceOperandToValue(StackFrame stackFrame, Operand.Source source) => source switch {
+        Operand.Constant(var value) => value,
+        Operand.Local(var index) => stackFrame.Locals[index],
+        Operand.Arg(var index) => stackFrame.Arguments[index],
+        Operand.Stack => PopStack(),
+        _ => throw new NotImplementedException(source.ToString())
+    };
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
