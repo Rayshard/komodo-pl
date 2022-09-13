@@ -8,7 +8,6 @@ public enum Opcode
     Syscall,
     Call,
     Return,
-    LoadArg,
     CJump,
     Assert,
 

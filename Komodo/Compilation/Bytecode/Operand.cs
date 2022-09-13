@@ -1,4 +1,5 @@
 using Komodo.Utilities;
+using System.Text.RegularExpressions;
 
 namespace Komodo.Compilation.Bytecode;
 
@@ -37,16 +38,36 @@ public abstract record Operand : IOperand
 
     public record Local(UInt64 Index) : Operand, Source, Destination
     {
+        public static readonly Regex PATTERN = new Regex("^\\$local(?<index>(0|([1-9][0-9]*)))$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol($"$local{Index}");
 
-        public static Local Deserialize(SExpression sexpr) => new Local(sexpr.AsUInt64());
+        public static Local Deserialize(SExpression sexpr)
+        {
+            var value = sexpr.ExpectUnquotedSymbol().ExpectValue(PATTERN).Value.Substring(6);
+
+            if (UInt64.TryParse(value, out var result))
+                return new Local(result);
+
+            throw new SExpression.FormatException($"'{value}' is not a valid index", sexpr);
+        }
     }
 
     public record Arg(UInt64 Index) : Operand, Source, Destination
     {
+        public static readonly Regex PATTERN = new Regex("^\\$arg(?<index>(0|([1-9][0-9]*)))$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol($"$arg{Index}");
 
-        public static Arg Deserialize(SExpression sexpr) => new Arg(sexpr.AsUInt64());
+        public static Arg Deserialize(SExpression sexpr)
+        {
+            var value = sexpr.ExpectUnquotedSymbol().ExpectValue(PATTERN).Value.Substring(4);
+
+            if (UInt64.TryParse(value, out var result))
+                return new Arg(result);
+
+            throw new SExpression.FormatException($"'{value}' is not a valid index", sexpr);
+        }
     }
 
     public record Stack : Operand, Source, Destination
@@ -60,5 +81,17 @@ public abstract record Operand : IOperand
         }
     }
 
-    public static Source DeserializeSource(SExpression sexpr) => Constant.Deserialize(sexpr);
+    public static Source DeserializeSource(SExpression sexpr)
+    {
+        try { return Constant.Deserialize(sexpr); }
+        catch { }
+
+        try { return Local.Deserialize(sexpr); }
+        catch { }
+
+        try { return Arg.Deserialize(sexpr); }
+        catch { }
+
+        throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
+    }
 }

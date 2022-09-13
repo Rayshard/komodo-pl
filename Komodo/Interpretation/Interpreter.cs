@@ -27,7 +27,7 @@ public class Interpreter
         State = InterpreterState.Running;
 
         var entryIP = new InstructionPointer(Program.Entry.Module, Program.Entry.Function, Function.ENTRY_NAME, 0);
-        callStack.Push(new StackFrame(entryIP, stack.Count, new Value[] { }, new Value?[] { }));
+        callStack.Push(new StackFrame(entryIP, stack.Count, new Value[] { }, new Value[] { }));
 
         while (State == InterpreterState.Running)
         {
@@ -87,7 +87,7 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Load instr: stack.Push(SourceOperandToValue(stackFrame, instr.Source)); break;
+            case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
                     Value result = (instr.Opcode, PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
@@ -141,9 +141,10 @@ public class Interpreter
                 {
                     var function = Program.GetModule(instr.Module).GetFunction(instr.Function);
                     var arguments = function.Arguments.Select(p => PopStack(p));
+                    var locals = function.Locals.Select(l => Value.CreateDefault(l));
                     var start = new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0);
 
-                    callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
+                    callStack.Push(new StackFrame(start, stack.Count, arguments, locals));
                 }
                 break;
             case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
@@ -157,12 +158,19 @@ public class Interpreter
         }
     }
 
-    private Value SourceOperandToValue(StackFrame stackFrame, Operand.Source source) => source switch {
+    private Value GetSourceOperandValue(StackFrame stackFrame, Operand.Source source) => source switch {
         Operand.Constant(var value) => value,
         Operand.Local(var index) => stackFrame.Locals[index],
         Operand.Arg(var index) => stackFrame.Arguments[index],
         Operand.Stack => PopStack(),
         _ => throw new NotImplementedException(source.ToString())
+    };
+
+    private Value SetDestinationOperandValue(StackFrame stackFrame, Operand.Destination destination, Value value) => destination switch {
+        Operand.Local(var index) => stackFrame.Locals[index],
+        Operand.Arg(var index) => stackFrame.Arguments[index],
+        Operand.Stack => PopStack(),
+        _ => throw new NotImplementedException(destination.ToString())
     };
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");

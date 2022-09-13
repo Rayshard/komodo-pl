@@ -9,7 +9,7 @@ namespace Komodo.Utilities;
 
 public static class Utility
 {
-    private static Regex HexCharRegex = new Regex("^[a-fA-F0-9]$");
+    private static readonly Regex HexCharRegex = new Regex("^[a-fA-F0-9]$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public static bool IsHex(this char c) => HexCharRegex.Match(c.ToString()).Success;
 
@@ -63,5 +63,8 @@ public static class Utility
         }
     }
 
-    public static Regex Concat(IEnumerable<Regex> regexes) => new Regex(Stringify(regexes.Select(regex => $"({regex})"), "|"));
+    public static Regex Concat(IEnumerable<Regex> regexes) => new Regex(
+        Stringify(regexes.Select(regex => $"({regex})"), "|"),
+        RegexOptions.Compiled | RegexOptions.CultureInvariant
+    );
 }

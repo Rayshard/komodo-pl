@@ -6,26 +6,26 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push false)
+                (Load false)
                 (CJump badExit)
-                (Push 123)
+                (Load 123)
                 (Print I64)
 
-                (Push true)
+                (Load true)
                 (CJump goodExit)
 
-                (Push 2)
+                (Load 2)
                 (Syscall Exit)
             )
             (basicBlock badExit
-                (Push 1)
+                (Load 1)
                 (Syscall Exit)
             )
             (basicBlock goodExit
-                (Push 456)
+                (Load 456)
                 (Print I64)
 
-                (Push 0)
+                (Load 0)
                 (Syscall Exit)
             )
         )

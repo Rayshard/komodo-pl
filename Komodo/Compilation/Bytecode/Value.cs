@@ -9,8 +9,8 @@ public abstract record Value(DataType DataType)
 {
     private static (Regex Regex, Func<string, Value> Deserializer)[] SymbolDeserializers = new (Regex, Func<string, Value>)[]
     {
-        (new Regex("^(true|false)$"), value => new Bool(bool.Parse(value))),
-        (new Regex("^(0|(-?[1-9][0-9]*))$"), value => new I64(Int64.Parse(value))),
+        (new Regex("^(true|false)$", RegexOptions.Compiled | RegexOptions.CultureInvariant), value => new Bool(bool.Parse(value))),
+        (new Regex("^(0|(-?[1-9][0-9]*))$", RegexOptions.Compiled | RegexOptions.CultureInvariant), value => new I64(Int64.Parse(value))),
     };
 
     protected abstract SExpression ValueAsSExpression { get; }
@@ -37,6 +37,12 @@ public abstract record Value(DataType DataType)
         new SExpression.UnquotedSymbol(DataType.ToString()),
         ValueAsSExpression
     });
+
+    public static Value CreateDefault(DataType dataType) => dataType switch {
+        DataType.I64 => new I64(0),
+        DataType.Bool => new Bool(false),
+        _ => throw new NotImplementedException(dataType.ToString())
+    };
 
     public static Value Deserialize(SExpression sexpr)
     {

@@ -7,7 +7,7 @@ public abstract record SExpression(TextLocation? Location)
 {
     public record UnquotedSymbol : SExpression
     {
-        public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$");
+        public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public string Value { get; }
 
