@@ -7,13 +7,12 @@
             (returns)
             (basicBlock __entry__
                 (Load true)
-                (Assert true)
+                (Assert $stack true)
                 
                 (Load false)
-                (Assert true)
+                (Assert $stack true)
 
-                (Load 2)
-                (Print I64)
+                (Print I64 2)
             )
         )
     )

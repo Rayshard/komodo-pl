@@ -3,12 +3,11 @@
     (module MyModule
         (function Main
             (args)
-            (locals)
+            (locals I64)
             (returns)
             (basicBlock __entry__
-                (Load 20)
-                (Call MyModule Factorial)
-                (Print I64)
+                (Call MyModule Factorial 20 ~ $local0)
+                (Print I64 $local0)
                 
                 (Load 0)
                 (Syscall Exit)
@@ -16,22 +15,19 @@
         )
         (function Factorial
             (args I64)
-            (locals)
+            (locals Bool I64 I64 I64)
             (returns I64)
             (basicBlock __entry__
-                (Load $arg0)
-                (Eq I64 0)
-                (CJump retOneOnZero)
-                (Load $arg0)
-                (Load $arg0)
-                (Dec I64)
-                (Call MyModule Factorial)
-                (Mul I64)
-                (Return)
+                (Eq I64 $arg0 0 $local0)
+                (CJump retOneOnZero $local0)
+                
+                (Dec I64 $arg0 $local1)
+                (Call MyModule Factorial $local1 ~ $local2)
+                (Mul I64 $arg0 $local2 $local3)
+                (Return $local3)
             )
             (basicBlock retOneOnZero
-                (Load 1)
-                (Return)
+                (Return 1)
             )
         )
     )

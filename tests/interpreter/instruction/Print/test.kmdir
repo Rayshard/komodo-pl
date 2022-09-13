@@ -6,8 +6,8 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Load 11)
-                (Print I64)
+                (Print I64 11)
+                
                 (Load 0)
                 (Syscall Exit)
             )

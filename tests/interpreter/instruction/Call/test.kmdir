@@ -7,14 +7,8 @@
             (returns)
             (basicBlock __entry__
                 (Call MyModule TestNoArgument)
-
-                (Load 2)
-                (Call MyModule TestSingleArgument)
-
-                (Load 5)
-                (Load 4)
-                (Load 3)
-                (Call MyModule TestMultipleArguments)
+                (Call MyModule TestSingleArgument 2)
+                (Call MyModule TestMultipleArguments 3 4 5)
 
                 (Load 0)
                 (Syscall Exit)
@@ -25,8 +19,7 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Load true)
-                (Print Bool)
+                (Print Bool true)
                 (Return)
             )
         )
@@ -36,7 +29,7 @@
             (returns)
             (basicBlock __entry__
                 (Load $arg0)
-                (Assert 2)
+                (Assert $stack 2)
                 (Return)
             )
         )
@@ -46,13 +39,13 @@
             (returns)
             (basicBlock __entry__
                 (Load $arg0)
-                (Assert 3)
+                (Assert $stack 3)
 
                 (Load $arg1)
-                (Assert 4)
+                (Assert $stack 4)
 
                 (Load $arg2)
-                (Assert 5)
+                (Assert $stack 5)
 
                 (Return)
             )

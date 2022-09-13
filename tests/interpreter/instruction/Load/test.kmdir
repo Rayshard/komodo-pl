@@ -7,12 +7,16 @@
             (returns)
             (basicBlock __entry__
                 (Load 11)
-                (Assert 11)
+                (Assert $stack 11)
 
-                (Load 12)
-                (Call MyModule TestLoadArg)
-
+                (Call MyModule TestLoadArg 12)
                 (Call MyModule TestLoadLocal)
+
+                (Load 14)
+                (Load 15)
+                (Load $stack)
+                (Assert $stack 15)
+                (Assert $stack 14)
 
                 (Load 0)
                 (Syscall Exit)
@@ -24,7 +28,7 @@
             (returns)
             (basicBlock __entry__
                 (Load $arg0)
-                (Assert 12)
+                (Assert $stack 12)
                 (Return)
             )
         )
@@ -34,7 +38,7 @@
             (returns)
             (basicBlock __entry__
                 (Load $local0)
-                (Assert 0)
+                (Assert $stack 0)
                 (Return)
             )
         )
