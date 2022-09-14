@@ -81,50 +81,6 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record List(IEnumerable<IOperand> Operands) : Operand
-    {
-        public override SExpression AsSExpression() => new SExpression.List(Operands.Select(o => o.AsSExpression()));
-
-        public static List Deserialize(SExpression sexpr, Func<SExpression, IOperand> deserializer) => new List(sexpr.ExpectList().Select(deserializer));
-        public static List Deserialize(SExpression sexpr, Func<SExpression, int, IOperand> deserializer) => new List(sexpr.ExpectList().Select(deserializer));
-    }
-
-    public record Arguments(IEnumerable<Source> Sources) : Operand, IEnumerable<Source>
-    {
-        public override SExpression AsSExpression()
-            => new SExpression.List(Sources.Select(s => s.AsSExpression()).Prepend(new SExpression.UnquotedSymbol("args")));
-
-        public IEnumerator<Source> GetEnumerator() => Sources.GetEnumerator();
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
-
-        public Source this[int idx] => Sources.ElementAt(idx);
-
-        public static Arguments Deserialize(SExpression sexpr) => new Arguments(sexpr
-            .ExpectList()
-            .ExpectLength(2, null).ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("args"))
-            .Skip(1)
-            .Select(Operand.DeserializeSource)
-        );
-    }
-
-    public record Returns(IEnumerable<Destination> Destinations) : Operand, IEnumerable<Destination>
-    {
-        public override SExpression AsSExpression()
-            => new SExpression.List(Destinations.Select(d => d.AsSExpression()).Prepend(new SExpression.UnquotedSymbol("returns")));
-
-        public IEnumerator<Destination> GetEnumerator() => Destinations.GetEnumerator();
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
-
-        public Destination this[int idx] => Destinations.ElementAt(idx);
-
-        public static Returns Deserialize(SExpression sexpr) => new Returns(sexpr
-            .ExpectList()
-            .ExpectLength(2, null).ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("returns"))
-            .Skip(1)
-            .Select(Operand.DeserializeDestination)
-        );
-    }
-
     public static Source DeserializeSource(SExpression sexpr)
     {
         try { return Constant.Deserialize(sexpr); }

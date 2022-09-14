@@ -1,2 +1,2 @@
 #!/bin/bash
-dotnet run --project Komodo/Komodo.csproj $@
+dotnet build && ./Komodo/bin/Debug/net6.0/Komodo $@

@@ -13,7 +13,7 @@ public static class Utility
 
     public static bool IsHex(this char c) => HexCharRegex.Match(c.ToString()).Success;
 
-    public static string WithIndent(this string s, string indent = "    ") => string.Join('\n', s.Split('\n').Select(line => indent + line));
+    public static string WithIndent(this string s, string indent = "    ", string delimiter = "\n") => string.Join(delimiter, s.Split(delimiter).Select(line => indent + line));
 
     public static IEnumerable<T> AppendIf<T>(this IEnumerable<T> enumerable, bool condition, T value) => condition ? enumerable.Append(value) : enumerable;
 

@@ -9,8 +9,13 @@ public abstract record Parameter(string Name, string Description, object? Defaul
     public bool Required => DefaultValue is null;
 
     public record Boolean(string Name, string Description) : Parameter(Name, Description, false);
-    public record Option(string Name, Func<string, object> Parser, string Description, object? DefaultValue = null) : Parameter(Name, Description, DefaultValue);
-    public record Positional(string Name, Func<string, object> Parser, string Description) : Parameter(Name, Description, null);
+    public record Option(string Name, string Description, Func<string, object>? Parser = null, object? DefaultValue = null) : Parameter(Name, Description, DefaultValue);
+    public record Positional(string Name, string Description, Func<string, object>? Parser = null) : Parameter(Name, Description, null);
+
+    public static class Parsers
+    {
+        public static object Enmeration<T>(string value) where T : struct, Enum => Enum.Parse<T>(value);
+    }
 }
 
 public record Arguments(Dictionary<string, object> arguments) : IEnumerable<KeyValuePair<string, object>>
@@ -89,7 +94,7 @@ public record Command
 
                             try
                             {
-                                result[option.Name] = option.Parser(valueArg);
+                                result[option.Name] = option.Parser is null ? valueArg : option.Parser(valueArg);
                                 remainingArgs = remainingArgs.Skip(1);
                             }
                             catch { throw new Exception($"Invalid value for option: {option.Name}"); }
@@ -105,7 +110,7 @@ public record Command
 
                 try
                 {
-                    result[positional.Name] = positional.Parser(arg);
+                    result[positional.Name] = positional.Parser is null ? arg : positional.Parser(arg);
                     remainingArgs = remainingArgs.Skip(1);
                 }
                 catch { throw new Exception($"Invalid value for positional parameter '{positional.Name}'"); }

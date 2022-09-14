@@ -1,0 +1,15 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals Bool I64 Bool)
+            (returns)
+            (basicBlock __entry__
+                (Print I64 123)
+                (Load 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)

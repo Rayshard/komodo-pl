@@ -139,13 +139,18 @@ public abstract record Instruction(Opcode Opcode)
     {
         private static readonly SExpression ArgsReturnsDivider = new SExpression.UnquotedSymbol("~");
 
-        public override IEnumerable<IOperand> Operands => new IOperand[]
+        public override IEnumerable<IOperand> Operands
         {
-            new Operand.Identifier(Module),
-            new Operand.Identifier(Function),
-            new Operand.Arguments(Args),
-            new Operand.Returns(Returns),
-        };
+            get
+            {
+                var operands = new List<IOperand>();
+                operands.Add(new Operand.Identifier(Module));
+                operands.Add(new Operand.Identifier(Function));
+                operands.AddRange(Args);
+                operands.AddRange(Returns);
+                return operands;
+            }
+        }
 
         public override SExpression AsSExpression()
         {
