@@ -1,11 +1,12 @@
 ﻿namespace Komodo;
 
-using System.Text.RegularExpressions;
+using System.Diagnostics;
 using Komodo.Compilation;
-using Komodo.Compilation.CST;
+using Komodo.Compilation.Bytecode.Transpilers;
 using Komodo.Interpretation;
 using Komodo.Utilities;
-using Newtonsoft.Json.Linq;
+
+enum Runtime { CPP }
 
 static class Entry
 {
@@ -72,7 +73,7 @@ static class Entry
         catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }
         catch (SExpression.FormatException e) { Logger.Error($"{e.Location!.ToTerminalLink(sources)} {e.Message}"); }
         catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
-        
+
         return -1;
     }
 
@@ -97,8 +98,9 @@ static class Entry
                     {
                         var sexpr = SExpression.Parse(new TextSourceReader(source));
                         var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+                        var formatter = new Compilation.Bytecode.Formatter();
 
-                        Console.WriteLine(Compilation.Bytecode.Formatter.Format(program));
+                        Console.WriteLine(formatter.Convert(program));
                         return 0;
                     }
                     catch (SExpression.ParseException e) { Logger.Error($"{source.GetTerminalLink(e.Location.Start)} {e.Message}"); }
@@ -108,6 +110,56 @@ static class Entry
                 break;
             default: Logger.Error($"Formatting for '{expectedFileType}' files is not supported."); break;
         }
+
+        return -1;
+    }
+
+    static int CompileIR(string inputFilePath, string outputFilePath, Runtime runtime)
+    {
+        if (!File.Exists(inputFilePath))
+        {
+            Logger.Error($"File does not exist at {inputFilePath}");
+            return -1;
+        }
+
+        var source = new TextSource(inputFilePath, File.ReadAllText(inputFilePath));
+
+        try
+        {
+            var sexpr = SExpression.Parse(new TextSourceReader(source));
+            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+
+            switch (runtime)
+            {
+                case Runtime.CPP:
+                    {
+                        var transpiler = new CPPTranspiler();
+                        var cpp = transpiler.Convert(program);
+
+                        var workingDirectory = Directory.CreateDirectory("test-output").FullName;
+                        var runtimeCPPFile = Path.Join(workingDirectory, "runtime.cpp");
+
+                        File.Copy("runtimes/cpp/runtime.h", Path.Join(workingDirectory, "runtime.h"), true);
+                        File.Copy("runtimes/cpp/runtime.cpp", runtimeCPPFile, true);
+                        File.WriteAllText(Path.Join(workingDirectory, "program.h"), cpp);
+
+                        using var process = new Process();
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.CreateNoWindow = true;
+                        process.StartInfo.FileName = "g++";
+                        process.StartInfo.Arguments = $"-std=c++2a -O3 -o {outputFilePath} {runtimeCPPFile}";
+                        process.Start();
+                        process.WaitForExit();
+                    }
+                    break;
+                default: Logger.Error($"Compilation using '{runtime}' is not supported."); break;
+            }
+
+            return 0;
+        }
+        catch (SExpression.ParseException e) { Logger.Error($"{source.GetTerminalLink(e.Location.Start)} {e.Message}"); }
+        catch (SExpression.FormatException e) { Logger.Error($"{source.GetTerminalLink(e.Location!.Start)} {e.Message}"); }
+        catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
 
         return -1;
     }
@@ -174,18 +226,34 @@ static class Entry
             "format",
             "Reads the input file and prints the formatted version to standard output.",
             new CLI.Parameter[] {
-                new CLI.Parameter.Option("type", value => value, "the type of formatting the perform"),
-                new CLI.Parameter.Positional("file", value => value, "the input file to format")
+                new CLI.Parameter.Option("type", "the type of formatting the perform"),
+                new CLI.Parameter.Positional("file", "the input file to format")
             },
             new CLI.Command[] { },
             DoFormat
+        );
+
+        var compileIRCommand = new CLI.Command(
+            "compile-ir",
+            "Compiles the input file into an executable.",
+            new CLI.Parameter[] {
+                new CLI.Parameter.Option("runtime", "the runtime to use", CLI.Parameter.Parsers.Enmeration<Runtime>),
+                new CLI.Parameter.Positional("file", "the input file to compile"),
+                new CLI.Parameter.Positional("output", "the output file path")
+            },
+            new CLI.Command[] { },
+            arguments => CompileIR(
+                arguments.Get<string>("file"),
+                arguments.Get<string>("output"),
+                arguments.Get<Runtime>("runtime")
+            )
         );
 
         var runIRCommand = new CLI.Command(
             "run-ir",
             "Executes the input ir file.",
             new CLI.Parameter[] {
-                new CLI.Parameter.Positional("file", value => value, "the input file to run")
+                new CLI.Parameter.Positional("file", "the input file to run")
             },
             new CLI.Command[] { },
             DoRunIR
@@ -197,7 +265,7 @@ static class Entry
             new CLI.Parameter[] {
                 new CLI.Parameter.Boolean("print-tokens", "print the parsed file's tokens to standard output"),
                 new CLI.Parameter.Boolean("print-cst", "print the parsed file's concrete syntax tree to standard output"),
-                new CLI.Parameter.Positional("file", value => value, "the input file to run")
+                new CLI.Parameter.Positional("file", "the input file to run")
             },
             new CLI.Command[] { },
             DoRun
@@ -207,9 +275,9 @@ static class Entry
             "kmd",
             "Execute a command for the Komodo compiler.",
             new CLI.Parameter[] {
-                new CLI.Parameter.Option("loglevel", value => Enum.Parse<LogLevel>(value), "the global logging level for the compiler", LogLevel.ERROR)
+                new CLI.Parameter.Option("loglevel", "the global logging level for the compiler", CLI.Parameter.Parsers.Enmeration<LogLevel>, LogLevel.ERROR)
             },
-            new CLI.Command[] { runCommand, formatCommand, runIRCommand },
+            new CLI.Command[] { runCommand, formatCommand, runIRCommand, compileIRCommand },
             arguments =>
             {
                 Logger.MinLevel = arguments.Get<LogLevel>("loglevel");

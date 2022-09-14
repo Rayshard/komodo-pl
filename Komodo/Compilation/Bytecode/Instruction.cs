@@ -4,11 +4,11 @@ namespace Komodo.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Push,
+    Load,
+    Store,
     Syscall,
     Call,
     Return,
-    LoadArg,
     CJump,
     Assert,
 
@@ -20,64 +20,84 @@ public enum Opcode
     Print,
 }
 
-public enum SyscallCode { Exit }
-
 public abstract record Instruction(Opcode Opcode)
 {
-    protected abstract IEnumerable<SExpression> OperandsAsSExpressions { get; }
+    public abstract IEnumerable<IOperand> Operands { get; }
 
-    public SExpression AsSExpression()
+    public virtual SExpression AsSExpression()
     {
         var nodes = new List<SExpression>();
         nodes.Add(new SExpression.UnquotedSymbol(Opcode.ToString()));
-        nodes.AddRange(OperandsAsSExpressions);
+        nodes.AddRange(Operands.Select(op => op.AsSExpression()));
         return new SExpression.List(nodes);
     }
 
-    public record Syscall(SyscallCode Code) : Instruction(Opcode.Syscall)
+    public record Syscall(string Name) : Instruction(Opcode.Syscall)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(Code.ToString()) };
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Identifier(Name) };
 
         new public static Syscall Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
             list[0].ExpectEnum(Opcode.Syscall);
 
-            return new Syscall(list[1].AsEnum<SyscallCode>());
+            return new Syscall(list[1].ExpectUnquotedSymbol().Value);
         }
     }
 
-    public record Push(Value Value) : Instruction(Opcode.Push)
+    public record Load(Operand.Source Source) : Instruction(Opcode.Load)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { Value.AsSExpression() };
+        public override IEnumerable<IOperand> Operands => new[] { Source };
 
-        new public static Push Deserialize(SExpression sexpr)
+        new public static Load Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.Push);
+            list[0].ExpectEnum(Opcode.Load);
 
-            return new Push(Value.Deserialize(list[1]));
+            return new Load(Operand.DeserializeSource(list[1]));
         }
     }
 
-    public record Assert(Value Value) : Instruction(Opcode.Assert)
+    public record Store(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Store)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { Value.AsSExpression() };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
+
+        new public static Store Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(3);
+            list[0].ExpectEnum(Opcode.Store);
+
+            return new Store(
+                Operand.DeserializeSource(list[1]),
+                Operand.DeserializeDestination(list[2])
+            );
+        }
+    }
+
+    public record Assert(Operand.Source Source1, Operand.Source Source2) : Instruction(Opcode.Assert)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { Source1, Source2 };
 
         new public static Assert Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
+            var list = sexpr.ExpectList().ExpectLength(3);
             list[0].ExpectEnum(Opcode.Assert);
 
-            return new Assert(Value.Deserialize(list[1]));
+            return new Assert(
+                Operand.DeserializeSource(list[1]),
+                Operand.DeserializeSource(list[2])
+            );
         }
     }
 
-    public record Binop(Opcode Opcode, DataType DataType, Value? Value = null) : Instruction(Verify(Opcode))
+    public record Binop(Opcode Opcode, DataType DataType, Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination) : Instruction(Verify(Opcode))
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions =>
-            new[] { new SExpression.UnquotedSymbol(DataType.ToString()) }
-            .AppendIf(Value is not null, Value!.AsSExpression());
+        public override IEnumerable<IOperand> Operands => new IOperand[] {
+            new Operand.Enumeration<DataType>(DataType),
+            Source1,
+            Source2,
+            Destination
+        };
 
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
@@ -87,107 +107,139 @@ public abstract record Instruction(Opcode Opcode)
 
         new public static Binop Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2, 3);
-            return new Binop(list[0].AsEnum<Opcode>(), list[1].AsEnum<DataType>(), list.Count() == 3 ? Value.Deserialize(list[2]) : null);
+            var list = sexpr.ExpectList().ExpectLength(5);
+
+            return new Binop(
+                list[0].AsEnum<Opcode>(),
+                list[1].AsEnum<DataType>(),
+                Operand.DeserializeSource(list[2]),
+                Operand.DeserializeSource(list[3]),
+                Operand.DeserializeDestination(list[4])
+            );
         }
     }
 
-    public record Print(DataType DataType) : Instruction(Opcode.Print)
+    public record Print(DataType DataType, Operand.Source Source) : Instruction(Opcode.Print)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Enumeration<DataType>(DataType), Source };
 
         new public static Print Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
+            var list = sexpr.ExpectList().ExpectLength(3);
             list[0].ExpectEnum(Opcode.Print);
 
-            return new Print(list[1].AsEnum<DataType>());
+            return new Print(
+                list[1].AsEnum<DataType>(),
+                Operand.DeserializeSource(list[2])
+            );
         }
     }
 
-    public record Call(string Module, string Function) : Instruction(Opcode.Call)
+    public record Call(string Module, string Function, IEnumerable<Operand.Source> Args, IEnumerable<Operand.Destination> Returns) : Instruction(Opcode.Call)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[]
+        private static readonly SExpression ArgsReturnsDivider = new SExpression.UnquotedSymbol("~");
+
+        public override IEnumerable<IOperand> Operands
         {
-            new SExpression.UnquotedSymbol(Module),
-            new SExpression.UnquotedSymbol(Function),
-        };
+            get
+            {
+                var operands = new List<IOperand>();
+                operands.Add(new Operand.Identifier(Module));
+                operands.Add(new Operand.Identifier(Function));
+                operands.AddRange(Args);
+                operands.AddRange(Returns);
+                return operands;
+            }
+        }
+
+        public override SExpression AsSExpression()
+        {
+            var items = base.AsSExpression().ExpectList().ToList();
+            items.Insert(3 + Args.Count(), ArgsReturnsDivider);
+            return new SExpression.List(items);
+        } 
 
         new public static Call Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3);
+            var list = sexpr.ExpectList().ExpectLength(3, null);
             list[0].ExpectEnum(Opcode.Call);
 
-            return new Call(list[1].ExpectUnquotedSymbol().Value, list[2].ExpectUnquotedSymbol().Value);
+            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToList();
+            var returns = list.Skip(3).Skip(args.Count).Skip(1).Select(Operand.DeserializeDestination).ToList();
+
+            return new Call(
+                list[1].ExpectUnquotedSymbol().Value,
+                list[2].ExpectUnquotedSymbol().Value,
+                args,
+                returns
+            );
         }
     }
 
-    public record LoadArg(UInt64 Index) : Instruction(Opcode.LoadArg)
+    public record Dec(DataType DataType, Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Dec)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(Index.ToString()) };
-
-        new public static LoadArg Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.LoadArg);
-
-            return new LoadArg(list[1].AsUInt64());
-        }
-    }
-
-    public record Dec(DataType DataType) : Instruction(Opcode.Dec)
-    {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new[] { new SExpression.UnquotedSymbol(DataType.ToString()) };
+        public override IEnumerable<IOperand> Operands => new IOperand[] {
+            new Operand.Enumeration<DataType>(DataType),
+            Source,
+            Destination
+        };
 
         new public static Dec Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
+            var list = sexpr.ExpectList().ExpectLength(4);
             list[0].ExpectEnum(Opcode.Dec);
 
-            return new Dec(list[1].AsEnum<DataType>());
+            return new Dec(
+                list[1].AsEnum<DataType>(),
+                Operand.DeserializeSource(list[2]),
+                Operand.DeserializeDestination(list[3])
+            );
         }
     }
 
-    public record CJump(string BasicBlock) : Instruction(Opcode.CJump)
+    public record CJump(string BasicBlock, Operand.Source Condtion) : Instruction(Opcode.CJump)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(BasicBlock), Condtion };
 
         new public static CJump Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
+            var list = sexpr.ExpectList().ExpectLength(3);
             list[0].ExpectEnum(Opcode.CJump);
 
-            return new CJump(list[1].ExpectUnquotedSymbol().Value);
+            return new CJump(
+                list[1].ExpectUnquotedSymbol().Value,
+                Operand.DeserializeSource(list[2])
+            );
         }
     }
 
-    public record Return() : Instruction(Opcode.Return)
+    public record Return(IEnumerable<Operand.Source> Sources) : Instruction(Opcode.Return)
     {
-        protected override IEnumerable<SExpression> OperandsAsSExpressions => new SExpression[] { };
+        public override IEnumerable<IOperand> Operands => Sources;
 
         new public static Return Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1);
+            var list = sexpr.ExpectList().ExpectLength(1, null);
             list[0].ExpectEnum(Opcode.Return);
 
-            return new Return();
+            return new Return(list.Skip(1).Select(Operand.DeserializeSource));
         }
     }
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
     {
-        Opcode.Push => Push.Deserialize(sexpr),
+        Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Print => Print.Deserialize(sexpr),
         Opcode.Call => Call.Deserialize(sexpr),
-        Opcode.LoadArg => LoadArg.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Dec.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),
         Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
+        Opcode.Store => Store.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

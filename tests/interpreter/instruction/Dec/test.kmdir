@@ -3,14 +3,13 @@
     (module MyModule
         (function Main
             (args)
-            (locals)
+            (locals I64)
             (returns)
             (basicBlock __entry__
-                (Push 11)
-                (Dec I64)
-                (Assert 10)
+                (Dec I64 11 $local0)
+                (Assert $local0 10)
 
-                (Push 0)
+                (Load 0)
                 (Syscall Exit)
             )
         )

@@ -6,14 +6,13 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push true)
-                (Assert true)
+                (Load true)
+                (Assert $stack true)
                 
-                (Push false)
-                (Assert true)
+                (Load false)
+                (Assert $stack true)
 
-                (Push 2)
-                (Print I64)
+                (Print I64 2)
             )
         )
     )

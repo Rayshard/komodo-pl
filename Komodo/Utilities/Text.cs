@@ -11,7 +11,7 @@ public record Position(int Line, int Column)
 
 public record TextLocation(string SourceName, int Start, int End)
 {
-    private static readonly Regex REGEX_PATTERN = new Regex("(?<sourceName>[^\\[]+)\\[(?<start>[0-9]+),(?<end>[0-9]+)\\]", RegexOptions.Compiled);
+    private static readonly Regex REGEX_PATTERN = new Regex("(?<sourceName>[^\\[]+)\\[(?<start>[0-9]+),(?<end>[0-9]+)\\]", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     public int Length => End - Start;
 

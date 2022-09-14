@@ -6,19 +6,19 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push 123)
+                (Load 123)
                 (Call MyModule TestNoReturn)
-                (Assert 123)
+                (Assert $stack 123)
 
-                (Call MyModule TestSingleReturn)
-                (Assert 789)
+                (Call MyModule TestSingleReturn ~ $stack)
+                (Assert $stack 789)
 
-                (Call MyModule TestMultipleReturn)
-                (Assert 10)
-                (Assert 11)
-                (Assert 12)
+                (Call MyModule TestMultipleReturn ~ $stack $stack $stack)
+                (Assert $stack 10)
+                (Assert $stack 11)
+                (Assert $stack 12)
 
-                (Push 0)
+                (Load 0)
                 (Syscall Exit)
             )
         )
@@ -27,7 +27,6 @@
             (locals)
             (returns)
             (basicBlock __entry__
-                (Push 456)
                 (Return)
             )
         )
@@ -36,8 +35,7 @@
             (locals)
             (returns I64)
             (basicBlock __entry__
-                (Push 789)
-                (Return)
+                (Return 789)
             )
         )
         (function TestMultipleReturn
@@ -45,10 +43,7 @@
             (locals)
             (returns I64 I64 I64)
             (basicBlock __entry__
-                (Push 12)
-                (Push 11)
-                (Push 10)
-                (Return)
+                (Return 10 11 12)
             )
         )
     )

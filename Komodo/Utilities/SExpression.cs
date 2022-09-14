@@ -7,7 +7,7 @@ public abstract record SExpression(TextLocation? Location)
 {
     public record UnquotedSymbol : SExpression
     {
-        public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$");
+        public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public string Value { get; }
 
@@ -26,6 +26,12 @@ public abstract record SExpression(TextLocation? Location)
 
         private static string VerifyValue(string value)
             => Regex.IsMatch(value) ? value : throw new InvalidOperationException($"Invalid unquoted symbol value: {value}");
+
+        public override bool Matches(SExpression other) => other switch
+        {
+            UnquotedSymbol u => u.Value == Value,
+            _ => false
+        };
 
         new public static UnquotedSymbol Parse(TextSourceReader stream)
         {
@@ -55,6 +61,12 @@ public abstract record SExpression(TextLocation? Location)
 
             return $"\"{result}\"";
         }
+
+        public override bool Matches(SExpression other) => other switch
+        {
+            QuotedSymbol q => q.Value == Value,
+            _ => false
+        };
 
         new public static QuotedSymbol Parse(TextSourceReader stream)
         {
@@ -123,7 +135,34 @@ public abstract record SExpression(TextLocation? Location)
                 return this;
         }
 
+        public List ExpectItem(int index, Action<SExpression> validator)
+        {
+            SExpression item;
+
+            try { item = Items.ElementAt(index); }
+            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count() - 1}]."); }
+
+            validator(item);
+            return this;
+        }
+
+        public List ExpectItems(Action<SExpression, int> validator)
+        {
+            foreach (var (item, i) in Items.Select((item, i) => (item, i)))
+                validator(item, i);
+
+            return this;
+        }
+
+        public List ExpectItems(Action<SExpression> validator) => ExpectItems((item, i) => validator(item));
+
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
+
+        public override bool Matches(SExpression other) => other switch
+        {
+            List l => l.Items.Count() == Items.Count() && l.Items.Zip(Items).All(pair => pair.First.Matches(pair.Second)), 
+            _ => false
+        };
 
         public IEnumerator<SExpression> GetEnumerator() => Items.GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
@@ -190,6 +229,8 @@ public abstract record SExpression(TextLocation? Location)
 
         public FormatException(string message, SExpression node) : base(message) => Node = node;
     }
+
+    public abstract bool Matches(SExpression other);
 
     public UnquotedSymbol ExpectUnquotedSymbol()
         => this as UnquotedSymbol ?? throw new FormatException($"Expected unquoted symbol, but found {this.GetType()}", this);

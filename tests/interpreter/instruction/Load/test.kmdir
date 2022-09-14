@@ -1,0 +1,46 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (Load 11)
+                (Assert $stack 11)
+
+                (Call MyModule TestLoadArg 12)
+                (Call MyModule TestLoadLocal)
+
+                (Load 14)
+                (Load 15)
+                (Load $stack)
+                (Assert $stack 15)
+                (Assert $stack 14)
+
+                (Load 0)
+                (Syscall Exit)
+            )
+        )
+        (function TestLoadArg
+            (args I64)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (Load $arg0)
+                (Assert $stack 12)
+                (Return)
+            )
+        )
+        (function TestLoadLocal
+            (args)
+            (locals I64)
+            (returns)
+            (basicBlock __entry__
+                (Load $local0)
+                (Assert $stack 0)
+                (Return)
+            )
+        )
+    )
+)

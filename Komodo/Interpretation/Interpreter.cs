@@ -26,8 +26,8 @@ public class Interpreter
 
         State = InterpreterState.Running;
 
-        var entryIP = new InstructionPointer(Program.Entry.Module, Program.Entry.Function, Function.ENTRY_NAME, 0);
-        callStack.Push(new StackFrame(entryIP, stack.Count, new Value[] { }, new Value?[] { }));
+        // Call Program Entry
+        PushStackFrame(Program.Entry, new Value[] { }, Program.GetModule(Program.Entry.Module).GetFunction(Program.Entry.Function).Locals, new Operand.Destination[] { });
 
         while (State == InterpreterState.Running)
         {
@@ -75,22 +75,26 @@ public class Interpreter
         {
             case Instruction.Syscall instr:
                 {
-                    switch (instr.Code)
+                    switch (instr.Name)
                     {
-                        case SyscallCode.Exit:
+                        case "Exit":
                             {
                                 exitcode = PopStack<Value.I64>().Value;
                                 State = InterpreterState.ShuttingDown;
                             }
                             break;
-                        default: throw new NotImplementedException(instr.Code.ToString());
+                        default: throw new Exception($"Unknown Syscall: {instr.Name}");
                     }
                 }
                 break;
-            case Instruction.Push instr: stack.Push(instr.Value); break;
+            case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Store instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
-                    Value result = (instr.Opcode, PopStack(instr.DataType), instr.Value is null ? PopStack(instr.DataType) : instr.Value) switch
+                    var source1 = GetSourceOperandValue(stackFrame, instr.Source1);
+                    var source2 = GetSourceOperandValue(stackFrame, instr.Source2);
+
+                    Value result = (instr.Opcode, source1, source2) switch
                     {
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
@@ -98,39 +102,38 @@ public class Interpreter
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
-                    stack.Push(result);
+                    SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
             case Instruction.Dec instr:
                 {
-                    Value result = PopStack(instr.DataType) switch
+                    Value result = GetSourceOperandValue(stackFrame, instr.Source, instr.DataType) switch
                     {
                         Value.I64(var value) => new Value.I64(value - 1),
                         var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
                     };
 
-                    stack.Push(result);
+                    SetDestinationOperandValue(stackFrame, instr.Destination, result, instr.DataType);
                 }
                 break;
             case Instruction.Print instr:
                 {
-                    var value = PopStack(instr.DataType);
-
-                    switch (value)
+                    switch (GetSourceOperandValue(stackFrame, instr.Source, instr.DataType))
                     {
                         case Value.I64(var i): Console.WriteLine(i); break;
                         case Value.Bool(var b): Console.WriteLine(b ? "true" : "false"); break;
-                        default: throw new Exception($"Cannot apply operation to {value.DataType}.");
+                        default: throw new Exception($"Cannot apply operation to {instr.DataType}.");
                     }
                 }
                 break;
             case Instruction.Assert instr:
                 {
-                    var actual = PopStack();
+                    var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
+                    var value2 = GetSourceOperandValue(stackFrame, instr.Source2);
 
-                    if (actual != instr.Value)
+                    if (value1 != value2)
                     {
-                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}. Expected {instr.Value}, but found {actual}.");
+                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}: {value1} != {value2}.");
 
                         exitcode = 1;
                         State = InterpreterState.ShuttingDown;
@@ -139,24 +142,119 @@ public class Interpreter
                 break;
             case Instruction.Call instr:
                 {
-                    var function = Program.GetModule(instr.Module).GetFunction(instr.Function);
-                    var arguments = function.Arguments.Select(p => PopStack(p));
-                    var start = new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0);
+                    var function = GetFunctionFromIP(new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0));
 
-                    callStack.Push(new StackFrame(start, stack.Count, arguments, new Value?[function.Locals.Count()]));
+                    // Verify args
+                    if (instr.Args.Count() != function.Arguments.Count())
+                        throw new Exception($"Function {instr.Module}.{instr.Function} expects {function.Arguments.Count()} but got {instr.Args.Count()}.");
+
+                    var receivedArgs = instr.Args.Select((source, i) => GetSourceOperandValue(stackFrame, source, function.Arguments.ElementAt(i)));
+
+                    //Verify return destinations
+                    if (instr.Returns.Count() != function.Returns.Count())
+                        throw new Exception($"Function {instr.Module}.{instr.Function} returns {function.Returns.Count()} values, but got {instr.Returns.Count()} return destinations.");
+
+                    PushStackFrame((instr.Module, instr.Function), receivedArgs, function.Locals, instr.Returns);
                 }
                 break;
-            case Instruction.Return instr: PopStackFrame(GetFunctionFromIP(stackFrame.IP).Returns); break;
-            case Instruction.LoadArg instr: stack.Push(stackFrame.Arguments[instr.Index]); break;
+            case Instruction.Return instr:
+                {
+                    var function = GetFunctionFromIP(stackFrame.IP);
+
+                    if (instr.Sources.Count() != function.Returns.Count())
+                        throw new Exception($"Expected {function.Returns.Count()} return values but got {instr.Sources.Count()}.");
+
+                    var returnValues = instr.Sources.Zip(function.Returns).Select(item => GetSourceOperandValue(stackFrame, item.First, item.Second)).ToArray();
+
+                    PopStackFrame(returnValues);
+                }
+                break;
             case Instruction.CJump instr:
                 {
-                    if (PopStack<Value.Bool>().Value)
+                    if (GetSourceOperandValue<Value.Bool>(stackFrame, instr.Condtion).Value)
                         stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
                 }
                 break;
-            default: throw new NotImplementedException(instruction.Opcode.ToString());
+            default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
         }
     }
+
+    private Value GetSourceOperandValue(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null)
+    {
+        var value = source switch
+        {
+            Operand.Constant(var v) => v,
+            Operand.Local(var i) => stackFrame.GetLocal(i),
+            Operand.Arg(var i) => stackFrame.GetArg(i),
+            Operand.Stack => PopStack(),
+            _ => throw new Exception($"Invalid source: {source}")
+        };
+
+        if (expectedDataType.HasValue && value.DataType != expectedDataType.Value)
+            throw new Exception($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
+
+        return value;
+    }
+
+    private T GetSourceOperandValue<T>(StackFrame stackFrame, Operand.Source source) where T : Value
+        => (T)GetSourceOperandValue(stackFrame, source, Value.GetDataType<T>());
+
+    private void SetDestinationOperandValue(StackFrame stackFrame, Operand.Destination destination, Value value, DataType? expectedDataType = null)
+    {
+        Action setter;
+        DataType destDataType;
+
+        switch (destination)
+        {
+            case Operand.Local l:
+                {
+                    var local = stackFrame.GetLocal(l.Index);
+
+                    if (value.DataType != local.DataType)
+                        throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
+
+                    setter = delegate { stackFrame.SetLocal(l.Index, value); };
+                    destDataType = local.DataType;
+                }
+                break;
+            case Operand.Stack:
+                {
+                    setter = delegate { stack.Push(value); };
+                    destDataType = value.DataType;
+                }
+                break;
+            default: throw new Exception($"Invalid destination: {destination}");
+        }
+
+        if (expectedDataType.HasValue)
+        {
+            if (value.DataType != expectedDataType) { throw new Exception($"Expected {expectedDataType}, but found {value}"); }
+            else if (destDataType != expectedDataType) { throw new Exception($"Invalid data type for destination: {destination}. Expected {expectedDataType}, but found {destDataType}"); }
+        }
+
+        setter();
+    }
+
+    private Operand.Destination ExpectDestination(StackFrame stackFrame, Operand.Destination destination, DataType? dataType)
+    {
+        switch (destination)
+        {
+            case Operand.Local l:
+                {
+                    var localDataType = stackFrame.GetLocal(l.Index).DataType;
+                    return localDataType == dataType ? destination : throw new Exception($"Destination '{l}' expects {localDataType}, but got {dataType}.");
+                }
+            case Operand.Stack: return destination;
+            default: throw new Exception($"Invalid destination: {destination}");
+        };
+    }
+
+    private bool DestinationAccepts(StackFrame stackFrame, Operand.Destination destination, DataType? dataType) => destination switch
+    {
+        Operand.Local l => stackFrame.GetLocal(l.Index).DataType == dataType,
+        Operand.Stack => true,
+        _ => throw new Exception($"Invalid destination: {destination}")
+    };
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
@@ -182,18 +280,28 @@ public class Interpreter
         return stack.Pop();
     }
 
-    private void PopStackFrame(IEnumerable<DataType> expectedReturns)
+    private void PushStackFrame((string Module, string Function) Target, IEnumerable<Value> args, IEnumerable<DataType> locals, IEnumerable<Operand.Destination> returnDests)
+    {
+        var start = new InstructionPointer(Target.Module, Target.Function, Function.ENTRY_NAME, 0);
+        var localDefaultValues = locals.Select(l => Value.CreateDefault(l));
+
+        callStack.Push(new StackFrame(start, stack.Count, args, localDefaultValues, returnDests));
+    }
+
+    private void PopStackFrame(Value[] returnValues)
     {
         if (callStack.TryPop(out var frame))
         {
-            var returnValues = expectedReturns.Select(PopStack).ToArray();
-
             while (stack.Count > frame.FramePointer)
                 stack.Pop();
 
-            // Push return values on to stack in reverse
-            foreach (var value in returnValues.Reverse())
-                stack.Push(value);
+            var parentStackFrame = callStack.Peek();
+
+            if (returnValues.Length != frame.ReturnDests.Count())
+                throw new Exception($"Parent stack frame expected {frame.ReturnDests} return values but got {returnValues.Length}.");
+
+            foreach(var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
+                SetDestinationOperandValue(parentStackFrame, dest, value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }

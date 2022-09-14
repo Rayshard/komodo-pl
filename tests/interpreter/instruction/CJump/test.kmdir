@@ -3,29 +3,25 @@
     (module MyModule
         (function Main
             (args)
-            (locals)
+            (locals Bool)
             (returns)
             (basicBlock __entry__
-                (Push false)
-                (CJump badExit)
-                (Push 123)
-                (Print I64)
+                (CJump badExit false)
+                (Print I64 123)
 
-                (Push true)
-                (CJump goodExit)
+                (CJump goodExit true)
 
-                (Push 2)
+                (Load 2)
                 (Syscall Exit)
             )
             (basicBlock badExit
-                (Push 1)
+                (Load 1)
                 (Syscall Exit)
             )
             (basicBlock goodExit
-                (Push 456)
-                (Print I64)
+                (Print I64 456)
 
-                (Push 0)
+                (Load 0)
                 (Syscall Exit)
             )
         )

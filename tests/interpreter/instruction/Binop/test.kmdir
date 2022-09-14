@@ -1,0 +1,26 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals)
+            (returns)
+            (basicBlock __entry__
+                (Add I64 11 22 $stack)
+                (Assert $stack 33)
+
+                (Mul I64 11 22 $stack)
+                (Assert $stack 242)
+
+                (Eq I64 11 22 $stack)
+                (Assert $stack false)
+
+                (Eq I64 11 11 $stack)
+                (Assert $stack true)
+
+                (Load 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)
