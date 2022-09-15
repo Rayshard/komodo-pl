@@ -1,0 +1,23 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (args)
+            (locals (array Char))
+            (returns)
+            (basicBlock __entry__
+                (Store $local0 ('a' 'b' 'c'))
+                (Store $local0 "abc"))
+                (Store 'd' (getelement $local0 1))
+                (Insert 'e' $local0 (getlength $local0))
+                (Remove 0 $local0 $trash)
+                (Remove 0 $local0 $stack)
+                (Print (getelement $local0 1))
+                (Print (getlength $local0))
+                (Print I64 123)
+                (Load 0)
+                (Syscall Exit)
+            )
+        )
+    )
+)
