@@ -1,16 +1,15 @@
 using Komodo.Utilities;
-using System.Text.RegularExpressions;
 
 namespace Komodo.Compilation.Bytecode;
 
-public enum DataType { I8, I16, I32, I64, F32, F64, Bool }
+public enum DataType { I64, Bool, Array }
 
 public abstract record Value(DataType DataType)
 {
-    private static (Regex Regex, Func<string, Value> Deserializer)[] SymbolDeserializers = new (Regex, Func<string, Value>)[]
+    private static Func<SExpression, Value>[] Deserializers = new Func<SExpression, Value>[]
     {
-        (new Regex("^(true|false)$", RegexOptions.Compiled | RegexOptions.CultureInvariant), value => new Bool(bool.Parse(value))),
-        (new Regex("^(0|(-?[1-9][0-9]*))$", RegexOptions.Compiled | RegexOptions.CultureInvariant), value => new I64(Int64.Parse(value))),
+        sexpr => new Bool(sexpr.AsBool()),
+        sexpr => new I64(sexpr.AsInt64()),
     };
 
     protected abstract SExpression ValueAsSExpression { get; }
@@ -21,8 +20,16 @@ public abstract record Value(DataType DataType)
 
         public override string ToString() => $"{DataType}({Value})";
 
-        new public static I64 Deserialize(SExpression sexpr) => new I64(sexpr.AsInt64());
-
+        new public static I64 Deserialize(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                list.ExpectLength(2);
+                list[0].ExpectEnum<DataType>(DataType.Bool);
+                return new I64(list[1].AsInt64());
+            }
+            else { return new I64(sexpr.AsInt64()); }
+        }
     }
 
     public record Bool(bool Value) : Value(DataType.Bool)
@@ -30,11 +37,36 @@ public abstract record Value(DataType DataType)
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
         public override string ToString() => DataType.ToString() + "(" + (Value ? "true" : "false") + ")";
 
-        new public static Bool Deserialize(SExpression sexpr) => new Bool(sexpr.AsBool());
+        new public static Bool Deserialize(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                list.ExpectLength(2);
+                list[0].ExpectEnum<DataType>(DataType.Bool);
+                return new Bool(list[1].AsBool());
+            }
+            else { return new Bool(sexpr.AsBool()); }
+        }
     }
 
-    public I64 AsI64() => this as I64 ?? throw new Exception("Value is not an I64.");
-    public Bool AsBool() => this as Bool ?? throw new Exception("Value is not a Bool.");
+    public record Array(DataType ElementType, List<Value> Elements) : Value(DataType.Array)
+    {
+        protected override SExpression ValueAsSExpression => new SExpression.List(Elements.Select(element => element.AsSExpression()));
+        public override string ToString() => DataType.ToString() + Utility.Stringify(Elements, ", ", ("(", ")"));
+
+        new public static Array Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(2, null);
+            list[0].ExpectEnum(DataType.Array);
+
+            var elementType = list[1].AsEnum<DataType>();
+            var elements = list.Skip(2).Select(Value.Deserialize).ToList();
+
+            return new Array(elementType, elements);
+        }
+    }
+
+    public T As<T>() where T : Value => this as T ?? throw new Exception("Value is not an I64.");
 
     public SExpression AsSExpression() => new SExpression.List(new[] {
         new SExpression.UnquotedSymbol(DataType.ToString()),
@@ -57,24 +89,22 @@ public abstract record Value(DataType DataType)
 
     public static Value Deserialize(SExpression sexpr)
     {
-        if (sexpr.IsList())
+        if (sexpr is SExpression.List list)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
             return list[0].AsEnum<DataType>() switch
             {
                 DataType.I64 => I64.Deserialize(list[1]),
                 DataType.Bool => Bool.Deserialize(list[1]),
+                DataType.Array => Array.Deserialize(list[1]),
                 var dt => throw new NotImplementedException(dt.ToString())
             };
         }
         else
         {
-            var value = sexpr.ExpectUnquotedSymbol().ExpectValue(Utility.Concat(SymbolDeserializers.Select(sd => sd.Regex))).Value;
-
-            foreach (var (regex, deserializer) in SymbolDeserializers)
+            foreach (var deserializer in Deserializers)
             {
-                if (regex.IsMatch(value))
-                    return deserializer(value);
+                try { return deserializer(sexpr); }
+                catch { continue; }
             }
 
             throw new SExpression.FormatException("Invalid value", sexpr);

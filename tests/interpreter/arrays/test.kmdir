@@ -3,10 +3,11 @@
     (module MyModule
         (function Main
             (args)
-            (locals Bool I64 Bool)
+            (locals (Array I64))
             (returns)
             (basicBlock __entry__
-                (Print I64 123)
+                (Print $local0)
+
                 (Load 0)
                 (Syscall Exit)
             )
