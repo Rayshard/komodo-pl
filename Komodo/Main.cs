@@ -59,7 +59,7 @@ static class Entry
         {
             var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
             var program = Compilation.Bytecode.Program.Deserialize(sexpr);
-            var interpreter = new Interpreter(program);
+            var interpreter = new Interpreter(program, new InterpreterConfig(Console.Out));
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             var exitcode = interpreter.Run();
@@ -221,6 +221,21 @@ static class Entry
     static int Main(string[] args)
     {
         Logger.MinLevel = LogLevel.ERROR;
+        Logger.Callback = (level, log) =>
+        {
+            switch (level)
+            {
+                case LogLevel.DEBUG: Console.ForegroundColor = ConsoleColor.DarkCyan; break;
+                case LogLevel.INFO: Console.ForegroundColor = ConsoleColor.DarkGray; break;
+                case LogLevel.WARNING: Console.ForegroundColor = ConsoleColor.DarkYellow; break;
+                case LogLevel.ERROR: Console.ForegroundColor = ConsoleColor.DarkRed; break;
+                case LogLevel.NOLOG: return;
+                default: throw new NotImplementedException(level.ToString());
+            }
+
+            Console.Error.WriteLine(log);
+            Console.ResetColor();
+        };
 
         var formatCommand = new CLI.Command(
             "format",
