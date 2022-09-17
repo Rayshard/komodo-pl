@@ -22,4 +22,4 @@ jobs:
           python-version: '3.10'
       - run: pip install termcolor
       - run: dotnet build
-      - run: python test.py $KMD_BIN $TESTS_DIR
+      - run: python scripts/test.py $KMD_BIN $TESTS_DIR

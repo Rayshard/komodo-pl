@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -29,6 +30,21 @@ public abstract record Value(DataType DataType)
         }
     }
 
+    public record UI64(UInt64 Value) : Value(new DataType.UI64())
+    {
+        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
+
+        public override string ToString() => $"UI64({Value})";
+
+        new public static UI64 Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(2);
+            list[0].Expect(DataType.UI64.Deserialize);
+
+            return new UI64(list[1].ExpectUInt64());
+        }
+    }
+
     public record Bool(bool Value) : Value(new DataType.Bool())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value ? "true" : "false");
@@ -47,8 +63,22 @@ public abstract record Value(DataType DataType)
         }
     }
 
-    public record Array(DataType ElementType, List<Value> Elements) : Value(new DataType.Array(ElementType))
+    public record Array(DataType ElementType) : Value(new DataType.Array(ElementType))
     {
+        private List<Value> elements = new List<Value>();
+        public ReadOnlyCollection<Value> Elements => elements.AsReadOnly();
+
+        public Array(DataType elementType, IEnumerable<Value> elements) : this(elementType)
+        {
+            foreach (var element in elements)
+            {
+                if (element.DataType != ElementType)
+                    throw new Exception($"Cannot add element of type '{element.DataType}' to an array of type '{DataType}'");
+
+                this.elements.Add(element);
+            }
+        }
+
         protected override SExpression ValueAsSExpression => new SExpression.List(Elements.Select(element => element.AsSExpression()));
 
         public override string ToString() => Utility.Stringify(Elements, ", ", ("[", "]"));
@@ -86,6 +116,14 @@ public abstract record Value(DataType DataType)
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
 
+    public Value Expect(DataType dataType) => dataType switch
+    {
+        DataType.I64 when this is I64 => this,
+        DataType.Bool when this is Bool => this,
+        DataType.Array(var elementType) when this is Array a && a.DataType == elementType => this,
+        _ => throw new Exception($"Invalid value cast: Expected {dataType}, but found {DataType}")
+    };
+
     public static Value CreateDefault(DataType dataType) => dataType switch
     {
         DataType.I64 => new I64(0),
@@ -97,6 +135,9 @@ public abstract record Value(DataType DataType)
     public static Value Deserialize(SExpression sexpr)
     {
         try { return I64.Deserialize(sexpr); }
+        catch { }
+
+        try { return UI64.Deserialize(sexpr); }
         catch { }
 
         try { return Bool.Deserialize(sexpr); }

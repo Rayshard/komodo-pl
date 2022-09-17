@@ -18,6 +18,7 @@ public enum Opcode
     Mul,
 
     Print,
+    GetElement,
 }
 
 public abstract record Instruction(Opcode Opcode)
@@ -101,7 +102,8 @@ public abstract record Instruction(Opcode Opcode)
 
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
-            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq => opcode,
+            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq or
+            Opcode.GetElement => opcode,
             _ => throw new ArgumentException($"'{opcode}' is not a binop!")
         };
 
@@ -240,6 +242,7 @@ public abstract record Instruction(Opcode Opcode)
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
+        Opcode.GetElement => Binop.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

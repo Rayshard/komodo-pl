@@ -103,6 +103,10 @@ public class Interpreter
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
+                        (Opcode.GetElement, Value.UI64(var index), Value.Array a)
+                            => index < (UInt64)a.Elements.Count
+                                ? a.Elements[(int)index].Expect(instr.DataType)
+                                : throw new Exception($"Index {index} is greater than array length: {a.Elements.Count}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -182,6 +186,8 @@ public class Interpreter
             Operand.Local(var i) => stackFrame.GetLocal(i),
             Operand.Arg(var i) => stackFrame.GetArg(i),
             Operand.Stack => PopStack(),
+            Operand.Array(var elementType, var elements)
+                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
             _ => throw new Exception($"Invalid source: {source}")
         };
 
@@ -292,7 +298,7 @@ public class Interpreter
             if (returnValues.Length != frame.ReturnDests.Count())
                 throw new Exception($"Parent stack frame expected {frame.ReturnDests} return values but got {returnValues.Length}.");
 
-            foreach(var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
+            foreach (var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
                 SetDestinationOperandValue(parentStackFrame, dest, value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }

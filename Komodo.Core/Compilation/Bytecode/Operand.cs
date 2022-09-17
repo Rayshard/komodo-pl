@@ -88,6 +88,45 @@ public abstract record Operand : IOperand
         }
     }
 
+    public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []
+        {
+            new Bytecode.DataType.Array(ElementType).AsSExpression(),
+            new SExpression.List(Elements.Select(element => element.AsSExpression()))
+        });
+
+        public static Array Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList().ExpectLength(2, null);
+
+            if (list.Count() == 2)
+            {
+                try
+                {
+                    var elementType = list.Expect(Bytecode.DataType.Array.Deserialize).ElementType;
+                    return new Array(elementType, new Source[0]);
+                }
+                catch
+                {
+                    var elementType = list[0].Expect(Bytecode.DataType.Array.Deserialize).ElementType;
+                    var elements = list[1].ExpectList().Select(DeserializeSource).ToList();
+
+                    return new Array(elementType, elements);
+                }
+            }
+            else
+            {
+                list[0].ExpectUnquotedSymbol().ExpectValue("Array");
+
+                var elementType = list[1].Expect(Bytecode.DataType.Deserialize);
+                var elements = list.Skip(2).Select(DeserializeSource).ToArray();
+
+                return new Array(elementType, elements);
+            }
+        }
+    }
+
     public static Source DeserializeSource(SExpression sexpr)
     {
         try { return Constant.Deserialize(sexpr); }
@@ -100,6 +139,9 @@ public abstract record Operand : IOperand
         catch { }
 
         try { return Stack.Deserialize(sexpr); }
+        catch { }
+
+        try { return Array.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);

@@ -19,6 +19,19 @@ public abstract record DataType
         }
     }
 
+    public record UI64 : DataType
+    {
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
+
+        public override string ToString() => AsSExpression().ToString();
+
+        new public static UI64 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue("UI64");
+            return new UI64();
+        }
+    }
+
     public record Bool : DataType
     {
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Bool");
@@ -55,6 +68,9 @@ public abstract record DataType
     public static DataType Deserialize(SExpression sexpr)
     {
         try { return I64.Deserialize(sexpr); }
+        catch { }
+
+        try { return UI64.Deserialize(sexpr); }
         catch { }
 
         try { return Bool.Deserialize(sexpr); }
