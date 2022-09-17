@@ -1,0 +1,27 @@
+﻿@page "/test"
+
+<PageTitle>Test</PageTitle>
+
+<h1>Test</h1>
+
+<div style="display: flex; height: 100%; background: gray;">
+    <div style="display: flex; flex: 1; padding: 5px; column-gap: 5px;">
+        <div style="flex: 1; display: flex; flex-direction: column; row-gap: 5px;">
+            <div style="display: flex; column-gap: 5px; justify-content: center;">
+                <input type="radio" id="radio-komodo" name="radio-language" value="radio-komodo" checked>
+                <label for="radio-komodo">Komodo</label>
+                <input type="radio" id="radio-bytecode" name="radio-language" value="radio-bytecode">
+                <label for="radio-bytecode">Bytecode</label>
+            </div>
+            <textarea style="border: none; resize: None; flex: 1;" @bind="TextArea_Text_Source" @bind:event="oninput" />
+            <div style="display: flex; column-gap: 5px;">
+                <button class="btn btn-primary" style="flex: 1">Format</button>
+                <button class="btn btn-primary" style="flex: 1" @onclick="OnClick_Button_Run">Run</button>
+            </div>
+        </div>
+        <div style="width: 5px; background: black;"></div>
+        <div style="flex: 1; display: flex; flex-direction: column; background: blue;">
+            <textarea style="border: none; resize: None; flex: 1;">@TextArea_Text_Output</textarea>
+        </div>
+    </div>
+</div>
