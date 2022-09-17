@@ -1,4 +1,4 @@
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public record Pass<T>(T? Value = null) where T : class
 {

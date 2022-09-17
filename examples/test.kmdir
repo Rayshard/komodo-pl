@@ -6,7 +6,7 @@
             (locals (array Char))
             (returns)
             (basicBlock __entry__
-                (Store $local0 ('a' 'b' 'c'))
+                (Store $local0 (array 'a' 'b' 'c'))
                 (Store $local0 "abc"))
                 (Store 'd' (getelement $local0 1))
                 (Insert 'e' $local0 (getlength $local0))

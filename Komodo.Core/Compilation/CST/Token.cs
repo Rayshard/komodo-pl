@@ -1,6 +1,6 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.CST;
+namespace Komodo.Core.Compilation.CST;
 
 public enum TokenType
 {

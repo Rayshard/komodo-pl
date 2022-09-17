@@ -1,6 +1,6 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {
@@ -18,6 +18,7 @@ public enum Opcode
     Mul,
 
     Print,
+    GetElement,
 }
 
 public abstract record Instruction(Opcode Opcode)
@@ -39,7 +40,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static Syscall Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.Syscall);
+            list[0].ExpectEnum<Opcode>(Opcode.Syscall);
 
             return new Syscall(list[1].ExpectUnquotedSymbol().Value);
         }
@@ -52,7 +53,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static Load Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum(Opcode.Load);
+            list[0].ExpectEnum<Opcode>(Opcode.Load);
 
             return new Load(Operand.DeserializeSource(list[1]));
         }
@@ -65,7 +66,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static Store Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum(Opcode.Store);
+            list[0].ExpectEnum<Opcode>(Opcode.Store);
 
             return new Store(
                 Operand.DeserializeSource(list[1]),
@@ -81,7 +82,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static Assert Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum(Opcode.Assert);
+            list[0].ExpectEnum<Opcode>(Opcode.Assert);
 
             return new Assert(
                 Operand.DeserializeSource(list[1]),
@@ -93,7 +94,7 @@ public abstract record Instruction(Opcode Opcode)
     public record Binop(Opcode Opcode, DataType DataType, Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination) : Instruction(Verify(Opcode))
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] {
-            new Operand.Enumeration<DataType>(DataType),
+            new Operand.DataType(DataType),
             Source1,
             Source2,
             Destination
@@ -101,7 +102,8 @@ public abstract record Instruction(Opcode Opcode)
 
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
-            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq => opcode,
+            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq or
+            Opcode.GetElement => opcode,
             _ => throw new ArgumentException($"'{opcode}' is not a binop!")
         };
 
@@ -110,8 +112,8 @@ public abstract record Instruction(Opcode Opcode)
             var list = sexpr.ExpectList().ExpectLength(5);
 
             return new Binop(
-                list[0].AsEnum<Opcode>(),
-                list[1].AsEnum<DataType>(),
+                list[0].ExpectEnum<Opcode>(),
+                list[1].Expect(DataType.Deserialize),
                 Operand.DeserializeSource(list[2]),
                 Operand.DeserializeSource(list[3]),
                 Operand.DeserializeDestination(list[4])
@@ -121,15 +123,15 @@ public abstract record Instruction(Opcode Opcode)
 
     public record Print(DataType DataType, Operand.Source Source) : Instruction(Opcode.Print)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Enumeration<DataType>(DataType), Source };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Source };
 
         new public static Print Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum(Opcode.Print);
+            list[0].ExpectEnum<Opcode>(Opcode.Print);
 
             return new Print(
-                list[1].AsEnum<DataType>(),
+                list[1].Expect(DataType.Deserialize),
                 Operand.DeserializeSource(list[2])
             );
         }
@@ -162,7 +164,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static Call Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3, null);
-            list[0].ExpectEnum(Opcode.Call);
+            list[0].ExpectEnum<Opcode>(Opcode.Call);
 
             var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToList();
             var returns = list.Skip(3).Skip(args.Count).Skip(1).Select(Operand.DeserializeDestination).ToList();
@@ -179,7 +181,7 @@ public abstract record Instruction(Opcode Opcode)
     public record Dec(DataType DataType, Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Dec)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] {
-            new Operand.Enumeration<DataType>(DataType),
+            new Operand.DataType(DataType),
             Source,
             Destination
         };
@@ -187,10 +189,10 @@ public abstract record Instruction(Opcode Opcode)
         new public static Dec Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(4);
-            list[0].ExpectEnum(Opcode.Dec);
+            list[0].ExpectEnum<Opcode>(Opcode.Dec);
 
             return new Dec(
-                list[1].AsEnum<DataType>(),
+                list[1].Expect(DataType.Deserialize),
                 Operand.DeserializeSource(list[2]),
                 Operand.DeserializeDestination(list[3])
             );
@@ -204,7 +206,7 @@ public abstract record Instruction(Opcode Opcode)
         new public static CJump Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum(Opcode.CJump);
+            list[0].ExpectEnum<Opcode>(Opcode.CJump);
 
             return new CJump(
                 list[1].ExpectUnquotedSymbol().Value,
@@ -220,13 +222,13 @@ public abstract record Instruction(Opcode Opcode)
         new public static Return Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(1, null);
-            list[0].ExpectEnum(Opcode.Return);
+            list[0].ExpectEnum<Opcode>(Opcode.Return);
 
             return new Return(list.Skip(1).Select(Operand.DeserializeSource));
         }
     }
 
-    public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].AsEnum<Opcode>() switch
+    public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
         Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
@@ -240,6 +242,7 @@ public abstract record Instruction(Opcode Opcode)
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
+        Opcode.GetElement => Binop.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

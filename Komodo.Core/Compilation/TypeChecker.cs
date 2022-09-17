@@ -1,7 +1,7 @@
-using Komodo.Compilation.TypeSystem;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.TypeSystem;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public static class TypeChecker
 {

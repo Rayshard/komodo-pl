@@ -1,8 +1,8 @@
 namespace Komodo.Tests.Compilation;
 
-using Komodo.Compilation;
-using Komodo.Compilation.CST;
-using Komodo.Utilities;
+using Komodo.Core.Compilation;
+using Komodo.Core.Compilation.CST;
+using Komodo.Core.Utilities;
 
 public class LexerTest
 {

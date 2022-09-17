@@ -2,6 +2,6 @@
   "args": ["run-ir", "test.kmdir"],
   "exitcode": 0,
   "stdin": [],
-  "stdout": ["2432902008176640000", ""],
+  "stdout": ["I64(2432902008176640000)", ""],
   "stderr": []
 }

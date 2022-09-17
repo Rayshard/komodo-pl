@@ -1,6 +1,6 @@
-namespace Komodo.Compilation.CST;
+namespace Komodo.Core.Compilation.CST;
 
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
 public record VariableDeclaration(Token VarKeyword, Token Identifier, Token SingleEquals, IExpression Expression, Token Semicolon) : IStatement
 {

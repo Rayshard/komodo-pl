@@ -5,7 +5,7 @@ using System.Xml;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public static class Utility
 {
@@ -47,6 +47,8 @@ public static class Utility
 
     public static string Stringify<T>(IEnumerable<T> items, string delimiter, (string Prefix, string Suffix) wrapper) => $"{wrapper.Prefix}{string.Join(delimiter, items)}{wrapper.Suffix}";
     public static string Stringify<T>(IEnumerable<T> items, string delimiter) => Stringify(items, delimiter, ("", ""));
+    public static string Stringify<T>(string delimiter, (string Prefix, string Suffix) wrapper) where T : struct, Enum => Stringify(Enum.GetValues<T>(), delimiter, wrapper);
+    public static string Stringify<T>(string delimiter) where T : struct, Enum => Stringify(Enum.GetValues<T>(), delimiter);
 
     public static JSchema EnumToJSchema<T>() where T : struct, Enum => JSchema.Parse($@"
         {{ 'enum': [{Stringify(Enum.GetNames<T>().Select(name => $"'{name}'"), ", ")}]}}

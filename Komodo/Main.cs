@@ -1,12 +1,12 @@
 ﻿namespace Komodo;
 
 using System.Diagnostics;
-using Komodo.Compilation;
-using Komodo.Compilation.Bytecode.Transpilers;
-using Komodo.Interpretation;
-using Komodo.Utilities;
+using Komodo.Core.Compilation;
+using Komodo.Core.Compilation.Bytecode.Transpilers;
+using Komodo.Core.Interpretation;
+using Komodo.Core.Utilities;
 
-enum Runtime { CPP }
+
 
 static class Entry
 {
@@ -52,29 +52,10 @@ static class Entry
             return -1;
         }
 
-        var sources = new Dictionary<string, TextSource>();
-        sources.Add(inputFilePath, new TextSource(inputFilePath, File.ReadAllText(inputFilePath)));
+        var source = new TextSource(inputFilePath, File.ReadAllText(inputFilePath));
+        var interpreterConfig = new InterpreterConfig(Console.Out);
 
-        try
-        {
-            var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
-            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
-            var interpreter = new Interpreter(program, new InterpreterConfig(Console.Out));
-
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            var exitcode = interpreter.Run();
-            stopwatch.Stop();
-
-            Logger.Info($"Exited with code {exitcode}");
-            Logger.Info($"Finished in {stopwatch.ElapsedMilliseconds / 1000.0} seconds");
-
-            return (int)exitcode;
-        }
-        catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }
-        catch (SExpression.FormatException e) { Logger.Error($"{e.Location!.ToTerminalLink(sources)} {e.Message}"); }
-        catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
-
-        return -1;
+        return Core.Commands.RunIR(source, interpreterConfig) ?? -1;
     }
 
     static int DoFormat(CLI.Arguments args)
@@ -89,32 +70,22 @@ static class Entry
         }
 
         var source = new TextSource(inputFilePath, File.ReadAllText(inputFilePath));
+        string? output = null;
 
         switch (expectedFileType)
         {
-            case "kmdir":
-                {
-                    try
-                    {
-                        var sexpr = SExpression.Parse(new TextSourceReader(source));
-                        var program = Compilation.Bytecode.Program.Deserialize(sexpr);
-                        var formatter = new Compilation.Bytecode.Formatter();
-
-                        Console.WriteLine(formatter.Convert(program));
-                        return 0;
-                    }
-                    catch (SExpression.ParseException e) { Logger.Error($"{source.GetTerminalLink(e.Location.Start)} {e.Message}"); }
-                    catch (SExpression.FormatException e) { Logger.Error($"{source.GetTerminalLink(e.Location!.Start)} {e.Message}"); }
-                    catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
-                }
-                break;
+            case "kmdir": output = Core.Commands.FormatIR(source); break;
             default: Logger.Error($"Formatting for '{expectedFileType}' files is not supported."); break;
         }
 
-        return -1;
+        if (output is null)
+            return -1;
+
+        Console.WriteLine(output);
+        return 0;
     }
 
-    static int CompileIR(string inputFilePath, string outputFilePath, Runtime runtime)
+    static int CompileIR(string inputFilePath, string outputFilePath, TranspilationTarget target)
     {
         if (!File.Exists(inputFilePath))
         {
@@ -123,25 +94,23 @@ static class Entry
         }
 
         var source = new TextSource(inputFilePath, File.ReadAllText(inputFilePath));
+        var transpilationOutput = Core.Commands.TranspileIR(source, target);
+
+        if (transpilationOutput is null)
+            return -1;
 
         try
         {
-            var sexpr = SExpression.Parse(new TextSourceReader(source));
-            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
-
-            switch (runtime)
+            switch (target)
             {
-                case Runtime.CPP:
+                case TranspilationTarget.CPP:
                     {
-                        var transpiler = new CPPTranspiler();
-                        var cpp = transpiler.Convert(program);
-
                         var workingDirectory = Directory.CreateDirectory("test-output").FullName;
                         var runtimeCPPFile = Path.Join(workingDirectory, "runtime.cpp");
 
                         File.Copy("runtimes/cpp/runtime.h", Path.Join(workingDirectory, "runtime.h"), true);
                         File.Copy("runtimes/cpp/runtime.cpp", runtimeCPPFile, true);
-                        File.WriteAllText(Path.Join(workingDirectory, "program.h"), cpp);
+                        File.WriteAllText(Path.Join(workingDirectory, "program.h"), transpilationOutput);
 
                         using var process = new Process();
                         process.StartInfo.UseShellExecute = false;
@@ -152,13 +121,11 @@ static class Entry
                         process.WaitForExit();
                     }
                     break;
-                default: Logger.Error($"Compilation using '{runtime}' is not supported."); break;
+                default: Logger.Error($"Compilation to '{target}' is not supported."); break;
             }
 
             return 0;
         }
-        catch (SExpression.ParseException e) { Logger.Error($"{source.GetTerminalLink(e.Location.Start)} {e.Message}"); }
-        catch (SExpression.FormatException e) { Logger.Error($"{source.GetTerminalLink(e.Location!.Start)} {e.Message}"); }
         catch (Exception e) { Logger.Error(e.Message + "\n" + e.StackTrace); }
 
         return -1;
@@ -252,7 +219,7 @@ static class Entry
             "compile-ir",
             "Compiles the input file into an executable.",
             new CLI.Parameter[] {
-                new CLI.Parameter.Option("runtime", "the runtime to use", CLI.Parameter.Parsers.Enmeration<Runtime>),
+                new CLI.Parameter.Option("target", "the compilation target", CLI.Parameter.Parsers.Enmeration<TranspilationTarget>),
                 new CLI.Parameter.Positional("file", "the input file to compile"),
                 new CLI.Parameter.Positional("output", "the output file path")
             },
@@ -260,7 +227,7 @@ static class Entry
             arguments => CompileIR(
                 arguments.Get<string>("file"),
                 arguments.Get<string>("output"),
-                arguments.Get<Runtime>("runtime")
+                arguments.Get<TranspilationTarget>("target")
             )
         );
 

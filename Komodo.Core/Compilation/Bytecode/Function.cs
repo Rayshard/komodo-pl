@@ -1,6 +1,6 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public class Function
 {
@@ -75,9 +75,9 @@ public class Function
         localsNode[0].ExpectUnquotedSymbol().ExpectValue("locals");
         returnsNode[0].ExpectUnquotedSymbol().ExpectValue("returns");
 
-        var args = argsNode.Skip(1).Select(node => node.AsEnum<DataType>());
-        var locals = localsNode.Skip(1).Select(node => node.AsEnum<DataType>());
-        var returns = returnsNode.Skip(1).Select(node => node.AsEnum<DataType>());
+        var args = argsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
+        var locals = localsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
+        var returns = returnsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
 
         var function = new Function(name, args, locals, returns);
 

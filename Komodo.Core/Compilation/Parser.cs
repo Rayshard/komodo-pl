@@ -1,8 +1,8 @@
-using Komodo.Compilation.CST;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.CST;
+using Komodo.Core.Utilities;
 using System.Collections.ObjectModel;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public static class Parser
 {

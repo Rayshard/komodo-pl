@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public abstract record SExpression(TextLocation? Location)
 {
@@ -160,7 +160,7 @@ public abstract record SExpression(TextLocation? Location)
 
         public override bool Matches(SExpression other) => other switch
         {
-            List l => l.Items.Count() == Items.Count() && l.Items.Zip(Items).All(pair => pair.First.Matches(pair.Second)), 
+            List l => l.Items.Count() == Items.Count() && l.Items.Zip(Items).All(pair => pair.First.Matches(pair.Second)),
             _ => false
         };
 
@@ -228,57 +228,60 @@ public abstract record SExpression(TextLocation? Location)
         public TextLocation? Location => Node.Location;
 
         public FormatException(string message, SExpression node) : base(message) => Node = node;
+
+        public static FormatException Expected(object expected, object actual, SExpression node) => new FormatException($"Expected {expected}, but found {actual}", node);
     }
 
     public abstract bool Matches(SExpression other);
 
+    public T Expect<T>(Func<SExpression, T> deserializer) => deserializer(this);
+
     public UnquotedSymbol ExpectUnquotedSymbol()
-        => this as UnquotedSymbol ?? throw new FormatException($"Expected unquoted symbol, but found {this.GetType()}", this);
+        => this as UnquotedSymbol ?? throw FormatException.Expected("unquoted symbol", this.GetType(), this);
 
     public QuotedSymbol ExpectQuotedSymbol()
-        => this as QuotedSymbol ?? throw new FormatException($"Expected quoted symbol, but found {this.GetType()}", this);
+        => this as QuotedSymbol ?? throw FormatException.Expected($"quoted symbol", this.GetType(), this);
 
     public List ExpectList()
-        => this as List ?? throw new FormatException($"Expected list, but found {this.GetType()}", this);
+        => this as List ?? throw FormatException.Expected("list", this.GetType(), this);
 
-    public bool IsList() => this is List;
-    public bool IsQuotedSymbol() => this is QuotedSymbol;
-    public bool IsUnquotedSymbol() => this is UnquotedSymbol;
-
-    public void ExpectEnum<T>(T value) where T : struct, Enum
-        => ExpectUnquotedSymbol().ExpectValue(value.ToString());
-
-    public T AsEnum<T>() where T : struct, Enum
+    public T ExpectEnum<T>(T? expected = null) where T : struct, Enum
     {
         var value = ExpectUnquotedSymbol().Value;
 
         if (Enum.TryParse<T>(value, false, out var result))
-            return result;
+        {
+            if (expected is not null && !result.Equals(expected))
+                throw FormatException.Expected(expected, result, this);
 
-        throw new FormatException($"'{value}' is not a valid {typeof(T)}", this);
+            return result;
+        }
+
+        if (expected is not null) { throw FormatException.Expected(expected, result, this); }
+        else { throw FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, this); }
     }
 
-    public Int64 AsInt64()
+    public Int64 ExpectInt64()
     {
         var value = ExpectUnquotedSymbol().Value;
 
         if (Int64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an Int64", this);
+        throw new FormatException($"'{value}' is not an 64-bit integer", this);
     }
 
-    public UInt64 AsUInt64()
+    public UInt64 ExpectUInt64()
     {
         var value = ExpectUnquotedSymbol().Value;
 
         if (UInt64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a UInt64", this);
+        throw new FormatException($"'{value}' is not a 64-bit unsigned integer", this);
     }
 
-    public bool AsBool()
+    public bool ExpectBool()
     {
         var value = ExpectUnquotedSymbol().Value;
 
@@ -286,6 +289,50 @@ public abstract record SExpression(TextLocation? Location)
             return result;
 
         throw new FormatException($"'{value}' is not a bool", this);
+    }
+
+    public bool IsList() => this is List;
+    public bool IsQuotedSymbol() => this is QuotedSymbol;
+    public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public bool IsInt64()
+    {
+        try
+        {
+            ExpectInt64();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public bool IsUInt64()
+    {
+        try
+        {
+            ExpectUInt64();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public bool IsBool()
+    {
+        try
+        {
+            ExpectBool();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public bool IsEnum<T>(T value) where T : struct, Enum
+    {
+        try
+        {
+            ExpectEnum<T>();
+            return true;
+        }
+        catch { return false; }
     }
     #endregion
 }

@@ -1,6 +1,6 @@
-namespace Komodo.Compilation.CST;
+namespace Komodo.Core.Compilation.CST;
 
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
 public enum BinaryOperation { Add, Sub, Multiply, Divide };
 public enum BinaryOperationAssociativity { Left, Right, None };

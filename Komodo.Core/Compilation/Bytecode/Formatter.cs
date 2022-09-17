@@ -1,7 +1,7 @@
 using System.Text;
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public class Formatter : Converter<string, string, string, string>
 {

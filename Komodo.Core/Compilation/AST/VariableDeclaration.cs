@@ -1,7 +1,7 @@
-using Komodo.Utilities;
-using Komodo.Compilation.TypeSystem;
+using Komodo.Core.Utilities;
+using Komodo.Core.Compilation.TypeSystem;
 
-namespace Komodo.Compilation.AST;
+namespace Komodo.Core.Compilation.AST;
 
 public record VariableDeclaration(Symbol.Variable Symbol, IExpression Expression, TextLocation Location) : IStatement
 {

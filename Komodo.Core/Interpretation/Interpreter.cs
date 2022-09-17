@@ -1,7 +1,7 @@
-using Komodo.Compilation.Bytecode;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.Bytecode;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Interpretation;
+namespace Komodo.Core.Interpretation;
 
 public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
@@ -103,6 +103,10 @@ public class Interpreter
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
+                        (Opcode.GetElement, Value.UI64(var index), Value.Array a)
+                            => index < (UInt64)a.Elements.Count
+                                ? a.Elements[(int)index].Expect(instr.DataType)
+                                : throw new Exception($"Index {index} is greater than array length: {a.Elements.Count}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -120,16 +124,7 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result, instr.DataType);
                 }
                 break;
-            case Instruction.Print instr:
-                {
-                    switch (GetSourceOperandValue(stackFrame, instr.Source, instr.DataType))
-                    {
-                        case Value.I64(var i): Config.StandardOutput.WriteLine(i); break;
-                        case Value.Bool(var b): Config.StandardOutput.WriteLine(b ? "true" : "false"); break;
-                        default: throw new Exception($"Cannot apply operation to {instr.DataType}.");
-                    }
-                }
-                break;
+            case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
@@ -175,7 +170,7 @@ public class Interpreter
                 break;
             case Instruction.CJump instr:
                 {
-                    if (GetSourceOperandValue<Value.Bool>(stackFrame, instr.Condtion).Value)
+                    if (GetSourceOperandValue(stackFrame, instr.Condtion, new DataType.Bool()).As<Value.Bool>().Value)
                         stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
                 }
                 break;
@@ -191,17 +186,16 @@ public class Interpreter
             Operand.Local(var i) => stackFrame.GetLocal(i),
             Operand.Arg(var i) => stackFrame.GetArg(i),
             Operand.Stack => PopStack(),
+            Operand.Array(var elementType, var elements)
+                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
             _ => throw new Exception($"Invalid source: {source}")
         };
 
-        if (expectedDataType.HasValue && value.DataType != expectedDataType.Value)
+        if (expectedDataType is not null && value.DataType != expectedDataType)
             throw new Exception($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
 
         return value;
     }
-
-    private T GetSourceOperandValue<T>(StackFrame stackFrame, Operand.Source source) where T : Value
-        => (T)GetSourceOperandValue(stackFrame, source, Value.GetDataType<T>());
 
     private void SetDestinationOperandValue(StackFrame stackFrame, Operand.Destination destination, Value value, DataType? expectedDataType = null)
     {
@@ -230,7 +224,7 @@ public class Interpreter
             default: throw new Exception($"Invalid destination: {destination}");
         }
 
-        if (expectedDataType.HasValue)
+        if (expectedDataType is not null)
         {
             if (value.DataType != expectedDataType) { throw new Exception($"Expected {expectedDataType}, but found {value}"); }
             else if (destDataType != expectedDataType) { throw new Exception($"Invalid data type for destination: {destination}. Expected {expectedDataType}, but found {destDataType}"); }
@@ -304,7 +298,7 @@ public class Interpreter
             if (returnValues.Length != frame.ReturnDests.Count())
                 throw new Exception($"Parent stack frame expected {frame.ReturnDests} return values but got {returnValues.Length}.");
 
-            foreach(var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
+            foreach (var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
                 SetDestinationOperandValue(parentStackFrame, dest, value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }

@@ -1,4 +1,4 @@
-namespace Komodo.Interpretation;
+namespace Komodo.Core.Interpretation;
 
 public record InstructionPointer(string Module, string Function, string BasicBlock, int Index)
 {
