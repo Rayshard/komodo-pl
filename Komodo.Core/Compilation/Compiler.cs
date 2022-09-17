@@ -1,6 +1,6 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public static class Compiler
 {

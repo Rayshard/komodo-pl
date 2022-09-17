@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Komodo.Compilation.CST;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.CST;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public static class JsonSerializer
 {

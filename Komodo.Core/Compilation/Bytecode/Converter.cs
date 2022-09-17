@@ -1,4 +1,4 @@
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public interface Converter<TProgram, TModule, TFunction, TInstruction>
 {

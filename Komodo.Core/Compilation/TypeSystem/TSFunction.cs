@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.TypeSystem;
+namespace Komodo.Core.Compilation.TypeSystem;
 
 public record TSFunction(TSType[] Parameters, TSType Return) : TSType
 {

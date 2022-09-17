@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public enum LogLevel { DEBUG, INFO, WARNING, ERROR, NOLOG }
 

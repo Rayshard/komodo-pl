@@ -1,6 +1,6 @@
 namespace Komodo.Tests.Utilities;
 
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
 public class TextSourceTest
 {

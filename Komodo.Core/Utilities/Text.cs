@@ -1,8 +1,8 @@
-namespace Komodo.Utilities;
-
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Collections.ObjectModel;
+
+namespace Komodo.Core.Utilities;
 
 public record Position(int Line, int Column)
 {

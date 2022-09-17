@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Komodo.Compilation.CST;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.CST;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public class TokenStream : IEnumerable<Token>
 {

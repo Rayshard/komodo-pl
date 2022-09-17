@@ -1,4 +1,4 @@
-namespace Komodo.Compilation.TypeSystem;
+namespace Komodo.Core.Compilation.TypeSystem;
 
 public enum OperatorKind
 {

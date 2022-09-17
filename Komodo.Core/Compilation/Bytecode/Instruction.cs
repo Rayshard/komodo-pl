@@ -1,6 +1,6 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {

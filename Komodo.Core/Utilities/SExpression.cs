@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public abstract record SExpression(TextLocation? Location)
 {

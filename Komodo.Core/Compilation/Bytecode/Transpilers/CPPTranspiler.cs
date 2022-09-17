@@ -1,11 +1,11 @@
 using System.Text;
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation.Bytecode.Transpilers;
+namespace Komodo.Core.Compilation.Bytecode.Transpilers;
 
 public class CPPTranspiler : Converter<string, string, string, string>
 {
-    private string Convert(DataType dt) => $"Komodo{dt}";
+    private string Convert(DataType dt) => $"Komodo.Core{dt}";
 
     public string Convert(Program program)
     {

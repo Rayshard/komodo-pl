@@ -5,7 +5,7 @@ using System.Xml;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 
-namespace Komodo.Utilities;
+namespace Komodo.Core.Utilities;
 
 public static class Utility
 {

@@ -1,7 +1,7 @@
-using Komodo.Interpretation;
-using Komodo.Utilities;
+using Komodo.Core.Interpretation;
+using Komodo.Core.Utilities;
 
-namespace Komodo;
+namespace Komodo.Core;
 
 public static class Commands
 {

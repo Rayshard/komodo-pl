@@ -1,10 +1,10 @@
 ﻿namespace Komodo;
 
 using System.Diagnostics;
-using Komodo.Compilation;
-using Komodo.Compilation.Bytecode.Transpilers;
-using Komodo.Interpretation;
-using Komodo.Utilities;
+using Komodo.Core.Compilation;
+using Komodo.Core.Compilation.Bytecode.Transpilers;
+using Komodo.Core.Interpretation;
+using Komodo.Core.Utilities;
 
 enum Runtime { CPP }
 
@@ -58,7 +58,7 @@ static class Entry
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(sources[inputFilePath]));
-            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+            var program = Core.Compilation.Bytecode.Program.Deserialize(sexpr);
             var interpreter = new Interpreter(program, new InterpreterConfig(Console.Out));
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -97,8 +97,8 @@ static class Entry
                     try
                     {
                         var sexpr = SExpression.Parse(new TextSourceReader(source));
-                        var program = Compilation.Bytecode.Program.Deserialize(sexpr);
-                        var formatter = new Compilation.Bytecode.Formatter();
+                        var program = Core.Compilation.Bytecode.Program.Deserialize(sexpr);
+                        var formatter = new Core.Compilation.Bytecode.Formatter();
 
                         Console.WriteLine(formatter.Convert(program));
                         return 0;
@@ -127,7 +127,7 @@ static class Entry
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(source));
-            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+            var program = Core.Compilation.Bytecode.Program.Deserialize(sexpr);
 
             switch (runtime)
             {

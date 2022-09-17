@@ -1,6 +1,6 @@
 using System.Collections;
 using System.Text;
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
 namespace Komodo.CLI;
 

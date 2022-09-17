@@ -1,7 +1,7 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 using System.Text.RegularExpressions;
 
-namespace Komodo.Compilation.Bytecode;
+namespace Komodo.Core.Compilation.Bytecode;
 
 public interface IOperand
 {

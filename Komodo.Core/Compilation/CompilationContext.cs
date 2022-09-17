@@ -1,5 +1,5 @@
-using Komodo.Utilities;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Compilation;
+namespace Komodo.Core.Compilation;
 
 public record CompilationContext(Dictionary<string, TextSource> SourceMap, string Entry, bool PrintTokens, bool PrintCST);

@@ -1,7 +1,7 @@
-using Komodo.Compilation.Bytecode;
-using Komodo.Utilities;
+using Komodo.Core.Compilation.Bytecode;
+using Komodo.Core.Utilities;
 
-namespace Komodo.Interpretation;
+namespace Komodo.Core.Interpretation;
 
 public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
