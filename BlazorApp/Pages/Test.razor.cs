@@ -35,7 +35,7 @@ public partial class Test
 
     private void OnClick_Button_Run()
     {
-        var interpreterConfig = new Komodo.Interpretation.InterpreterConfig(standardOutput);
+        var interpreterConfig = new Komodo.Core.Interpretation.InterpreterConfig(standardOutput);
         Komodo.Core.Utilities.Logger.Callback = (level, log) => standardOutput.WriteLine(log);
 
         var result = Komodo.Core.Commands.RunIR(new Komodo.Core.Utilities.TextSource("source", TextArea_Text_Source), interpreterConfig);

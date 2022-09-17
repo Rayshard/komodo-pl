@@ -120,16 +120,7 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result, instr.DataType);
                 }
                 break;
-            case Instruction.Print instr:
-                {
-                    switch (GetSourceOperandValue(stackFrame, instr.Source, instr.DataType))
-                    {
-                        case Value.I64(var i): Config.StandardOutput.WriteLine(i); break;
-                        case Value.Bool(var b): Config.StandardOutput.WriteLine(b ? "true" : "false"); break;
-                        default: throw new Exception($"Cannot apply operation to {instr.DataType}.");
-                    }
-                }
-                break;
+            case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
@@ -175,7 +166,7 @@ public class Interpreter
                 break;
             case Instruction.CJump instr:
                 {
-                    if (GetSourceOperandValue<Value.Bool>(stackFrame, instr.Condtion).Value)
+                    if (GetSourceOperandValue(stackFrame, instr.Condtion, new DataType.Bool()).As<Value.Bool>().Value)
                         stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
                 }
                 break;
@@ -194,14 +185,11 @@ public class Interpreter
             _ => throw new Exception($"Invalid source: {source}")
         };
 
-        if (expectedDataType.HasValue && value.DataType != expectedDataType.Value)
+        if (expectedDataType is not null && value.DataType != expectedDataType)
             throw new Exception($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
 
         return value;
     }
-
-    private T GetSourceOperandValue<T>(StackFrame stackFrame, Operand.Source source) where T : Value
-        => (T)GetSourceOperandValue(stackFrame, source, Value.GetDataType<T>());
 
     private void SetDestinationOperandValue(StackFrame stackFrame, Operand.Destination destination, Value value, DataType? expectedDataType = null)
     {
@@ -230,7 +218,7 @@ public class Interpreter
             default: throw new Exception($"Invalid destination: {destination}");
         }
 
-        if (expectedDataType.HasValue)
+        if (expectedDataType is not null)
         {
             if (value.DataType != expectedDataType) { throw new Exception($"Expected {expectedDataType}, but found {value}"); }
             else if (destDataType != expectedDataType) { throw new Exception($"Invalid data type for destination: {destination}. Expected {expectedDataType}, but found {destDataType}"); }

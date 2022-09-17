@@ -22,11 +22,18 @@ public abstract record Operand : IOperand
         public static Constant Deserialize(SExpression sexpr) => new Constant(Value.Deserialize(sexpr));
     }
 
+    public record DataType(Bytecode.DataType Value) : Operand
+    {
+        public override SExpression AsSExpression() => Value.AsSExpression();
+
+        public static DataType Deserialize(SExpression sexpr) => new DataType(Bytecode.DataType.Deserialize(sexpr));
+    }
+
     public record Enumeration<T>(T Value) : Operand where T : struct, Enum
     {
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Value.ToString());
 
-        public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.AsEnum<T>());
+        public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.ExpectEnum<T>());
     }
 
     public record Identifier(string Value) : Operand
