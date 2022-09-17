@@ -5,18 +5,22 @@ namespace Komodo.Interpretation;
 
 public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
+public record InterpreterConfig(TextWriter StandardOutput);
+
 public class Interpreter
 {
     public InterpreterState State { get; private set; }
     public Program Program { get; }
+    public InterpreterConfig Config { get; }
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
 
-    public Interpreter(Program program)
+    public Interpreter(Program program, InterpreterConfig config)
     {
         State = InterpreterState.NotStarted;
         Program = program;
+        Config = config;
     }
 
     public Int64 Run()
@@ -120,8 +124,8 @@ public class Interpreter
                 {
                     switch (GetSourceOperandValue(stackFrame, instr.Source, instr.DataType))
                     {
-                        case Value.I64(var i): Console.WriteLine(i); break;
-                        case Value.Bool(var b): Console.WriteLine(b ? "true" : "false"); break;
+                        case Value.I64(var i): Config.StandardOutput.WriteLine(i); break;
+                        case Value.Bool(var b): Config.StandardOutput.WriteLine(b ? "true" : "false"); break;
                         default: throw new Exception($"Cannot apply operation to {instr.DataType}.");
                     }
                 }
@@ -133,7 +137,7 @@ public class Interpreter
 
                     if (value1 != value2)
                     {
-                        Console.WriteLine($"Assertion Failed at {stackFrame.IP}: {value1} != {value2}.");
+                        Config.StandardOutput.WriteLine($"Assertion Failed at {stackFrame.IP}: {value1} != {value2}.");
 
                         exitcode = 1;
                         State = InterpreterState.ShuttingDown;
