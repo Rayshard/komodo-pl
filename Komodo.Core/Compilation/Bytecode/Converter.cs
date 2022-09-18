@@ -1,9 +1,6 @@
 namespace Komodo.Core.Compilation.Bytecode;
 
-public interface Converter<TProgram, TModule, TFunction, TInstruction>
+public abstract class Converter<T>
 {
-    public TProgram Convert(Program program);
-    public TModule Convert(Module module);
-    public TFunction Convert(Function function);
-    public TInstruction Convert(Instruction instruction);
+    public abstract T Convert(Program program);
 }

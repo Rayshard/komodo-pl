@@ -21,7 +21,7 @@ public enum Opcode
     GetElement,
 }
 
-public abstract record Instruction(Opcode Opcode)
+public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 {
     public abstract IEnumerable<IOperand> Operands { get; }
 
@@ -199,9 +199,9 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record CJump(string BasicBlock, Operand.Source Condtion) : Instruction(Opcode.CJump)
+    public record CJump(string Label, Operand.Source Condtion) : Instruction(Opcode.CJump)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(BasicBlock), Condtion };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Label), Condtion };
 
         new public static CJump Deserialize(SExpression sexpr)
         {

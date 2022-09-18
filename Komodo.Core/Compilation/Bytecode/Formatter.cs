@@ -3,9 +3,9 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public class Formatter : Converter<string, string, string, string>
+public class Formatter : Converter<string>
 {
-    public string Convert(Program program)
+    public override string Convert(Program program)
     {
         var builder = new StringBuilder();
         builder.AppendLine($"(program {program.Name}");
@@ -62,9 +62,16 @@ public class Formatter : Converter<string, string, string, string>
 
         builder.AppendLine(")");
 
-        // Append basic blocks
-        foreach (var basicBlock in function.BasicBlocks)
-            builder.AppendLine(Convert(basicBlock).WithIndent());
+        // Append body elements
+        foreach (var bodyElement in function.BodyElements)
+        {
+            builder.AppendLine(bodyElement switch
+            {
+                Label l => Convert(l).WithIndent("  "),
+                Instruction i => Convert(i).WithIndent("   "),
+                _ => throw new NotImplementedException(bodyElement.ToString())
+            });
+        }
 
         //Append footer
         builder.Append(")");
@@ -72,17 +79,7 @@ public class Formatter : Converter<string, string, string, string>
         return builder.ToString();
     }
 
-    public string Convert(BasicBlock basicBlock)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine($"(basicBlock {basicBlock.Name}");
-
-        foreach (var instruction in basicBlock.Instructions)
-            builder.AppendLine(Convert(instruction).WithIndent());
-
-        builder.Append(")");
-        return builder.ToString();
-    }
+    public string Convert(Label label) => $"(label {label.Name})";
 
     public string Convert(Instruction instruction) => instruction.AsSExpression().ToString();
 }

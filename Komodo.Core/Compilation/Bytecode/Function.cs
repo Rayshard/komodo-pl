@@ -1,24 +1,47 @@
 using Komodo.Core.Utilities;
+using System.Collections.ObjectModel;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
+public interface FunctionBodyElement
+{
+    SExpression AsSExpression();
+}
+
+public record Label(string Name, UInt64 Target) : FunctionBodyElement
+{
+    public SExpression AsSExpression() => new SExpression.List(new[]{
+        new SExpression.UnquotedSymbol("label"),
+        new SExpression.UnquotedSymbol(Name),
+    });
+
+    public static string Deserialize(SExpression sexpr)
+    {
+        var list = sexpr.ExpectList().ExpectLength(2);
+        list[0].ExpectUnquotedSymbol().ExpectValue("label");
+
+        return list[1].ExpectUnquotedSymbol().Value;
+    }
+}
+
 public class Function
 {
-    public const string ENTRY_NAME = "__entry__";
-
     public string Name { get; }
 
-    private Dictionary<string, BasicBlock> basicBlocks = new Dictionary<string, BasicBlock>();
-    public IEnumerable<BasicBlock> BasicBlocks => basicBlocks.Values;
-
     private DataType[] arguments;
-    public IEnumerable<DataType> Arguments => arguments;
+    public ReadOnlyCollection<DataType> Arguments => new ReadOnlyCollection<DataType>(arguments);
 
     private DataType[] locals;
-    public IEnumerable<DataType> Locals => locals;
+    public ReadOnlyCollection<DataType> Locals => new ReadOnlyCollection<DataType>(locals);
 
     private DataType[] returns;
-    public IEnumerable<DataType> Returns => returns;
+    public ReadOnlyCollection<DataType> Returns => new ReadOnlyCollection<DataType>(returns);
+
+    private List<FunctionBodyElement> bodyElements = new List<FunctionBodyElement>();
+    public ReadOnlyCollection<FunctionBodyElement> BodyElements => new ReadOnlyCollection<FunctionBodyElement>(bodyElements);
+
+    public ReadOnlyDictionary<string, Label> Labels { get; private set; } = new ReadOnlyDictionary<string, Label>(new Dictionary<string, Label>());
+    public ReadOnlyCollection<Instruction> Instructions { get; private set; } = new ReadOnlyCollection<Instruction>(new Instruction[0]);
 
     public Function(string name, IEnumerable<DataType> arguments, IEnumerable<DataType> locals, IEnumerable<DataType> returns)
     {
@@ -29,11 +52,20 @@ public class Function
         this.returns = returns.ToArray();
     }
 
-    public void AddBasicBlock(BasicBlock basicBlock) => basicBlocks.Add(basicBlock.Name, basicBlock);
-    public BasicBlock GetBasicBlock(string name) => basicBlocks[name];
+    public void AppendLabel(string name)
+    {
+        if (Labels.ContainsKey(name))
+            throw new Exception($"Label with name '{name}' already exists for function '{Name}'!");
 
-    public DataType GetArgument(int idx) => arguments[idx];
-    public DataType GetLocal(int idx) => locals[idx];
+        bodyElements.Add(new Label(name, (UInt64)Instructions.Count));
+        Labels = new ReadOnlyDictionary<string, Label>(bodyElements.Where(be => be is Label).Cast<Label>().ToDictionary(label => label.Name));
+    }
+
+    public void AppendInstruction(Instruction instruction)
+    {
+        bodyElements.Add(instruction);
+        Instructions = new ReadOnlyCollection<Instruction>(bodyElements.Where(be => be is Instruction).Cast<Instruction>().ToArray());
+    }
 
     public SExpression AsSExpression()
     {
@@ -56,7 +88,7 @@ public class Function
         returnsNodes.AddRange(Returns.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
         nodes.Add(new SExpression.List(returnsNodes));
 
-        nodes.AddRange(BasicBlocks.Select(bb => bb.AsSExpression()));
+        nodes.AddRange(bodyElements.Select(be => be.AsSExpression()));
 
         return new SExpression.List(nodes);
     }
@@ -82,7 +114,14 @@ public class Function
         var function = new Function(name, args, locals, returns);
 
         foreach (var item in list.Skip(5))
-            function.AddBasicBlock(BasicBlock.Deserialize(item));
+        {
+            // This is an interesting try/catch block because we only want to ignore
+            // the deserialization if it fails with a FormatException, but not
+            // ignore if deserialization 'went well', but we were unable to append it 
+            // to the function. Otherwise we deserialize the item as an instruction.
+            try { function.AppendLabel(Label.Deserialize(item)); }
+            catch (SExpression.FormatException) { function.AppendInstruction(Instruction.Deserialize(item)); }
+        }
 
         return function;
     }

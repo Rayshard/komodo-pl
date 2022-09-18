@@ -42,14 +42,14 @@ public class Interpreter
 
             try
             {
-                ExecuteNextInstruction(stackFrame, ref exitcode);
+                ExecuteNextInstruction(stackFrame, ref exitcode, out var nextIP);
                 numInstructionsExecuted++;
 
                 var stackAsString = StackToString();
                 stackAsString = stackAsString.Length == 0 ? " Empty" : ("\n" + stackAsString);
 
                 Logger.Debug($"Current Stack:{stackAsString}");
-                stackFrame.IP = stackFrame.IP + 1;
+                stackFrame.IP = nextIP;
             }
             catch (Exception e)
             {
@@ -69,9 +69,11 @@ public class Interpreter
         return exitcode;
     }
 
-    private void ExecuteNextInstruction(StackFrame stackFrame, ref Int64 exitcode)
+    private void ExecuteNextInstruction(StackFrame stackFrame, ref Int64 exitcode, out InstructionPointer nextIP)
     {
         var instruction = GetInstructionFromIP(stackFrame.IP);
+
+        nextIP = stackFrame.IP + 1;
 
         Logger.Debug($"{stackFrame.IP}: {instruction}");
 
@@ -141,7 +143,7 @@ public class Interpreter
                 break;
             case Instruction.Call instr:
                 {
-                    var function = GetFunctionFromIP(new InstructionPointer(instr.Module, instr.Function, Function.ENTRY_NAME, 0));
+                    var function = GetFunctionFromIP(new InstructionPointer(instr.Module, instr.Function, 0));
 
                     // Verify args
                     if (instr.Args.Count() != function.Arguments.Count())
@@ -171,7 +173,10 @@ public class Interpreter
             case Instruction.CJump instr:
                 {
                     if (GetSourceOperandValue(stackFrame, instr.Condtion, new DataType.Bool()).As<Value.Bool>().Value)
-                        stackFrame.IP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, instr.BasicBlock, -1);
+                    {
+                        var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
+                        nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
+                    }
                 }
                 break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
@@ -280,7 +285,7 @@ public class Interpreter
 
     private void PushStackFrame((string Module, string Function) Target, IEnumerable<Value> args, IEnumerable<DataType> locals, IEnumerable<Operand.Destination> returnDests)
     {
-        var start = new InstructionPointer(Target.Module, Target.Function, Function.ENTRY_NAME, 0);
+        var start = new InstructionPointer(Target.Module, Target.Function, 0);
         var localDefaultValues = locals.Select(l => Value.CreateDefault(l));
 
         callStack.Push(new StackFrame(start, stack.Count, args, localDefaultValues, returnDests));
@@ -309,5 +314,7 @@ public class Interpreter
     public Function GetFunctionFromIP(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function);
 
     private Instruction GetInstructionFromIP(InstructionPointer ip)
-        => Program.GetModule(ip.Module).GetFunction(ip.Function).GetBasicBlock(ip.BasicBlock)[ip.Index];
+        => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
+
+    public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.GetModule(module).GetFunction(function).Labels[label].Target;
 }
