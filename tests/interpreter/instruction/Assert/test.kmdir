@@ -1,10 +1,8 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
-            (args)
+        (function Main (args) (returns)
             (locals)
-            (returns)
             (basicBlock __entry__
                 (Load true)
                 (Assert $stack true)

@@ -60,23 +60,23 @@ namespace {module.Name}
 
     private string GetForwardDeclaration(Function function)
     {
-        var args = function.Arguments.Select((a, i) => $"{Convert(a)} arg{i}");
-        var cppFunctionArgs = args.AppendIf(function.Returns.Count() > 0, "Value* returns").Prepend("Interpreter& interpreter");
+        var parameters = function.Parameters.Select((p, i) => $"{Convert(p.DataType)} param{i}");
+        var cppFunctionParams = parameters.AppendIf(!function.Returns.IsEmpty(), "Value* returns").Prepend("Interpreter& interpreter");
 
-        return $"void {function.Name}({Utility.Stringify(cppFunctionArgs, ", ")});";
+        return $"void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")});";
     }
 
     public string Convert(Function function)
     {
-        var args = function.Arguments.Select((a, i) => $"{Convert(a)} arg{i}");
-        var locals = function.Locals.Select((local, i) => $"auto local{i} = {Convert(local)}();");
+        var parameters = function.Parameters.Select((p, i) => $"{Convert(p.DataType)} param{i}");
+        var locals = function.Locals.Select((l, i) => $"auto local{i} = {Convert(l.DataType)}();");
         var bodyElements = Utility.Stringify(function.BodyElements.Select(Convert), Environment.NewLine);
 
-        var cppFunctionArgs = args.AppendIf(function.Returns.Count() > 0, "Value* returns").Prepend("Interpreter& interpreter");
+        var cppFunctionParams = parameters.AppendIf(!function.Returns.IsEmpty(), "Value* returns").Prepend("Interpreter& interpreter");
 
         return
 $@"
-void {function.Name}({Utility.Stringify(cppFunctionArgs, ", ")})
+void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 {{
 {Utility.Stringify(locals, Environment.NewLine).WithIndent(delimiter: Environment.NewLine)}
 

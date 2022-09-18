@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -137,7 +138,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Call(string Module, string Function, IEnumerable<Operand.Source> Args, IEnumerable<Operand.Destination> Returns) : Instruction(Opcode.Call)
+    public record Call(string Module, string Function, ReadOnlyCollection<Operand.Source> Args, ReadOnlyCollection<Operand.Destination> Returns) : Instruction(Opcode.Call)
     {
         private static readonly SExpression ArgsReturnsDivider = new SExpression.UnquotedSymbol("~");
 
@@ -166,14 +167,14 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
             var list = sexpr.ExpectList().ExpectLength(3, null);
             list[0].ExpectEnum<Opcode>(Opcode.Call);
 
-            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToList();
-            var returns = list.Skip(3).Skip(args.Count).Skip(1).Select(Operand.DeserializeDestination).ToList();
+            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToArray();
+            var returns = list.Skip(3).Skip(args.Length).Skip(1).Select(Operand.DeserializeDestination).ToArray();
 
             return new Call(
                 list[1].ExpectUnquotedSymbol().Value,
                 list[2].ExpectUnquotedSymbol().Value,
-                args,
-                returns
+                new ReadOnlyCollection<Operand.Source>(args),
+                new ReadOnlyCollection<Operand.Destination>(returns)
             );
         }
     }

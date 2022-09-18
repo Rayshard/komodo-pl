@@ -36,31 +36,28 @@ public class Formatter : Converter<string>
         var builder = new StringBuilder();
 
         //Append header
-        builder.AppendLine($"(function {function.Name}");
+        builder.Append($"(function {function.Name}");
 
-        // Append arguments
-        builder.Append($"    (args");
-
-        foreach (var arg in function.Arguments)
-            builder.Append($" {arg}");
-
-        builder.AppendLine(")");
-
-        // Append locals
-        builder.Append($"    (locals");
-
-        foreach (var local in function.Locals)
-            builder.Append($" {local}");
-
-        builder.AppendLine(")");
+        // Append parameters
+        if (!function.Parameters.IsEmpty())
+            builder.Append(function.Parameters.Stringify(", ", ("(params ", ")")));
 
         // Append returns
-        builder.Append($"    (returns");
+        if (!function.Returns.IsEmpty())
+            builder.Append(function.Returns.Stringify(", ", ("(returns ", ")")));
 
-        foreach (var ret in function.Returns)
-            builder.Append($" {ret}");
+        builder.AppendLine();
 
-        builder.AppendLine(")");
+        // Append locals
+        if (!function.Locals.IsEmpty())
+        {
+            builder.Append($"    (locals");
+
+            foreach (var local in function.Locals)
+                builder.Append($" {local}");
+
+            builder.AppendLine(")");
+        }
 
         // Append body elements
         foreach (var bodyElement in function.BodyElements)

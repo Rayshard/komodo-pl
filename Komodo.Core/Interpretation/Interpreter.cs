@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
 
@@ -31,7 +32,9 @@ public class Interpreter
         State = InterpreterState.Running;
 
         // Call Program Entry
-        PushStackFrame(Program.Entry, new Value[] { }, Program.GetModule(Program.Entry.Module).GetFunction(Program.Entry.Function).Locals, new Operand.Destination[] { });
+        var entryArgs = new ReadOnlyCollection<Value>(new Value[0]);
+        var entryReturnDests = new ReadOnlyCollection<Operand.Destination>(new Operand.Destination[0]);
+        PushStackFrame(Program.Entry, entryArgs, entryReturnDests);
 
         while (State == InterpreterState.Running)
         {
@@ -144,18 +147,9 @@ public class Interpreter
             case Instruction.Call instr:
                 {
                     var function = GetFunctionFromIP(new InstructionPointer(instr.Module, instr.Function, 0));
+                    var receivedArgs = instr.Args.Select((source, i) => GetSourceOperandValue(stackFrame, source, function.Parameters[i].DataType)).ToArray();
 
-                    // Verify args
-                    if (instr.Args.Count() != function.Arguments.Count())
-                        throw new Exception($"Function {instr.Module}.{instr.Function} expects {function.Arguments.Count()} but got {instr.Args.Count()}.");
-
-                    var receivedArgs = instr.Args.Select((source, i) => GetSourceOperandValue(stackFrame, source, function.Arguments.ElementAt(i)));
-
-                    //Verify return destinations
-                    if (instr.Returns.Count() != function.Returns.Count())
-                        throw new Exception($"Function {instr.Module}.{instr.Function} returns {function.Returns.Count()} values, but got {instr.Returns.Count()} return destinations.");
-
-                    PushStackFrame((instr.Module, instr.Function), receivedArgs, function.Locals, instr.Returns);
+                    PushStackFrame((instr.Module, instr.Function), new ReadOnlyCollection<Value>(receivedArgs), instr.Returns);
                 }
                 break;
             case Instruction.Return instr:
@@ -188,8 +182,8 @@ public class Interpreter
         var value = source switch
         {
             Operand.Constant(var v) => v,
-            Operand.Local(var i) => stackFrame.GetLocal(i),
-            Operand.Arg(var i) => stackFrame.GetArg(i),
+            Operand.Local(var i) => stackFrame.Locals[(int)i],
+            Operand.Arg(var i) => stackFrame.Arguments[(int)i],
             Operand.Stack => PopStack(),
             Operand.Array(var elementType, var elements)
                 => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
@@ -211,12 +205,12 @@ public class Interpreter
         {
             case Operand.Local l:
                 {
-                    var local = stackFrame.GetLocal(l.Index);
+                    var local = stackFrame.Locals[l.Index];
 
                     if (value.DataType != local.DataType)
                         throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
 
-                    setter = delegate { stackFrame.SetLocal(l.Index, value); };
+                    setter = delegate { stackFrame.Locals[l.Index] = value; };
                     destDataType = local.DataType;
                 }
                 break;
@@ -244,7 +238,7 @@ public class Interpreter
         {
             case Operand.Local l:
                 {
-                    var localDataType = stackFrame.GetLocal(l.Index).DataType;
+                    var localDataType = stackFrame.Locals[l.Index].DataType;
                     return localDataType == dataType ? destination : throw new Exception($"Destination '{l}' expects {localDataType}, but got {dataType}.");
                 }
             case Operand.Stack: return destination;
@@ -254,7 +248,7 @@ public class Interpreter
 
     private bool DestinationAccepts(StackFrame stackFrame, Operand.Destination destination, DataType? dataType) => destination switch
     {
-        Operand.Local l => stackFrame.GetLocal(l.Index).DataType == dataType,
+        Operand.Local l => stackFrame.Locals[l.Index].DataType == dataType,
         Operand.Stack => true,
         _ => throw new Exception($"Invalid destination: {destination}")
     };
@@ -283,12 +277,21 @@ public class Interpreter
         return stack.Pop();
     }
 
-    private void PushStackFrame((string Module, string Function) Target, IEnumerable<Value> args, IEnumerable<DataType> locals, IEnumerable<Operand.Destination> returnDests)
+    private void PushStackFrame((string Module, string Function) Target, ReadOnlyCollection<Value> args, ReadOnlyCollection<Operand.Destination> returnDests)
     {
         var start = new InstructionPointer(Target.Module, Target.Function, 0);
-        var localDefaultValues = locals.Select(l => Value.CreateDefault(l));
+        var function = GetFunctionFromIP(start);
 
-        callStack.Push(new StackFrame(start, stack.Count, args, localDefaultValues, returnDests));
+        if (args.Count != function.Parameters.Count)
+            throw new Exception($"Target function required {function.Parameters.Count} arguments, but only {args.Count} were given!");
+
+        if (returnDests.Count != function.Returns.Count)
+            throw new Exception($"Function {Target.Module}.{Target.Function} returns {function.Returns.Count} values, but got {returnDests.Count} return destinations.");
+
+        var arguments = args.Select((a, i) => (a, function.Parameters[i].Name)).ToArray();
+        var locals = function.Locals.Select(l => (Value.CreateDefault(l.DataType), l.Name)).ToArray();
+
+        callStack.Push(new StackFrame(start, stack.Count, arguments, locals, returnDests));
     }
 
     private void PopStackFrame(Value[] returnValues)

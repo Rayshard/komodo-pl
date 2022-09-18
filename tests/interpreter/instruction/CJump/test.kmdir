@@ -1,11 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
-            (args)
-            (locals)
-            (returns)
-
+        (function Main (params) (returns)
             (CJump badExit false)
             (Print I64 123)
 
