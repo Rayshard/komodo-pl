@@ -1,17 +1,14 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main (args) (returns)
-            (locals)
-            (basicBlock __entry__
-                (Load true)
-                (Assert $stack true)
+        (function Main
+            (Load true)
+            (Assert $stack true)
                 
-                (Load false)
-                (Assert $stack true)
+            (Load false)
+            (Assert $stack true)
 
-                (Print I64 2)
-            )
+            (Print I64 2)
         )
     )
 )

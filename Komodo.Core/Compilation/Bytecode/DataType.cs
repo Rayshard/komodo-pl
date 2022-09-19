@@ -103,11 +103,16 @@ public record OptionallyNamedDataType(DataType DataType, string? Name = null)
 
     public static OptionallyNamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
     {
-        if (sexpr is SExpression.List list)
+        try { return new OptionallyNamedDataType(DataType.Deserialize(sexpr)); }
+        catch { }
+
+        try
         {
             var named = NamedDataType.Deserialize(sexpr);
             return new OptionallyNamedDataType(named.DataType, named.Name);
         }
-        else { return new OptionallyNamedDataType(DataType.Deserialize(sexpr)); }
+        catch { }
+
+        throw new SExpression.FormatException($"Invalid named data type: {sexpr}", sexpr);
     }
 }

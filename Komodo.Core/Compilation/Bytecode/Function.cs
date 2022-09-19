@@ -106,7 +106,7 @@ public class Function
 
     public static Function Deserialize(SExpression sexpr)
     {
-        var remaining = sexpr.ExpectList().ExpectLength(4, null).AsEnumerable();
+        var remaining = sexpr.ExpectList().ExpectLength(3, null).AsEnumerable();
 
         remaining.First().ExpectUnquotedSymbol().ExpectValue("function");
         remaining = remaining.Skip(1);
