@@ -43,15 +43,15 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public abstract record Variable(SExpression Symbol, SExpression ID) : Operand, Source
+    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new[] { Symbol, ID });
+        public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
-        public static TVariable Deserialize<TVariable, TId>(SExpression sexpr, SExpression symbol, Func<SExpression, TId> idValidator, Func<TId, TVariable> converter) where TVariable : Variable
+        public static TVariable Deserialize<TVariable, TId>(SExpression sexpr, SExpression symbol, Func<SExpression.List, TId> idValidator, Func<TId, TVariable> converter) where TVariable : Variable
         {
-            sexpr.ExpectList().ExpectLength(2)
+            sexpr.ExpectList().ExpectLength(1, null)
                  .ExpectItem(0, symbol)
-                 .ExpectItem(1, idValidator, out var id);
+                 .ExpectItems(items => idValidator(new SExpression.List(items)), out var id, 1);
 
             return converter(id);
         }
@@ -64,13 +64,13 @@ public abstract record Operand : IOperand
         public record Indexed(UInt64 Index) : Local(SExpression.UInt64(Index))
         {
             new public static Indexed Deserialize(SExpression sexpr)
-                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, item => item.ExpectUInt64(), index => new Indexed(index));
+                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, idList => idList.ExpectLength(1)[0].ExpectUInt64(), index => new Indexed(index));
         }
 
         public record Named(string Name) : Local(new SExpression.UnquotedSymbol(Name))
         {
             new public static Named Deserialize(SExpression sexpr)
-                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, item => item.ExpectUnquotedSymbol().Value, name => new Named(name));
+                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, idList => idList.ExpectLength(1)[0].ExpectUnquotedSymbol().Value, name => new Named(name));
         }
 
         public static Local Deserialize(SExpression sexpr)
@@ -92,13 +92,13 @@ public abstract record Operand : IOperand
         public record Indexed(UInt64 Index) : Arg(SExpression.UInt64(Index))
         {
             new public static Indexed Deserialize(SExpression sexpr)
-                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, item => item.ExpectUInt64(), index => new Indexed(index));
+                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, idList => idList.ExpectLength(1)[0].ExpectUInt64(), index => new Indexed(index));
         }
 
         public record Named(string Name) : Arg(new SExpression.UnquotedSymbol(Name))
         {
             new public static Named Deserialize(SExpression sexpr)
-                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, item => item.ExpectUnquotedSymbol().Value, name => new Named(name));
+                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, idList => idList.ExpectLength(1)[0].ExpectUnquotedSymbol().Value, name => new Named(name));
         }
 
         public static Arg Deserialize(SExpression sexpr)
@@ -111,6 +111,25 @@ public abstract record Operand : IOperand
 
             throw new SExpression.FormatException($"Invalid arg operand: {sexpr}", sexpr);
         }
+    }
+
+    public record Global(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Destination
+    {
+        private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("global");
+
+        public static Global Deserialize(SExpression sexpr)
+            => Variable.Deserialize<Global, (string Module, string Name)>(
+                sexpr,
+                SYMBOL,
+                idList => {
+                    idList.ExpectLength(2)
+                          .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var module)
+                          .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
+
+                    return (module, name);
+                },
+                id => new Global(id.Module, id.Name)
+            );
     }
 
     public record Stack : Operand, Source, Destination
@@ -174,6 +193,9 @@ public abstract record Operand : IOperand
         try { return Arg.Deserialize(sexpr); }
         catch { }
 
+        try { return Global.Deserialize(sexpr); }
+        catch { }
+
         try { return Stack.Deserialize(sexpr); }
         catch { }
 
@@ -186,6 +208,9 @@ public abstract record Operand : IOperand
     public static Destination DeserializeDestination(SExpression sexpr)
     {
         try { return Local.Deserialize(sexpr); }
+        catch { }
+
+        try { return Global.Deserialize(sexpr); }
         catch { }
 
         try { return Stack.Deserialize(sexpr); }

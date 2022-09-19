@@ -140,6 +140,17 @@ public abstract record SExpression(TextLocation? Location)
                 return this;
         }
 
+        public List ExpectItem(int index, Action<SExpression> validator)
+        {
+            SExpression item;
+
+            try { item = Items.ElementAt(index); }
+            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count() - 1}]."); }
+
+            validator(item);
+            return this;
+        }
+
         public List ExpectItem<T>(int index, Func<SExpression, T> validator, out T result)
         {
             SExpression item;
@@ -151,17 +162,20 @@ public abstract record SExpression(TextLocation? Location)
             return this;
         }
 
-        public List ExpectItems(Action<SExpression, int> validator)
-        {
-            foreach (var (item, i) in Items.Select((item, i) => (item, i)))
-                validator(item, i);
+        public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
 
+        public List ExpectItems<T>(Func<SExpression[], T> validator, out T result, int start = 0)
+        {
+            result = validator(Items.Skip(start).ToArray());
             return this;
         }
 
-        public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
-        public List ExpectItems(Action<SExpression> validator) => ExpectItems((item, _) => validator(item));
-
+        public List ExpectItems(Action<SExpression[]> validator, int start = 0)
+        {
+            validator(Items.Skip(start).ToArray());
+            return this;
+        }
+        
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
 
         public override bool Matches(SExpression other) => other switch

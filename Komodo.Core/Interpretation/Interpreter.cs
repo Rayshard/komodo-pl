@@ -14,6 +14,8 @@ public class Interpreter
     public Program Program { get; }
     public InterpreterConfig Config { get; }
 
+    private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
+
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
 
@@ -22,6 +24,12 @@ public class Interpreter
         State = InterpreterState.NotStarted;
         Program = program;
         Config = config;
+
+        foreach (var module in program.Modules)
+        {
+            foreach (var global in module.Globals.Values)
+                globals.Add((module.Name, global.Name), global.DefaultValue is null ? Value.CreateDefault(global.DataType) : global.DefaultValue);
+        }
     }
 
     public Int64 Run()
@@ -184,6 +192,7 @@ public class Interpreter
             Operand.Constant(var v) => v,
             Operand.Local.Indexed(var i) => stackFrame.Locals[(int)i],
             Operand.Local.Named(var n) => stackFrame.GetLocal(n),
+            Operand.Global(var module, var name) => globals[(module, name)],
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
@@ -225,6 +234,12 @@ public class Interpreter
 
                     setter = delegate { stackFrame.SetLocal(l.Name, value); };
                     destDataType = local.DataType;
+                }
+                break;
+            case Operand.Global g:
+                {
+                    setter = delegate { globals[(g.Module, g.Name)] = value; };
+                    destDataType = globals[(g.Module, g.Name)].DataType;
                 }
                 break;
             case Operand.Stack:
