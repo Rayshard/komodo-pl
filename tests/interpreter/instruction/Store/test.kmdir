@@ -15,8 +15,8 @@
         (function TestStoreLocal
             (locals I64)
 
-            (Store 55 $local0)
-            (Assert $local0 55)
+            (Store 55 (local 0))
+            (Assert (local 0) 55)
             (Return)
         )
     )

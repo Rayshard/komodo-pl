@@ -43,37 +43,73 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public record Local(UInt64 Index) : Operand, Source, Destination
+    public abstract record Variable(SExpression Symbol, SExpression ID) : Operand, Source
     {
-        public static readonly Regex PATTERN = new Regex("^\\$local(?<index>(0|([1-9][0-9]*)))$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        public override SExpression AsSExpression() => new SExpression.List(new[] { Symbol, ID });
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol($"$local{Index}");
-
-        public static Local Deserialize(SExpression sexpr)
+        public static TVariable Deserialize<TVariable, TId>(SExpression sexpr, SExpression symbol, Func<SExpression, TId> idValidator, Func<TId, TVariable> converter) where TVariable : Variable
         {
-            var value = sexpr.ExpectUnquotedSymbol().ExpectValue(PATTERN).Value.Substring(6);
+            sexpr.ExpectList().ExpectLength(2)
+                 .ExpectItem(0, symbol)
+                 .ExpectItem(1, idValidator, out var id);
 
-            if (UInt64.TryParse(value, out var result))
-                return new Local(result);
-
-            throw new SExpression.FormatException($"'{value}' is not a valid index", sexpr);
+            return converter(id);
         }
     }
 
-    public record Arg(UInt64 Index) : Operand, Source
+    public abstract record Local(SExpression ID) : Variable(SYMBOL, ID), Destination
     {
-        public static readonly Regex PATTERN = new Regex("^\\$arg(?<index>(0|([1-9][0-9]*)))$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("local");
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol($"$arg{Index}");
+        public record Indexed(UInt64 Index) : Local(SExpression.UInt64(Index))
+        {
+            new public static Indexed Deserialize(SExpression sexpr)
+                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, item => item.ExpectUInt64(), index => new Indexed(index));
+        }
+
+        public record Named(string Name) : Local(new SExpression.UnquotedSymbol(Name))
+        {
+            new public static Named Deserialize(SExpression sexpr)
+                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, item => item.ExpectUnquotedSymbol().Value, name => new Named(name));
+        }
+
+        public static Local Deserialize(SExpression sexpr)
+        {
+            try { return Indexed.Deserialize(sexpr); }
+            catch { }
+
+            try { return Named.Deserialize(sexpr); }
+            catch { }
+
+            throw new SExpression.FormatException($"Invalid local operand: {sexpr}", sexpr);
+        }
+    }
+
+    public abstract record Arg(SExpression ID) : Variable(SYMBOL, ID)
+    {
+        private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("arg");
+
+        public record Indexed(UInt64 Index) : Arg(SExpression.UInt64(Index))
+        {
+            new public static Indexed Deserialize(SExpression sexpr)
+                => Variable.Deserialize<Indexed, UInt64>(sexpr, SYMBOL, item => item.ExpectUInt64(), index => new Indexed(index));
+        }
+
+        public record Named(string Name) : Arg(new SExpression.UnquotedSymbol(Name))
+        {
+            new public static Named Deserialize(SExpression sexpr)
+                => Variable.Deserialize<Named, string>(sexpr, SYMBOL, item => item.ExpectUnquotedSymbol().Value, name => new Named(name));
+        }
 
         public static Arg Deserialize(SExpression sexpr)
         {
-            var value = sexpr.ExpectUnquotedSymbol().ExpectValue(PATTERN).Value.Substring(4);
+            try { return Indexed.Deserialize(sexpr); }
+            catch { }
 
-            if (UInt64.TryParse(value, out var result))
-                return new Arg(result);
+            try { return Named.Deserialize(sexpr); }
+            catch { }
 
-            throw new SExpression.FormatException($"'{value}' is not a valid index", sexpr);
+            throw new SExpression.FormatException($"Invalid arg operand: {sexpr}", sexpr);
         }
     }
 
@@ -90,7 +126,7 @@ public abstract record Operand : IOperand
 
     public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new []
+        public override SExpression AsSExpression() => new SExpression.List(new[]
         {
             new Bytecode.DataType.Array(ElementType).AsSExpression(),
             new SExpression.List(Elements.Select(element => element.AsSExpression()))

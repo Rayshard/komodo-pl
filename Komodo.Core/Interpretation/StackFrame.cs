@@ -26,4 +26,8 @@ public class StackFrame
         var (localsArray, localsMap) = locals.ToCollectionWithMap(item => item.Name, item => item.Value);
         (Locals, NamedLocals) = (localsArray.ToArray(), localsMap);
     }
+
+    public Value GetArgument(string name) => Arguments[NamedArguments[name]];
+    public Value GetLocal(string name) => Locals[NamedLocals[name]];
+    public void SetLocal(string name, Value value) => Locals[NamedLocals[name]] = value;
 }

@@ -182,8 +182,10 @@ public class Interpreter
         var value = source switch
         {
             Operand.Constant(var v) => v,
-            Operand.Local(var i) => stackFrame.Locals[(int)i],
-            Operand.Arg(var i) => stackFrame.Arguments[(int)i],
+            Operand.Local.Indexed(var i) => stackFrame.Locals[(int)i],
+            Operand.Local.Named(var n) => stackFrame.GetLocal(n),
+            Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
+            Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
             Operand.Array(var elementType, var elements)
                 => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
@@ -203,7 +205,7 @@ public class Interpreter
 
         switch (destination)
         {
-            case Operand.Local l:
+            case Operand.Local.Indexed l:
                 {
                     var local = stackFrame.Locals[l.Index];
 
@@ -211,6 +213,17 @@ public class Interpreter
                         throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
 
                     setter = delegate { stackFrame.Locals[l.Index] = value; };
+                    destDataType = local.DataType;
+                }
+                break;
+            case Operand.Local.Named l:
+                {
+                    var local = stackFrame.GetLocal(l.Name);
+
+                    if (value.DataType != local.DataType)
+                        throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
+
+                    setter = delegate { stackFrame.SetLocal(l.Name, value); };
                     destDataType = local.DataType;
                 }
                 break;
@@ -231,27 +244,6 @@ public class Interpreter
 
         setter();
     }
-
-    private Operand.Destination ExpectDestination(StackFrame stackFrame, Operand.Destination destination, DataType? dataType)
-    {
-        switch (destination)
-        {
-            case Operand.Local l:
-                {
-                    var localDataType = stackFrame.Locals[l.Index].DataType;
-                    return localDataType == dataType ? destination : throw new Exception($"Destination '{l}' expects {localDataType}, but got {dataType}.");
-                }
-            case Operand.Stack: return destination;
-            default: throw new Exception($"Invalid destination: {destination}");
-        };
-    }
-
-    private bool DestinationAccepts(StackFrame stackFrame, Operand.Destination destination, DataType? dataType) => destination switch
-    {
-        Operand.Local l => stackFrame.Locals[l.Index].DataType == dataType,
-        Operand.Stack => true,
-        _ => throw new Exception($"Invalid destination: {destination}")
-    };
 
     private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
