@@ -1,0 +1,12 @@
+{
+  "args": ["run-ir", "test.kmdir"],
+  "exitcode": 0,
+  "stdin": [],
+  "stdout": [
+    "I64(123)",
+    "I64(456)",
+    "Bool(true)",
+    ""
+  ],
+  "stderr": []
+}

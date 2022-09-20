@@ -2,49 +2,28 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (args)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Load 123)
-                (Call MyModule TestNoReturn)
-                (Assert $stack 123)
+            (Load 123)
+            (Call MyModule TestNoReturn)
+            (Assert $stack 123)
 
-                (Call MyModule TestSingleReturn ~ $stack)
-                (Assert $stack 789)
+            (Call MyModule TestSingleReturn ~ $stack)
+            (Assert $stack 789)
 
-                (Call MyModule TestMultipleReturn ~ $stack $stack $stack)
-                (Assert $stack 10)
-                (Assert $stack 11)
-                (Assert $stack 12)
+            (Call MyModule TestMultipleReturn ~ $stack $stack $stack)
+            (Assert $stack 10)
+            (Assert $stack 11)
+            (Assert $stack 12)
 
-                (Load 0)
-                (Syscall Exit)
-            )
+            (Syscall Exit (0))
         )
         (function TestNoReturn
-            (args)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Return)
-            )
+            (Return)
         )
-        (function TestSingleReturn
-            (args)
-            (locals)
-            (returns I64)
-            (basicBlock __entry__
-                (Return 789)
-            )
+        (function TestSingleReturn (returns I64)
+            (Return 789)
         )
-        (function TestMultipleReturn
-            (args)
-            (locals)
-            (returns I64 I64 I64)
-            (basicBlock __entry__
-                (Return 10 11 12)
-            )
+        (function TestMultipleReturn (returns I64 I64 I64)
+            (Return 10 11 12)
         )
     )
 )

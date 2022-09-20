@@ -1,0 +1,17 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (Call MyModule TestArgs 123 456 true)
+
+            (Syscall Exit (0))
+        )
+        (function TestArgs (params I64 (I64 myArgI64) (Bool myArgBool))
+            (Print I64 (arg 0))
+            (Print I64 (arg myArgI64))
+            (Print Bool (arg myArgBool))
+
+            (Return)
+        )
+    )
+)

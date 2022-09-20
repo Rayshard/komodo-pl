@@ -19,8 +19,13 @@ public abstract record SExpression(TextLocation? Location)
         public UnquotedSymbol ExpectValue(params string[] options)
             => options.Contains(Value) ? this : throw new FormatException($"Expected one of {Utility.Stringify(options, ", ", ("(", ")"))}, but found {Value}", this);
 
-        public UnquotedSymbol ExpectValue(Regex pattern)
-            => pattern.IsMatch(Value) ? this : throw new FormatException($"Expected value to match patttern \"{pattern}\", but found {Value}", this);
+        public UnquotedSymbol ExpectValue(Regex pattern, out Match match)
+        {
+            match = pattern.Match(Value);
+            return match.Success ? this : throw new FormatException($"Expected value to match patttern \"{pattern}\", but found {Value}", this);
+        }
+
+        public UnquotedSymbol ExpectValue(Regex pattern) => ExpectValue(pattern, out _);
 
         public override string ToString() => Value;
 
@@ -146,16 +151,31 @@ public abstract record SExpression(TextLocation? Location)
             return this;
         }
 
-        public List ExpectItems(Action<SExpression, int> validator)
+        public List ExpectItem<T>(int index, Func<SExpression, T> validator, out T result)
         {
-            foreach (var (item, i) in Items.Select((item, i) => (item, i)))
-                validator(item, i);
+            SExpression item;
 
+            try { item = Items.ElementAt(index); }
+            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count() - 1}]."); }
+
+            result = validator(item);
             return this;
         }
 
-        public List ExpectItems(Action<SExpression> validator) => ExpectItems((item, i) => validator(item));
+        public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
 
+        public List ExpectItems<T>(Func<SExpression[], T> validator, out T result, int start = 0)
+        {
+            result = validator(Items.Skip(start).ToArray());
+            return this;
+        }
+
+        public List ExpectItems(Action<SExpression[]> validator, int start = 0)
+        {
+            validator(Items.Skip(start).ToArray());
+            return this;
+        }
+        
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
 
         public override bool Matches(SExpression other) => other switch
@@ -201,6 +221,8 @@ public abstract record SExpression(TextLocation? Location)
         }
     }
 
+    public static UnquotedSymbol UInt64(UInt64 value) => new UnquotedSymbol(value.ToString());
+
     public class ParseException : Exception
     {
         public TextLocation Location { get; }
@@ -235,6 +257,8 @@ public abstract record SExpression(TextLocation? Location)
     public abstract bool Matches(SExpression other);
 
     public T Expect<T>(Func<SExpression, T> deserializer) => deserializer(this);
+
+    public SExpression Expect(SExpression template) => Matches(template) ? this : throw FormatException.Expected(template, this, this);
 
     public UnquotedSymbol ExpectUnquotedSymbol()
         => this as UnquotedSymbol ?? throw FormatException.Expected("unquoted symbol", this.GetType(), this);
@@ -275,7 +299,7 @@ public abstract record SExpression(TextLocation? Location)
     {
         var value = ExpectUnquotedSymbol().Value;
 
-        if (UInt64.TryParse(value, out var result))
+        if (System.UInt64.TryParse(value, out var result))
             return result;
 
         throw new FormatException($"'{value}' is not a 64-bit unsigned integer", this);

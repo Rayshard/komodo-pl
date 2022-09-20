@@ -2,13 +2,7 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (args)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Load 45)
-                (Syscall Exit)
-            )
+            (Syscall Exit (45))
         )
     )
 )

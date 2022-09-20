@@ -2,16 +2,12 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (args)
             (locals I64)
-            (returns)
-            (basicBlock __entry__
-                (Dec I64 11 $local0)
-                (Assert $local0 10)
 
-                (Load 0)
-                (Syscall Exit)
-            )
+            (Dec I64 11 (local 0))
+            (Assert (local 0) 10)
+
+            (Syscall Exit (0))
         )
     )
 )

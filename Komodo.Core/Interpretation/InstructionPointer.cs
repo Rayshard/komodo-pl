@@ -1,12 +1,10 @@
 namespace Komodo.Core.Interpretation;
 
-public record InstructionPointer(string Module, string Function, string BasicBlock, int Index)
+public record InstructionPointer(string Module, string Function, UInt64 Index)
 {
-    public override string ToString() => $"{Module}.{Function}.{BasicBlock}.{Index}";
+    public override string ToString() => $"{Module}.{Function}.{Index}";
 
-    public static InstructionPointer operator +(InstructionPointer ip, int i)
-        => new InstructionPointer(ip.Module, ip.Function, ip.BasicBlock, ip.Index + i);
+    public static InstructionPointer operator +(InstructionPointer ip, UInt64 i)
+        => new InstructionPointer(ip.Module, ip.Function, ip.Index + i);
 
-    public static InstructionPointer operator -(InstructionPointer ip, int i)
-        => new InstructionPointer(ip.Module, ip.Function, ip.BasicBlock, ip.Index - i);
 }

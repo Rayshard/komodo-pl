@@ -2,28 +2,21 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (args)
             (locals)
-            (returns)
-            (basicBlock __entry__
-                (Call MyModule TestStoreLocal)
+            
+            (Call MyModule TestStoreLocal)
 
-                (Store 15 $stack)
-                (Assert $stack 15)
+            (Store 15 $stack)
+            (Assert $stack 15)
 
-                (Load 0)
-                (Syscall Exit)
-            )
+            (Syscall Exit (0))
         )
         (function TestStoreLocal
-            (args)
             (locals I64)
-            (returns)
-            (basicBlock __entry__
-                (Store 55 $local0)
-                (Assert $local0 55)
-                (Return)
-            )
+
+            (Store 55 (local 0))
+            (Assert (local 0) 55)
+            (Return)
         )
     )
 )

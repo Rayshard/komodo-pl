@@ -1,39 +1,78 @@
 using Komodo.Core.Utilities;
+using System.Collections;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
+public interface FunctionBodyElement
+{
+    SExpression AsSExpression();
+}
+
+public record Label(string Name, UInt64 Target) : FunctionBodyElement
+{
+    public SExpression AsSExpression() => new SExpression.List(new[]{
+        new SExpression.UnquotedSymbol("label"),
+        new SExpression.UnquotedSymbol(Name),
+    });
+
+    public static string Deserialize(SExpression sexpr)
+    {
+        var list = sexpr.ExpectList().ExpectLength(2);
+        list[0].ExpectUnquotedSymbol().ExpectValue("label");
+
+        return list[1].ExpectUnquotedSymbol().Value;
+    }
+}
+
 public class Function
 {
-    public const string ENTRY_NAME = "__entry__";
-
     public string Name { get; }
 
-    private Dictionary<string, BasicBlock> basicBlocks = new Dictionary<string, BasicBlock>();
-    public IEnumerable<BasicBlock> BasicBlocks => basicBlocks.Values;
+    public ReadOnlyCollection<OptionallyNamedDataType> Parameters { get; }
+    public ReadOnlyDictionary<string, NamedDataType> NamedParameters { get; }
 
-    private DataType[] arguments;
-    public IEnumerable<DataType> Arguments => arguments;
+    public ReadOnlyCollection<DataType> Returns { get; }
 
-    private DataType[] locals;
-    public IEnumerable<DataType> Locals => locals;
+    public ReadOnlyCollection<OptionallyNamedDataType> Locals { get; }
+    public ReadOnlyDictionary<string, NamedDataType> NamedLocals { get; }
 
-    private DataType[] returns;
-    public IEnumerable<DataType> Returns => returns;
+    private List<FunctionBodyElement> bodyElements = new List<FunctionBodyElement>();
+    public ReadOnlyCollection<FunctionBodyElement> BodyElements => new ReadOnlyCollection<FunctionBodyElement>(bodyElements);
 
-    public Function(string name, IEnumerable<DataType> arguments, IEnumerable<DataType> locals, IEnumerable<DataType> returns)
+    public ReadOnlyDictionary<string, Label> Labels { get; private set; } = new ReadOnlyDictionary<string, Label>(new Dictionary<string, Label>());
+    public ReadOnlyCollection<Instruction> Instructions { get; private set; } = new ReadOnlyCollection<Instruction>(new Instruction[0]);
+
+    public Function(string name, IEnumerable<OptionallyNamedDataType> parameters, IEnumerable<DataType> returns, IEnumerable<OptionallyNamedDataType> locals)
     {
         Name = name;
-
-        this.arguments = arguments.ToArray();
-        this.locals = locals.ToArray();
-        this.returns = returns.ToArray();
+        Parameters = new ReadOnlyCollection<OptionallyNamedDataType>(parameters.ToArray());
+        Returns = new ReadOnlyCollection<DataType>(returns.ToArray());
+        Locals = new ReadOnlyCollection<OptionallyNamedDataType>(locals.ToArray());
+        NamedParameters = new ReadOnlyDictionary<string, NamedDataType>(
+            Parameters.Where(p => p.Name is not null).Select(p => p.ToNamed()).AssertAllDistinct(p => p.Name).ToDictionary(p => p.Name)
+        );
+        NamedLocals = new ReadOnlyDictionary<string, NamedDataType>(
+            Locals.Where(l => l.Name is not null).Select(l => l.ToNamed()).AssertAllDistinct(l => l.Name).ToDictionary(l => l.Name)
+        );
     }
 
-    public void AddBasicBlock(BasicBlock basicBlock) => basicBlocks.Add(basicBlock.Name, basicBlock);
-    public BasicBlock GetBasicBlock(string name) => basicBlocks[name];
+    public void AppendLabel(string name)
+    {
+        if (Labels.ContainsKey(name))
+            throw new Exception($"Label with name '{name}' already exists for function '{Name}'!");
 
-    public DataType GetArgument(int idx) => arguments[idx];
-    public DataType GetLocal(int idx) => locals[idx];
+        bodyElements.Add(new Label(name, (UInt64)Instructions.Count));
+        Labels = new ReadOnlyDictionary<string, Label>(bodyElements.Where(be => be is Label).Cast<Label>().ToDictionary(label => label.Name));
+    }
+
+    public void AppendInstruction(Instruction instruction)
+    {
+        bodyElements.Add(instruction);
+        Instructions = new ReadOnlyCollection<Instruction>(bodyElements.Where(be => be is Instruction).Cast<Instruction>().ToArray());
+    }
 
     public SExpression AsSExpression()
     {
@@ -41,50 +80,91 @@ public class Function
         nodes.Add(new SExpression.UnquotedSymbol("function"));
         nodes.Add(new SExpression.UnquotedSymbol(Name));
 
-        var argsNodes = new List<SExpression>();
-        argsNodes.Add(new SExpression.UnquotedSymbol("args"));
-        argsNodes.AddRange(Arguments.Select(arg => new SExpression.UnquotedSymbol(arg.ToString())));
-        nodes.Add(new SExpression.List(argsNodes));
-
-        var localsNodes = new List<SExpression>();
-        localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
-        localsNodes.AddRange(Locals.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
-        nodes.Add(new SExpression.List(localsNodes));
+        var paramsNodes = new List<SExpression>();
+        paramsNodes.Add(new SExpression.UnquotedSymbol("params"));
+        paramsNodes.AddRange(Parameters.Select(param => new SExpression.UnquotedSymbol(param.ToString())));
+        nodes.Add(new SExpression.List(paramsNodes));
 
         var returnsNodes = new List<SExpression>();
         returnsNodes.Add(new SExpression.UnquotedSymbol("returns"));
         returnsNodes.AddRange(Returns.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
         nodes.Add(new SExpression.List(returnsNodes));
 
-        nodes.AddRange(BasicBlocks.Select(bb => bb.AsSExpression()));
+        if (Locals.Count != 0)
+        {
+            var localsNodes = new List<SExpression>();
+
+            localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
+            localsNodes.AddRange(Locals.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+            nodes.Add(new SExpression.List(localsNodes));
+        }
+
+        nodes.AddRange(bodyElements.Select(be => be.AsSExpression()));
 
         return new SExpression.List(nodes);
     }
 
     public static Function Deserialize(SExpression sexpr)
     {
-        var list = sexpr.ExpectList().ExpectLength(6, null);
-        list[0].ExpectUnquotedSymbol().ExpectValue("function");
+        var remaining = sexpr.ExpectList().ExpectLength(3, null).AsEnumerable();
 
-        var name = list[1].ExpectUnquotedSymbol().Value;
-        var argsNode = list[2].ExpectList().ExpectLength(1, null);
-        var localsNode = list[3].ExpectList().ExpectLength(1, null);
-        var returnsNode = list[4].ExpectList().ExpectLength(1, null);
+        remaining.First().ExpectUnquotedSymbol().ExpectValue("function");
+        remaining = remaining.Skip(1);
 
-        argsNode[0].ExpectUnquotedSymbol().ExpectValue("args");
-        localsNode[0].ExpectUnquotedSymbol().ExpectValue("locals");
-        returnsNode[0].ExpectUnquotedSymbol().ExpectValue("returns");
+        var name = remaining.First().ExpectUnquotedSymbol().Value;
+        remaining = remaining.Skip(1);
 
-        var args = argsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
-        var locals = localsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
-        var returns = returnsNode.Skip(1).Select(node => node.Expect(DataType.Deserialize));
+        // Deserialize parameters
+        var parameters = new OptionallyNamedDataType[0];
 
-        var function = new Function(name, args, locals, returns);
+        if (remaining.Count() > 0
+            && remaining.First() is SExpression.List parametersNode
+            && parametersNode.Count() >= 1
+            && parametersNode[0] is SExpression.UnquotedSymbol parametersNodeStartSymbol
+            && parametersNodeStartSymbol.Value == "params")
+        {
+            parameters = parametersNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)).ToArray();
+            remaining = remaining.Skip(1);
+        }
 
-        foreach (var item in list.Skip(5))
-            function.AddBasicBlock(BasicBlock.Deserialize(item));
+        // Deserialize returns
+        var returns = new DataType[0];
+
+        if (remaining.Count() > 0
+            && remaining.First() is SExpression.List returnsNode
+            && returnsNode.Count() >= 1
+            && returnsNode[0] is SExpression.UnquotedSymbol returnsNodeStartSymbol
+            && returnsNodeStartSymbol.Value == "returns")
+        {
+            returns = returnsNode.Skip(1).Select(DataType.Deserialize).ToArray();
+            remaining = remaining.Skip(1);
+        }
+
+        // Deserialize locals
+        var locals = new OptionallyNamedDataType[0];
+
+        if (remaining.Count() > 0
+            && remaining.First() is SExpression.List localsNode
+            && localsNode.Count() >= 1
+            && localsNode[0] is SExpression.UnquotedSymbol localsNodeStartSymbol
+            && localsNodeStartSymbol.Value == "locals")
+        {
+            locals = localsNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)).ToArray();
+            remaining = remaining.Skip(1);
+        }
+
+        var function = new Function(name, parameters, returns, locals);
+
+        foreach (var item in remaining)
+        {
+            // This is an interesting try/catch block because we only want to ignore
+            // the deserialization if it fails with a FormatException, but not
+            // ignore if deserialization 'went well', but we were unable to append it 
+            // to the function. Otherwise we deserialize the item as an instruction.
+            try { function.AppendLabel(Label.Deserialize(item)); }
+            catch (SExpression.FormatException) { function.AppendInstruction(Instruction.Deserialize(item)); }
+        }
 
         return function;
     }
-
 }

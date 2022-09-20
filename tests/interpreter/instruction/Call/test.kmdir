@@ -2,53 +2,32 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (args)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Call MyModule TestNoArgument)
-                (Call MyModule TestSingleArgument 2)
-                (Call MyModule TestMultipleArguments 3 4 5)
+            (Call MyModule TestNoArgument)
+            (Call MyModule TestSingleArgument 2)
+            (Call MyModule TestMultipleArguments 3 4 5)
 
-                (Load 0)
-                (Syscall Exit)
-            )
+            (Syscall Exit (0))
         )
         (function TestNoArgument
-            (args)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Print Bool true)
-                (Return)
-            )
+            (Print Bool true)
+            (Return)
         )
-        (function TestSingleArgument
-            (args I64)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Load $arg0)
-                (Assert $stack 2)
-                (Return)
-            )
+        (function TestSingleArgument (params I64)
+            (Load (arg 0))
+            (Assert $stack 2)
+            (Return)
         )
-        (function TestMultipleArguments
-            (args I64 I64 I64)
-            (locals)
-            (returns)
-            (basicBlock __entry__
-                (Load $arg0)
-                (Assert $stack 3)
+        (function TestMultipleArguments (params I64 I64 I64)
+            (Load (arg 0))
+            (Assert $stack 3)
 
-                (Load $arg1)
-                (Assert $stack 4)
+            (Load (arg 1))
+            (Assert $stack 4)
 
-                (Load $arg2)
-                (Assert $stack 5)
+            (Load (arg 2))
+            (Assert $stack 5)
 
-                (Return)
-            )
+            (Return)
         )
     )
 )

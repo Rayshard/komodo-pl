@@ -3,11 +3,11 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode.Transpilers;
 
-public class CPPTranspiler : Converter<string, string, string, string>
+public class CPPTranspiler : Converter<string>
 {
-    private string Convert(DataType dt) => $"Komodo.Core{dt}";
+    private string Convert(DataType dt) => $"Komodo{dt}";
 
-    public string Convert(Program program)
+    public override string Convert(Program program)
     {
         var forwardDeclarations = Utility.Stringify(program.Modules.Select(GetForwardDeclaration), Environment.NewLine + Environment.NewLine);
         var modules = Utility.Stringify(program.Modules.Select(Convert), Environment.NewLine + Environment.NewLine);
@@ -60,43 +60,37 @@ namespace {module.Name}
 
     private string GetForwardDeclaration(Function function)
     {
-        var args = function.Arguments.Select((a, i) => $"{Convert(a)} arg{i}");
-        var cppFunctionArgs = args.AppendIf(function.Returns.Count() > 0, "Value* returns").Prepend("Interpreter& interpreter");
+        var parameters = function.Parameters.Select((p, i) => $"{Convert(p.DataType)} param{i}");
+        var cppFunctionParams = parameters.AppendIf(!function.Returns.IsEmpty(), "Value* returns").Prepend("Interpreter& interpreter");
 
-        return $"void {function.Name}({Utility.Stringify(cppFunctionArgs, ", ")});";
+        return $"void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")});";
     }
 
     public string Convert(Function function)
     {
-        var args = function.Arguments.Select((a, i) => $"{Convert(a)} arg{i}");
-        var locals = function.Locals.Select((local, i) => $"auto local{i} = {Convert(local)}();");
-        var basicBlocks = Utility.Stringify(function.BasicBlocks.Select(Convert), Environment.NewLine + Environment.NewLine);
+        var parameters = function.Parameters.Select((p, i) => $"{Convert(p.DataType)} param{i}");
+        var locals = function.Locals.Select((l, i) => $"auto local{i} = {Convert(l.DataType)}();");
+        var bodyElements = Utility.Stringify(function.BodyElements.Select(Convert), Environment.NewLine);
 
-        var cppFunctionArgs = args.AppendIf(function.Returns.Count() > 0, "Value* returns").Prepend("Interpreter& interpreter");
+        var cppFunctionParams = parameters.AppendIf(!function.Returns.IsEmpty(), "Value* returns").Prepend("Interpreter& interpreter");
 
         return
 $@"
-void {function.Name}({Utility.Stringify(cppFunctionArgs, ", ")})
+void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 {{
 {Utility.Stringify(locals, Environment.NewLine).WithIndent(delimiter: Environment.NewLine)}
 
-{basicBlocks}
+{bodyElements}
 }}
 ".Trim();
     }
 
-    public string Convert(BasicBlock basicBlock)
+    public string Convert(FunctionBodyElement fbe) => fbe switch
     {
-        var instructions = Utility.Stringify(basicBlock.Instructions.Select(Convert), Environment.NewLine + Environment.NewLine);
-
-        return
-$@"
-{basicBlock.Name}:
-    {{
-{instructions.WithIndent("        ", delimiter: Environment.NewLine)}
-    }}
-".Trim();
-    }
+        Label l => $"{l.Name}:",
+        Instruction i => Convert(i),
+        _ => throw new NotImplementedException(fbe.ToString())
+    };
 
     public string Convert(Instruction instruction)
     {
@@ -116,7 +110,7 @@ $@"
         };
 
         return
-$@"
+    $@"
 //{instruction.AsSExpression()}
 {{
     //std::cout << ""{instruction.AsSExpression()}"" << std::endl;
@@ -168,7 +162,7 @@ $@"
         var returnSets = Utility.Stringify(returns.Reverse().Select((r, i) => Convert(r, $"callReturns[{i}]")), Environment.NewLine);
 
         return
-$@"
+    $@"
 {returnsInitialization}
 {callArgsInitialization}
 
@@ -206,11 +200,11 @@ $@"
     public string Convert(Instruction.CJump instruction)
     {
         var condition = Convert(instruction.Condtion);
-        
+
         return
-$@"
+    $@"
 if ({condition})
-    goto {instruction.BasicBlock};
+    goto {instruction.Label};
 ".Trim();
     }
 

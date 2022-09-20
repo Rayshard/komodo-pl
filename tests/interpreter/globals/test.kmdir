@@ -1,0 +1,19 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (globals
+            (I64 myDefaultGlobal)
+            (Bool mySetGlobal true)
+        )
+
+        (function Main
+            (Print I64 (global MyModule myDefaultGlobal))
+            (Print Bool (global MyModule mySetGlobal))
+
+            (Store 1 (global MyModule myDefaultGlobal))
+            (Print I64 (global MyModule myDefaultGlobal))
+
+            (Syscall Exit (0))
+        )
+    )
+)

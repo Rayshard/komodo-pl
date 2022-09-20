@@ -9,6 +9,7 @@ public class Program
 
     private Dictionary<string, Module> modules = new Dictionary<string, Module>();
     public IEnumerable<Module> Modules => modules.Values;
+
     public IEnumerable<(string Module, Function Function)> Functions => Modules.Select(m => m.Functions.Select(f => (m.Name, f))).SelectMany(f => f);
 
     public Program(string name, (string Module, string Function) entry)

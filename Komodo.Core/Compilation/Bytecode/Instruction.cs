@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -21,7 +22,7 @@ public enum Opcode
     GetElement,
 }
 
-public abstract record Instruction(Opcode Opcode)
+public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 {
     public abstract IEnumerable<IOperand> Operands { get; }
 
@@ -31,19 +32,6 @@ public abstract record Instruction(Opcode Opcode)
         nodes.Add(new SExpression.UnquotedSymbol(Opcode.ToString()));
         nodes.AddRange(Operands.Select(op => op.AsSExpression()));
         return new SExpression.List(nodes);
-    }
-
-    public record Syscall(string Name) : Instruction(Opcode.Syscall)
-    {
-        public override IEnumerable<IOperand> Operands => new[] { new Operand.Identifier(Name) };
-
-        new public static Syscall Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum<Opcode>(Opcode.Syscall);
-
-            return new Syscall(list[1].ExpectUnquotedSymbol().Value);
-        }
     }
 
     public record Load(Operand.Source Source) : Instruction(Opcode.Load)
@@ -137,9 +125,14 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record Call(string Module, string Function, IEnumerable<Operand.Source> Args, IEnumerable<Operand.Destination> Returns) : Instruction(Opcode.Call)
+    public record Call : Instruction
     {
         private static readonly SExpression ArgsReturnsDivider = new SExpression.UnquotedSymbol("~");
+
+        public string Module { get; }
+        public string Function { get; }
+        public ReadOnlyCollection<Operand.Source> Args { get; }
+        public ReadOnlyCollection<Operand.Destination> Returns { get; }
 
         public override IEnumerable<IOperand> Operands
         {
@@ -154,20 +147,29 @@ public abstract record Instruction(Opcode Opcode)
             }
         }
 
+        public Call(string module, string function, IEnumerable<Operand.Source> args, IEnumerable<Operand.Destination> returns)
+            : base(Opcode.Call)
+        {
+            Module = module;
+            Function = function;
+            Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
+            Returns = new ReadOnlyCollection<Operand.Destination>(returns.ToArray());
+        }
+
         public override SExpression AsSExpression()
         {
             var items = base.AsSExpression().ExpectList().ToList();
             items.Insert(3 + Args.Count(), ArgsReturnsDivider);
             return new SExpression.List(items);
-        } 
+        }
 
         new public static Call Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3, null);
             list[0].ExpectEnum<Opcode>(Opcode.Call);
 
-            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToList();
-            var returns = list.Skip(3).Skip(args.Count).Skip(1).Select(Operand.DeserializeDestination).ToList();
+            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToArray();
+            var returns = list.Skip(3).Skip(args.Length).Skip(1).Select(Operand.DeserializeDestination).ToArray();
 
             return new Call(
                 list[1].ExpectUnquotedSymbol().Value,
@@ -175,6 +177,46 @@ public abstract record Instruction(Opcode Opcode)
                 args,
                 returns
             );
+        }
+    }
+
+    public record Syscall : Instruction
+    {
+        public string Name { get; }
+        public ReadOnlyCollection<Operand.Source> Args { get; }
+        public ReadOnlyCollection<Operand.Destination> Returns { get; }
+
+        public override IEnumerable<IOperand> Operands
+        {
+            get
+            {
+                var operands = new List<IOperand>();
+                operands.Add(new Operand.Identifier(Name));
+                operands.AddRange(Args);
+                operands.AddRange(Returns);
+                return operands;
+            }
+        }
+
+        public Syscall(string name, IEnumerable<Operand.Source> args, IEnumerable<Operand.Destination> returns)
+            : base(Opcode.Syscall)
+        {
+            Name = name;
+            Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
+            Returns = new ReadOnlyCollection<Operand.Destination>(returns.ToArray());
+        }
+
+        new public static Syscall Deserialize(SExpression sexpr)
+        {
+            var list = sexpr.ExpectList()
+                            .ExpectLength(2, 4)
+                            .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Syscall))
+                            .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
+                            .ToArray();
+            var args = list.Length > 2 ? list[2].ExpectList().Select(Operand.DeserializeSource).ToArray() : new Operand.Source[0];
+            var returns = list.Length > 3 ? list[3].ExpectList().Select(Operand.DeserializeDestination).ToArray() : new Operand.Destination[0];
+
+            return new Syscall(name, args, returns);
         }
     }
 
@@ -199,9 +241,9 @@ public abstract record Instruction(Opcode Opcode)
         }
     }
 
-    public record CJump(string BasicBlock, Operand.Source Condtion) : Instruction(Opcode.CJump)
+    public record CJump(string Label, Operand.Source Condtion) : Instruction(Opcode.CJump)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(BasicBlock), Condtion };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Label), Condtion };
 
         new public static CJump Deserialize(SExpression sexpr)
         {

@@ -1,0 +1,25 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                I64
+                (I64 myLocalI64)
+                (Bool myLocalBool)
+            )
+
+            (Print I64 (local 0))
+            (Print I64 (local myLocalI64))
+            (Print Bool (local myLocalBool))
+
+            (Store 1 (local 0))
+            (Print I64 (local 0))
+            (Store 2 (local 1))
+            (Print I64 (local myLocalI64))
+            (Store false (local 2))
+            (Print Bool (local myLocalBool))
+
+            (Syscall Exit (0))
+        )
+    )
+)

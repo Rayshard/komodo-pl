@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -80,5 +81,38 @@ public abstract record DataType
         catch { }
 
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
+    }
+}
+
+public record NamedDataType(DataType DataType, string Name)
+{
+    public KeyValuePair<string, DataType> AsKeyValuePair() => KeyValuePair.Create<string, DataType>(Name, DataType);
+
+    public static NamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
+    {
+        var list = sexpr.ExpectList().ExpectLength(2);
+        var nameNode = list[1].ExpectUnquotedSymbol();
+
+        return new NamedDataType(DataType.Deserialize(list[0]), nameRegex is null ? nameNode.Value : nameNode.ExpectValue(nameRegex).Value);
+    }
+}
+
+public record OptionallyNamedDataType(DataType DataType, string? Name = null)
+{
+    public NamedDataType ToNamed() => Name is not null ? new NamedDataType(DataType, Name) : throw new InvalidOperationException("Name is null!");
+
+    public static OptionallyNamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
+    {
+        try { return new OptionallyNamedDataType(DataType.Deserialize(sexpr)); }
+        catch { }
+
+        try
+        {
+            var named = NamedDataType.Deserialize(sexpr);
+            return new OptionallyNamedDataType(named.DataType, named.Name);
+        }
+        catch { }
+
+        throw new SExpression.FormatException($"Invalid named data type: {sexpr}", sexpr);
     }
 }
