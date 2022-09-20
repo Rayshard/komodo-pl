@@ -14,8 +14,7 @@
             (Assert $stack 11)
             (Assert $stack 12)
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
         (function TestNoReturn
             (Return)

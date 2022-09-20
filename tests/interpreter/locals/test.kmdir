@@ -19,8 +19,7 @@
             (Store false (local 2))
             (Print Bool (local myLocalBool))
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
     )
 )

@@ -9,8 +9,7 @@
             (Call MyModule Factorial 20 ~ (local result))
             (Print I64 (local result))
             
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
         (function Factorial (params (I64 number)) (returns I64)
             (locals

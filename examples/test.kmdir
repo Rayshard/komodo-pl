@@ -1,14 +1,13 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main (params (Type arg1) (Type arg2)) (returns Type Type)
-            (locals (Type local0) (Type local1))
+        (function Main (params) (returns)
+            (locals)
           
           (label start)
             (Print I64 123)
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
     )
 )

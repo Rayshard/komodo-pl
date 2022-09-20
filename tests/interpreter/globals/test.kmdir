@@ -13,8 +13,7 @@
             (Store 1 (global MyModule myDefaultGlobal))
             (Print I64 (global MyModule myDefaultGlobal))
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
     )
 )

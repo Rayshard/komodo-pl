@@ -7,18 +7,15 @@
 
             (CJump goodExit true)
 
-            (Load 2)
-            (Syscall Exit)
+            (Syscall Exit (2))
 
           (label badExit)
-            (Load 1)
-            (Syscall Exit)
+            (Syscall Exit (1))
 
           (label goodExit)
             (Print I64 456)
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
     )
 )

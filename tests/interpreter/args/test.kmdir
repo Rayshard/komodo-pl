@@ -4,8 +4,7 @@
         (function Main
             (Call MyModule TestArgs 123 456 true)
 
-            (Load 0)
-            (Syscall Exit)
+            (Syscall Exit (0))
         )
         (function TestArgs (params I64 (I64 myArgI64) (Bool myArgBool))
             (Print I64 (arg 0))

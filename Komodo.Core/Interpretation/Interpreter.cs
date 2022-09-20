@@ -96,7 +96,10 @@ public class Interpreter
                     {
                         case "Exit":
                             {
-                                exitcode = PopStack<Value.I64>().Value;
+                                if (instr.Args.Count != 1) { throw new Exception("Syscall Exit expects one argument."); }
+                                else if (instr.Returns.Count != 0) { throw new Exception("Syscall Exit expects zero return destinations."); }
+
+                                exitcode = GetSourceOperandValue(stackFrame, instr.Args[0], new DataType.I64()).As<Value.I64>().Value;
                                 State = InterpreterState.ShuttingDown;
                             }
                             break;
