@@ -129,15 +129,17 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Dec instr:
+            case Instruction.Unop instr:
                 {
-                    Value result = GetSourceOperandValue(stackFrame, instr.Source, instr.DataType) switch
+                    var source = GetSourceOperandValue(stackFrame, instr.Source);
+
+                    Value result = (instr.Opcode, source) switch
                     {
-                        Value.I64(var value) => new Value.I64(value - 1),
-                        var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
+                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
+                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
-                    SetDestinationOperandValue(stackFrame, instr.Destination, result, instr.DataType);
+                    SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
             case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;

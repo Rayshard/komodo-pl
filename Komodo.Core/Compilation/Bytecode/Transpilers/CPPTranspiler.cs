@@ -102,7 +102,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
             Instruction.Call c => Convert(c),
             Instruction.Store s => Convert(s),
             Instruction.Assert a => Convert(a),
-            Instruction.Dec d => Convert(d),
+            Instruction.Unop u => Convert(u),
             Instruction.Binop b => Convert(b),
             Instruction.CJump cj => Convert(cj),
             Instruction.Return r => Convert(r),
@@ -190,9 +190,14 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         return Convert(instruction.Destination, rValue);
     }
 
-    public string Convert(Instruction.Dec instruction)
+    public string Convert(Instruction.Unop instruction)
     {
-        var rValue = $"{Convert(instruction.Source)} - 1";
+        var source = Convert(instruction.Source);
+        var rValue = instruction.Opcode switch
+        {
+            Opcode.Dec => $"{source} - 1",
+            _ => throw new NotImplementedException(instruction.ToString())
+        };
 
         return Convert(instruction.Destination, rValue);
     }
