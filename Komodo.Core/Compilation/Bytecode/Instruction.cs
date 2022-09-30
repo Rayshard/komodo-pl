@@ -12,6 +12,7 @@ public enum Opcode
     Return,
     CJump,
     Assert,
+    Exit,
 
     Add,
     Eq,
@@ -79,6 +80,21 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
+    public record Exit(Operand.Source Code) : Instruction(Opcode.Exit)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { Code };
+
+        new public static Exit Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Exit))
+                 .ExpectItem(1, Operand.DeserializeSource, out var code);
+
+            return new Exit(code);
+        }
+    }
+
     public record Binop(Opcode Opcode, DataType DataType, Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination) : Instruction(Verify(Opcode))
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] {
@@ -90,7 +106,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
-            Opcode.Add or Opcode.Mul or Opcode.Dec or Opcode.Eq or
+            Opcode.Add or Opcode.Mul or Opcode.Eq or
             Opcode.GetElement => opcode,
             _ => throw new ArgumentException($"'{opcode}' is not a binop!")
         };
@@ -106,6 +122,32 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                 Operand.DeserializeSource(list[3]),
                 Operand.DeserializeDestination(list[4])
             );
+        }
+    }
+
+    public record Unop(Opcode Opcode, DataType DataType, Operand.Source Source, Operand.Destination Destination) : Instruction(Verify(Opcode))
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] {
+            new Operand.DataType(DataType),
+            Source,
+            Destination
+        };
+
+        public static Opcode Verify(Opcode opcode) => opcode switch
+        {
+            Opcode.Dec => opcode,
+            _ => throw new ArgumentException($"'{opcode}' is not a unop!")
+        };
+
+        new public static Unop Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList().ExpectLength(4)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(), out var opcode)
+                 .ExpectItem(1, DataType.Deserialize, out var dataType)
+                 .ExpectItem(2, Operand.DeserializeSource, out var source)
+                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+            return new Unop(opcode, dataType, source, destination);
         }
     }
 
@@ -220,27 +262,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Dec(DataType DataType, Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Dec)
-    {
-        public override IEnumerable<IOperand> Operands => new IOperand[] {
-            new Operand.DataType(DataType),
-            Source,
-            Destination
-        };
-
-        new public static Dec Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(4);
-            list[0].ExpectEnum<Opcode>(Opcode.Dec);
-
-            return new Dec(
-                list[1].Expect(DataType.Deserialize),
-                Operand.DeserializeSource(list[2]),
-                Operand.DeserializeDestination(list[3])
-            );
-        }
-    }
-
     public record CJump(string Label, Operand.Source Condtion) : Instruction(Opcode.CJump)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Label), Condtion };
@@ -278,11 +299,12 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Print => Print.Deserialize(sexpr),
         Opcode.Call => Call.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
-        Opcode.Dec => Dec.Deserialize(sexpr),
+        Opcode.Dec => Unop.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),
         Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
+        Opcode.Exit => Exit.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())

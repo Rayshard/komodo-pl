@@ -15,7 +15,7 @@
           (label goodExit)
             (Print I64 456)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

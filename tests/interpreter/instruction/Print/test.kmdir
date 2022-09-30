@@ -4,7 +4,7 @@
         (function Main
             (Print I64 11)
                 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

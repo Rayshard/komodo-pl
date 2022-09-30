@@ -6,7 +6,7 @@
             (Call MyModule TestSingleArgument 2)
             (Call MyModule TestMultipleArguments 3 4 5)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
         (function TestNoArgument
             (Print Bool true)

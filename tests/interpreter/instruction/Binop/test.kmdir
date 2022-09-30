@@ -14,7 +14,7 @@
             (Eq I64 11 11 $stack)
             (Assert $stack true)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

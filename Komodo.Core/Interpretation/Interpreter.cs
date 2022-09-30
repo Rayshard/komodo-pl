@@ -94,17 +94,14 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
-                        case "Exit":
-                            {
-                                if (instr.Args.Count != 1) { throw new Exception("Syscall Exit expects one argument."); }
-                                else if (instr.Returns.Count != 0) { throw new Exception("Syscall Exit expects zero return destinations."); }
-
-                                exitcode = GetSourceOperandValue(stackFrame, instr.Args[0], new DataType.I64()).As<Value.I64>().Value;
-                                State = InterpreterState.ShuttingDown;
-                            }
-                            break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
                     }
+                }
+                break;
+            case Instruction.Exit instr:
+                {
+                    exitcode = GetSourceOperandValue(stackFrame, instr.Code, new DataType.I64()).As<Value.I64>().Value;
+                    State = InterpreterState.ShuttingDown;
                 }
                 break;
             case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;
@@ -129,15 +126,17 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Dec instr:
+            case Instruction.Unop instr:
                 {
-                    Value result = GetSourceOperandValue(stackFrame, instr.Source, instr.DataType) switch
+                    var source = GetSourceOperandValue(stackFrame, instr.Source);
+
+                    Value result = (instr.Opcode, source) switch
                     {
-                        Value.I64(var value) => new Value.I64(value - 1),
-                        var operand => throw new Exception($"Cannot apply operation to {operand.DataType}.")
+                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
+                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
-                    SetDestinationOperandValue(stackFrame, instr.Destination, result, instr.DataType);
+                    SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
             case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;
