@@ -222,43 +222,18 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Syscall : Instruction
+    public record Syscall(string Name) : Instruction(Opcode.Syscall)
     {
-        public string Name { get; }
-        public ReadOnlyCollection<Operand.Source> Args { get; }
-        public ReadOnlyCollection<Operand.Destination> Returns { get; }
-
-        public override IEnumerable<IOperand> Operands
-        {
-            get
-            {
-                var operands = new List<IOperand>();
-                operands.Add(new Operand.Identifier(Name));
-                operands.AddRange(Args);
-                operands.AddRange(Returns);
-                return operands;
-            }
-        }
-
-        public Syscall(string name, IEnumerable<Operand.Source> args, IEnumerable<Operand.Destination> returns)
-            : base(Opcode.Syscall)
-        {
-            Name = name;
-            Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
-            Returns = new ReadOnlyCollection<Operand.Destination>(returns.ToArray());
-        }
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Name) };
 
         new public static Syscall Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList()
-                            .ExpectLength(2, 4)
-                            .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Syscall))
-                            .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
-                            .ToArray();
-            var args = list.Length > 2 ? list[2].ExpectList().Select(Operand.DeserializeSource).ToArray() : new Operand.Source[0];
-            var returns = list.Length > 3 ? list[3].ExpectList().Select(Operand.DeserializeDestination).ToArray() : new Operand.Destination[0];
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Syscall))
+                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
 
-            return new Syscall(name, args, returns);
+            return new Syscall(name);
         }
     }
 

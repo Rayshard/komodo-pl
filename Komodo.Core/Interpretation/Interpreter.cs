@@ -94,6 +94,11 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
+                        case "GetTime":
+                            {
+                                stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks));
+                            }
+                            break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
                     }
                 }
