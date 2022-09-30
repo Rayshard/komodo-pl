@@ -9,7 +9,7 @@
             (Store 15 $stack)
             (Assert $stack 15)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
         (function TestStoreLocal
             (locals I64)

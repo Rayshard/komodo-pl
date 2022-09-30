@@ -14,7 +14,7 @@
             (Assert $stack 15)
             (Assert $stack 14)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
         (function TestLoadArg (params I64)
             (Load (arg 0))

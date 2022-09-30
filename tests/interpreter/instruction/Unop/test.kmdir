@@ -7,7 +7,7 @@
             (Dec I64 11 (local 0))
             (Assert (local 0) 10)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

@@ -12,6 +12,7 @@ public enum Opcode
     Return,
     CJump,
     Assert,
+    Exit,
 
     Add,
     Eq,
@@ -76,6 +77,21 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                 Operand.DeserializeSource(list[1]),
                 Operand.DeserializeSource(list[2])
             );
+        }
+    }
+
+    public record Exit(Operand.Source Code) : Instruction(Opcode.Exit)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { Code };
+
+        new public static Exit Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Exit))
+                 .ExpectItem(1, Operand.DeserializeSource, out var code);
+
+            return new Exit(code);
         }
     }
 
@@ -288,6 +304,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.CJump => CJump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
+        Opcode.Exit => Exit.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())

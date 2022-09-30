@@ -7,7 +7,7 @@
           (label start)
             (Print I64 123)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

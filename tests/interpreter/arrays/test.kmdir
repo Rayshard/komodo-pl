@@ -25,7 +25,7 @@
             (GetElement I64 (UI64 0) (local 0) $stack)
             (Print I64 $stack)
 
-            (Syscall Exit (0))
+            (Exit 0)
         )
     )
 )

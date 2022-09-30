@@ -94,17 +94,14 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
-                        case "Exit":
-                            {
-                                if (instr.Args.Count != 1) { throw new Exception("Syscall Exit expects one argument."); }
-                                else if (instr.Returns.Count != 0) { throw new Exception("Syscall Exit expects zero return destinations."); }
-
-                                exitcode = GetSourceOperandValue(stackFrame, instr.Args[0], new DataType.I64()).As<Value.I64>().Value;
-                                State = InterpreterState.ShuttingDown;
-                            }
-                            break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
                     }
+                }
+                break;
+            case Instruction.Exit instr:
+                {
+                    exitcode = GetSourceOperandValue(stackFrame, instr.Code, new DataType.I64()).As<Value.I64>().Value;
+                    State = InterpreterState.ShuttingDown;
                 }
                 break;
             case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;

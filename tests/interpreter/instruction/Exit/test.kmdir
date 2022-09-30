@@ -2,7 +2,7 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Syscall Exit (45))
+            (Exit 45)
         )
     )
 )
