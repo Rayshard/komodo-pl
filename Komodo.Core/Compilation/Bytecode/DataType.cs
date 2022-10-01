@@ -46,6 +46,19 @@ public abstract record DataType
         }
     }
 
+    public record Char : DataType
+    {
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Char");
+
+        public override string ToString() => AsSExpression().ToString();
+
+        new public static Char Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue("Char");
+            return new Char();
+        }
+    }
+
     public record Array(DataType ElementType) : DataType
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
@@ -75,6 +88,9 @@ public abstract record DataType
         catch { }
 
         try { return Bool.Deserialize(sexpr); }
+        catch { }
+
+        try { return Char.Deserialize(sexpr); }
         catch { }
 
         try { return Array.Deserialize(sexpr); }

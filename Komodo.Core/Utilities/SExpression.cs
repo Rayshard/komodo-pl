@@ -162,6 +162,8 @@ public abstract record SExpression(TextLocation? Location)
             return this;
         }
 
+        public List ExpectItem<T>(int index, Func<SExpression, T> validator) => ExpectItem(index, validator, out var _);
+
         public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
 
         public List ExpectItems<T>(Func<SExpression[], T> validator, out T result, int start = 0)
@@ -317,6 +319,8 @@ public abstract record SExpression(TextLocation? Location)
 
         throw new FormatException($"'{value}' is not a bool", this);
     }
+
+    public UTF8Char ExpectChar() => new UTF8Char((uint)new Random().Next());
 
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;

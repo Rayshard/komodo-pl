@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -60,6 +61,27 @@ public abstract record Value(DataType DataType)
                 return new Bool(list[1].ExpectBool());
             }
             else { return new Bool(sexpr.ExpectBool()); }
+        }
+    }
+
+    public record Char(UTF8Char Value) : Value(new DataType.Char())
+    {
+        protected override SExpression ValueAsSExpression
+            => new SExpression.UnquotedSymbol($"'{Value.Representation}'");
+
+        public override string ToString() => $"Char({Value.Representation})";
+
+        new public static Char Deserialize(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                list.ExpectLength(2)
+                    .ExpectItem(0, DataType.Char.Deserialize)
+                    .ExpectItem(1, item => item.ExpectChar(), out var value);
+
+                return new Char(value);
+            }
+            else { return new Char(sexpr.ExpectChar()); }
         }
     }
 
@@ -128,6 +150,7 @@ public abstract record Value(DataType DataType)
     {
         DataType.I64 => new I64(0),
         DataType.Bool => new Bool(false),
+        DataType.Char => new Char('\0'),
         DataType.Array(var elementType) => new Array(elementType, new List<Value>()),
         _ => throw new NotImplementedException(dataType.ToString())
     };
@@ -144,6 +167,9 @@ public abstract record Value(DataType DataType)
         catch { }
 
         try { return Array.Deserialize(sexpr); }
+        catch { }
+
+        try { return Char.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid value: {sexpr}", sexpr);
