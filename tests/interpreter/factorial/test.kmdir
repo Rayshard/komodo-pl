@@ -3,7 +3,7 @@
     (module MyModule
         (function Main
             (Call MyModule Factorial 20)
-            (Print I64 $stack)
+            (Dump $stack)
             
             (Exit 0)
         )

@@ -9,7 +9,7 @@
             (Exit 0)
         )
         (function TestNoArgument
-            (Print Bool true)
+            (Dump true)
             (Return)
         )
         (function TestSingleArgument (params I64)

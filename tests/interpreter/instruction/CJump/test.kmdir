@@ -3,7 +3,7 @@
     (module MyModule
         (function Main (params) (returns)
             (CJump badExit false)
-            (Print I64 123)
+            (Dump 123)
 
             (CJump goodExit true)
 
@@ -13,7 +13,7 @@
             (Exit 1)
 
           (label goodExit)
-            (Print I64 456)
+            (Dump 456)
             (Exit 0)
         )
     )

@@ -2,8 +2,7 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Print I64 11)
-                
+            (Dump 11)
             (Exit 0)
         )
     )

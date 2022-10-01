@@ -141,7 +141,7 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;
+            case Instruction.Dump instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);

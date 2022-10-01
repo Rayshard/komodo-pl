@@ -10,7 +10,7 @@
     (module MyModule
         (function Main (params) (returns)
             (Call System GetTime ~ $stack)
-            (Print UI64 $stack)
+            (Dump $stack)
             (Exit 0)
         )
     )

@@ -19,7 +19,7 @@ public enum Opcode
     Dec,
     Mul,
 
-    Print,
+    Dump,
     GetElement,
 }
 
@@ -151,19 +151,18 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Print(DataType DataType, Operand.Source Source) : Instruction(Opcode.Print)
+    public record Dump(Operand.Source Source) : Instruction(Opcode.Dump)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Source };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Source };
 
-        new public static Print Deserialize(SExpression sexpr)
+        new public static Dump Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.Print);
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Dump))
+                 .ExpectItem(1, Operand.DeserializeSource, out var source);
 
-            return new Print(
-                list[1].Expect(DataType.Deserialize),
-                Operand.DeserializeSource(list[2])
-            );
+            return new Dump(source);
         }
     }
 
@@ -255,7 +254,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
-        Opcode.Print => Print.Deserialize(sexpr),
+        Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Call => Call.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Unop.Deserialize(sexpr),

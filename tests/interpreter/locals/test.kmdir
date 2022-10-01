@@ -8,16 +8,16 @@
                 (Bool myLocalBool)
             )
 
-            (Print I64 (local 0))
-            (Print I64 (local myLocalI64))
-            (Print Bool (local myLocalBool))
+            (Dump (local 0))
+            (Dump (local myLocalI64))
+            (Dump (local myLocalBool))
 
             (Store 1 (local 0))
-            (Print I64 (local 0))
+            (Dump (local 0))
             (Store 2 (local 1))
-            (Print I64 (local myLocalI64))
+            (Dump (local myLocalI64))
             (Store false (local 2))
-            (Print Bool (local myLocalBool))
+            (Dump (local myLocalBool))
 
             (Exit 0)
         )
