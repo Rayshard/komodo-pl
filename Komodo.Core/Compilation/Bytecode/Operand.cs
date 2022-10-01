@@ -47,7 +47,6 @@ public abstract record Operand : IOperand
     {
         public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
-
         //TODO: Make idValidator be Func<IEnumerable<SExpression>, TId>
         public static TVariable Deserialize<TVariable, TId>(SExpression sexpr, SExpression symbol, Func<SExpression.List, TId> idValidator, Func<TId, TVariable> converter) where TVariable : Variable
         {

@@ -169,12 +169,9 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
     public record Call : Instruction
     {
-        private static readonly SExpression ArgsReturnsDivider = new SExpression.UnquotedSymbol("~");
-
         public string Module { get; }
         public string Function { get; }
         public ReadOnlyCollection<Operand.Source> Args { get; }
-        public ReadOnlyCollection<Operand.Destination> Returns { get; }
 
         public override IEnumerable<IOperand> Operands
         {
@@ -184,41 +181,28 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                 operands.Add(new Operand.Identifier(Module));
                 operands.Add(new Operand.Identifier(Function));
                 operands.AddRange(Args);
-                operands.AddRange(Returns);
                 return operands;
             }
         }
 
-        public Call(string module, string function, IEnumerable<Operand.Source> args, IEnumerable<Operand.Destination> returns)
+        public Call(string module, string function, IEnumerable<Operand.Source> args)
             : base(Opcode.Call)
         {
             Module = module;
             Function = function;
             Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
-            Returns = new ReadOnlyCollection<Operand.Destination>(returns.ToArray());
-        }
-
-        public override SExpression AsSExpression()
-        {
-            var items = base.AsSExpression().ExpectList().ToList();
-            items.Insert(3 + Args.Count(), ArgsReturnsDivider);
-            return new SExpression.List(items);
         }
 
         new public static Call Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3, null);
-            list[0].ExpectEnum<Opcode>(Opcode.Call);
+            sexpr.ExpectList()
+                 .ExpectLength(3, null)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Call))
+                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var module)
+                 .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var function)
+                 .ExpectItems(Operand.DeserializeSource, out var args, 3);
 
-            var args = list.Skip(3).TakeWhile(item => !item.Matches(ArgsReturnsDivider)).Select(Operand.DeserializeSource).ToArray();
-            var returns = list.Skip(3).Skip(args.Length).Skip(1).Select(Operand.DeserializeDestination).ToArray();
-
-            return new Call(
-                list[1].ExpectUnquotedSymbol().Value,
-                list[2].ExpectUnquotedSymbol().Value,
-                args,
-                returns
-            );
+            return new Call(module, function, args);
         }
     }
 

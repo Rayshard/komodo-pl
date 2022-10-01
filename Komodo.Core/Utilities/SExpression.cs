@@ -175,7 +175,10 @@ public abstract record SExpression(TextLocation? Location)
             validator(Items.Skip(start).ToArray());
             return this;
         }
-        
+
+        public List ExpectItems<T>(Func<SExpression, T> validator, out T[] result, int start = 0)
+            => ExpectItems(items => items.Select(validator).ToArray(), out result, start);
+
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
 
         public override bool Matches(SExpression other) => other switch

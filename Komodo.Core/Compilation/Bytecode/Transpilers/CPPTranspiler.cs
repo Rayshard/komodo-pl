@@ -154,21 +154,14 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 
     public string Convert(Instruction.Call instruction)
     {
-        var returns = instruction.Returns.ToArray();
-
-        var returnsInitialization = returns.Length == 0 ? "" : $"Value callReturns[{returns.Length}];";
         var callArgsInitialization = Utility.Stringify(instruction.Args.Select((ca, i) => $"auto callArg{i} = {Convert(ca)};"), Environment.NewLine);
-        var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").AppendIf(returns.Length != 0, "callReturns").Prepend("interpreter");
-        var returnSets = Utility.Stringify(returns.Reverse().Select((r, i) => Convert(r, $"callReturns[{i}]")), Environment.NewLine);
+        var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").Prepend("interpreter");
 
         return
     $@"
-{returnsInitialization}
 {callArgsInitialization}
 
 {instruction.Module}::{instruction.Function}({Utility.Stringify(callArgs, ", ")});
-
-{returnSets}
 ".Trim();
     }
 
