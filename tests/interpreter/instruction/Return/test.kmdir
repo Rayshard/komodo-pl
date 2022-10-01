@@ -6,10 +6,10 @@
             (Call MyModule TestNoReturn)
             (Assert $stack 123)
 
-            (Call MyModule TestSingleReturn ~ $stack)
+            (Call MyModule TestSingleReturn)
             (Assert $stack 789)
 
-            (Call MyModule TestMultipleReturn ~ $stack $stack $stack)
+            (Call MyModule TestMultipleReturn)
             (Assert $stack 10)
             (Assert $stack 11)
             (Assert $stack 12)

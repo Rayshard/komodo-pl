@@ -98,7 +98,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         {
             Instruction.Load l => Convert(l),
             Instruction.Syscall s => Convert(s),
-            Instruction.Print p => Convert(p),
+            Instruction.Dump d => Convert(d),
             Instruction.Call c => Convert(c),
             Instruction.Store s => Convert(s),
             Instruction.Assert a => Convert(a),
@@ -150,25 +150,18 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 
     public string Convert(Instruction.Load instruction) => $"interpreter.PushStack({Convert(instruction.Source)});";
     public string Convert(Instruction.Syscall instruction) => $"interpreter.Syscall(\"{instruction.Name}\");";
-    public string Convert(Instruction.Print instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
+    public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
 
     public string Convert(Instruction.Call instruction)
     {
-        var returns = instruction.Returns.ToArray();
-
-        var returnsInitialization = returns.Length == 0 ? "" : $"Value callReturns[{returns.Length}];";
         var callArgsInitialization = Utility.Stringify(instruction.Args.Select((ca, i) => $"auto callArg{i} = {Convert(ca)};"), Environment.NewLine);
-        var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").AppendIf(returns.Length != 0, "callReturns").Prepend("interpreter");
-        var returnSets = Utility.Stringify(returns.Reverse().Select((r, i) => Convert(r, $"callReturns[{i}]")), Environment.NewLine);
+        var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").Prepend("interpreter");
 
         return
     $@"
-{returnsInitialization}
 {callArgsInitialization}
 
 {instruction.Module}::{instruction.Function}({Utility.Stringify(callArgs, ", ")});
-
-{returnSets}
 ".Trim();
     }
 

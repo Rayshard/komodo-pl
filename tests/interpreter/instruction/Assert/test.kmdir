@@ -8,7 +8,7 @@
             (Load false)
             (Assert $stack true)
 
-            (Print I64 2)
+            (Dump 2)
         )
     )
 )

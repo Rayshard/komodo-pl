@@ -1,12 +1,16 @@
 (program MyProgram
     (entry MyModule Main)
+    (module System
+        (function GetTime (params) (returns UI64)
+            (Syscall GetTime)
+            (Return $stack)
+        )
+    )
+
     (module MyModule
         (function Main (params) (returns)
-            (locals)
-          
-          (label start)
-            (Print I64 123)
-
+            (Call System GetTime ~ $stack)
+            (Dump $stack)
             (Exit 0)
         )
     )

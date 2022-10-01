@@ -7,11 +7,11 @@
         )
 
         (function Main
-            (Print I64 (global MyModule myDefaultGlobal))
-            (Print Bool (global MyModule mySetGlobal))
+            (Dump (global MyModule myDefaultGlobal))
+            (Dump (global MyModule mySetGlobal))
 
             (Store 1 (global MyModule myDefaultGlobal))
-            (Print I64 (global MyModule myDefaultGlobal))
+            (Dump (global MyModule myDefaultGlobal))
 
             (Exit 0)
         )

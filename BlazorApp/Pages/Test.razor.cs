@@ -24,9 +24,8 @@ public partial class Test
             (locals)
             (returns)
             (basicBlock __entry__
-                (Print 123)
-                (Load 0)
-                (Syscall Exit)
+                (Dump 123)
+                (Exit 0)
             )
         )
     )

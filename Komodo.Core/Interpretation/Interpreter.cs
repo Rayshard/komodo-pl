@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
 
@@ -40,9 +39,7 @@ public class Interpreter
         State = InterpreterState.Running;
 
         // Call Program Entry
-        var entryArgs = new ReadOnlyCollection<Value>(new Value[0]);
-        var entryReturnDests = new ReadOnlyCollection<Operand.Destination>(new Operand.Destination[0]);
-        PushStackFrame(Program.Entry, entryArgs, entryReturnDests);
+        PushStackFrame(Program.Entry, new Value[0]);
 
         while (State == InterpreterState.Running)
         {
@@ -82,7 +79,7 @@ public class Interpreter
 
     private void ExecuteNextInstruction(StackFrame stackFrame, ref Int64 exitcode, out InstructionPointer nextIP)
     {
-        var instruction = GetInstructionFromIP(stackFrame.IP);
+        var instruction = GetInstruction(stackFrame.IP);
 
         nextIP = stackFrame.IP + 1;
 
@@ -94,6 +91,11 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
+                        case "GetTime":
+                            {
+                                stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks));
+                            }
+                            break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
                     }
                 }
@@ -139,7 +141,7 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Print instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source, instr.DataType)); break;
+            case Instruction.Dump instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
@@ -156,22 +158,14 @@ public class Interpreter
                 break;
             case Instruction.Call instr:
                 {
-                    var function = GetFunctionFromIP(new InstructionPointer(instr.Module, instr.Function, 0));
-                    var receivedArgs = instr.Args.Select((source, i) => GetSourceOperandValue(stackFrame, source, function.Parameters[i].DataType)).ToArray();
-
-                    PushStackFrame((instr.Module, instr.Function), new ReadOnlyCollection<Value>(receivedArgs), instr.Returns);
+                    var receivedArgs = instr.Args.Select(source => GetSourceOperandValue(stackFrame, source)).ToArray();
+                    PushStackFrame((instr.Module, instr.Function), receivedArgs);
                 }
                 break;
             case Instruction.Return instr:
                 {
-                    var function = GetFunctionFromIP(stackFrame.IP);
-
-                    if (instr.Sources.Count() != function.Returns.Count())
-                        throw new Exception($"Expected {function.Returns.Count()} return values but got {instr.Sources.Count()}.");
-
-                    var returnValues = instr.Sources.Zip(function.Returns).Select(item => GetSourceOperandValue(stackFrame, item.First, item.Second)).ToArray();
-
-                    PopStackFrame(returnValues);
+                    var values = instr.Sources.Select(source => GetSourceOperandValue(stackFrame, source)).ToArray();
+                    PopStackFrame(values);
                 }
                 break;
             case Instruction.CJump instr:
@@ -286,47 +280,60 @@ public class Interpreter
         return stack.Pop();
     }
 
-    private void PushStackFrame((string Module, string Function) Target, ReadOnlyCollection<Value> args, ReadOnlyCollection<Operand.Destination> returnDests)
+    private void PushStackFrame((string Module, string Function) Target, Value[] args)
     {
+        var function = GetFunction(Target.Module, Target.Function);
         var start = new InstructionPointer(Target.Module, Target.Function, 0);
-        var function = GetFunctionFromIP(start);
 
-        if (args.Count != function.Parameters.Count)
-            throw new Exception($"Target function required {function.Parameters.Count} arguments, but only {args.Count} were given!");
+        // Verify and create arguments
+        if (args.Length != function.Parameters.Count)
+            throw new Exception($"Target function required {function.Parameters.Count} arguments, but only {args.Length} were given!");
 
-        if (returnDests.Count != function.Returns.Count)
-            throw new Exception($"Function {Target.Module}.{Target.Function} returns {function.Returns.Count} values, but got {returnDests.Count} return destinations.");
+        var arguments = new (Value, string?)[args.Length];
 
-        var arguments = args.Select((a, i) => (a, function.Parameters[i].Name)).ToArray();
+        foreach (var (arg, param, index) in args.Select((a, i) => (a, function.Parameters[i], i)))
+        {
+            if (arg.DataType != param.DataType)
+                throw new Exception($"Expeceted {param.DataType} for target function's parameter {index}, but got {arg.DataType}!");
+
+            arguments[index] = (arg, param.Name);
+        }
+
         var locals = function.Locals.Select(l => (Value.CreateDefault(l.DataType), l.Name)).ToArray();
 
-        callStack.Push(new StackFrame(start, stack.Count, arguments, locals, returnDests));
+        callStack.Push(new StackFrame(start, stack.Count, arguments, locals));
     }
 
     private void PopStackFrame(Value[] returnValues)
     {
         if (callStack.TryPop(out var frame))
         {
+            var function = GetFunction(frame.IP.Module, frame.IP.Function);
+
+            // Verify return values
+            if (returnValues.Length != function.Returns.Count)
+                throw new Exception($"Expected {function.Returns.Count()} return values but got {returnValues.Length}.");
+
+            foreach (var (actual, expected, i) in returnValues.Select((value, i) => (value.DataType, function.Returns[i], i)))
+            {
+                if (actual != expected)
+                    throw new Exception($"Expeceted {expected} for function return {i}, but got {actual}!");
+            }
+
+            // Erase current stack from stack
             while (stack.Count > frame.FramePointer)
                 stack.Pop();
 
-            var parentStackFrame = callStack.Peek();
-
-            if (returnValues.Length != frame.ReturnDests.Count())
-                throw new Exception($"Parent stack frame expected {frame.ReturnDests} return values but got {returnValues.Length}.");
-
-            foreach (var (value, dest) in returnValues.Zip(frame.ReturnDests).Reverse())
-                SetDestinationOperandValue(parentStackFrame, dest, value);
+            // Push return values onto the stack in reverse order
+            foreach (var value in returnValues.Reverse())
+                stack.Push(value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }
 
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
 
-    public Function GetFunctionFromIP(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function);
-
-    private Instruction GetInstructionFromIP(InstructionPointer ip)
-        => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
-
+    public Function GetFunction(string module, string function) => Program.GetModule(module).GetFunction(function);
+    private Instruction GetInstruction(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
     public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.GetModule(module).GetFunction(function).Labels[label].Target;
 }

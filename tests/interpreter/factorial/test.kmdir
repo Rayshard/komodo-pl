@@ -2,12 +2,8 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (locals
-                (I64 result)
-            )
-
-            (Call MyModule Factorial 20 ~ (local result))
-            (Print I64 (local result))
+            (Call MyModule Factorial 20)
+            (Dump $stack)
             
             (Exit 0)
         )
@@ -15,7 +11,6 @@
             (locals
                 (Bool equalsZero)
                 (I64 numberMinus1)
-                (I64 factorialNumberMinus1)
                 (I64 result)
             )
             
@@ -23,8 +18,8 @@
             (CJump retOneOnZero (local equalsZero))
             
             (Dec I64 (arg number) (local numberMinus1))
-            (Call MyModule Factorial (local numberMinus1) ~ (local factorialNumberMinus1))
-            (Mul I64 (arg number) (local factorialNumberMinus1) (local result))
+            (Call MyModule Factorial (local numberMinus1))
+            (Mul I64 (arg number) $stack (local result))
             (Return (local result))
             
           (label retOneOnZero)
