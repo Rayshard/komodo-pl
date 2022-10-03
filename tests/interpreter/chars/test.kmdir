@@ -1,0 +1,18 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                Char
+            )
+
+            (Assert (local 0) '\0')
+            (Dump (Char 'a'))
+            (Dump '€')
+            (Dump '±')
+            (Dump 'デ')
+            (Dump '🐉')
+            (Exit 0)
+        )
+    )
+)

@@ -1,0 +1,14 @@
+{
+  "args": ["run-ir", "test.kmdir"],
+  "exitcode": 0,
+  "stdin": [],
+  "stdout": [
+    "Char(a)",
+    "Char(€)",
+    "Char(±)",
+    "Char(デ)",
+    "Char(🐉)",
+    ""
+  ],
+  "stderr": []
+}
