@@ -164,6 +164,8 @@ public abstract record SExpression(TextLocation? Location)
 
         public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
 
+        public List ExpectItem<T>(int index, Func<SExpression, T> validator) => ExpectItem(index, validator, out var _);
+
         public List ExpectItems<T>(Func<SExpression[], T> validator, out T result, int start = 0)
         {
             result = validator(Items.Skip(start).ToArray());
@@ -288,6 +290,16 @@ public abstract record SExpression(TextLocation? Location)
         else { throw FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, this); }
     }
 
+    public Byte ExpectUInt8()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Byte.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 8-bit unsigned integer", this);
+    }
+
     public Int64 ExpectInt64()
     {
         var value = ExpectUnquotedSymbol().Value;
@@ -321,6 +333,16 @@ public abstract record SExpression(TextLocation? Location)
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;
     public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public bool IsUInt8()
+    {
+        try
+        {
+            ExpectUInt8();
+            return true;
+        }
+        catch { return false; }
+    }
 
     public bool IsInt64()
     {

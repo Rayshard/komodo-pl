@@ -7,10 +7,33 @@ public abstract record DataType
 {
     public abstract SExpression AsSExpression();
 
+    public record I8 : DataType
+    {
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
+        public override string ToString() => AsSExpression().ToString();
+
+        new public static I8 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue("I8");
+            return new I8();
+        }
+    }
+
+    public record UI8 : DataType
+    {
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
+        public override string ToString() => AsSExpression().ToString();
+
+        new public static UI8 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue("UI8");
+            return new UI8();
+        }
+    }
+
     public record I64 : DataType
     {
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
-
         public override string ToString() => AsSExpression().ToString();
 
         new public static I64 Deserialize(SExpression sexpr)
@@ -68,6 +91,12 @@ public abstract record DataType
 
     public static DataType Deserialize(SExpression sexpr)
     {
+        try { return I8.Deserialize(sexpr); }
+        catch { }
+
+        try { return UI8.Deserialize(sexpr); }
+        catch { }
+
         try { return I64.Deserialize(sexpr); }
         catch { }
 

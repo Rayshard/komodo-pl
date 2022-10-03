@@ -1,5 +1,4 @@
 using Komodo.Core.Utilities;
-using System.Text.RegularExpressions;
 
 namespace Komodo.Core.Compilation.Bytecode;
 

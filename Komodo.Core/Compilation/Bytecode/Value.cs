@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -11,6 +12,23 @@ public abstract record Value(DataType DataType)
         DataType.AsSExpression(),
         ValueAsSExpression
     });
+
+    public record UI8(Byte Value) : Value(new DataType.UI8())
+    {
+        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
+
+        public override string ToString() => $"UI8({Value})";
+
+        new public static UI8 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, DataType.UI8.Deserialize)
+                 .ExpectItem(1, item => item.ExpectUInt8(), out var value);
+
+            return new UI8(value);
+        }
+    }
 
     public record I64(Int64 Value) : Value(new DataType.I64())
     {
@@ -85,31 +103,45 @@ public abstract record Value(DataType DataType)
 
         new public static Array Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2, null);
-
-            if (list.Count() == 2)
+            switch (sexpr)
             {
-                try
-                {
-                    var elementType = list.Expect(DataType.Array.Deserialize).ElementType;
-                    return new Array(elementType, new List<Value>());
-                }
-                catch
-                {
-                    var elementType = list[0].Expect(DataType.Array.Deserialize).ElementType;
-                    var elements = list[1].ExpectList().Select(Value.Deserialize).ToList();
+                case SExpression.List list:
+                    {
+                        list.ExpectLength(2, null);
 
-                    return new Array(elementType, elements);
-                }
-            }
-            else
-            {
-                list[0].ExpectUnquotedSymbol().ExpectValue("Array");
+                        if (list.Count() == 2)
+                        {
+                            try
+                            {
+                                // empty array
+                                var elementType = list.Expect(DataType.Array.Deserialize).ElementType;
+                                return new Array(elementType, new List<Value>());
+                            }
+                            catch
+                            {
+                                var elementType = list[0].Expect(DataType.Array.Deserialize).ElementType;
+                                var elements = list[1].ExpectList().Select(Value.Deserialize).ToList();
 
-                var elementType = list[1].Expect(DataType.Deserialize);
-                var elements = list.Skip(2).Select(Value.Deserialize).ToList();
+                                return new Array(elementType, elements);
+                            }
+                        }
+                        else
+                        {
+                            list[0].ExpectUnquotedSymbol().ExpectValue("Array");
 
-                return new Array(elementType, elements);
+                            var elementType = list[1].Expect(DataType.Deserialize);
+                            var elements = list.Skip(2).Select(Value.Deserialize).ToList();
+
+                            return new Array(elementType, elements);
+                        }
+                    }
+                    case SExpression.QuotedSymbol qs:
+                    {
+                        var bytes = Encoding.UTF8.GetBytes(qs.Value).Select(b => new UI8(b));
+                        return new Array(new DataType.UI8(), bytes); 
+                    }
+                default:
+                    throw new SExpression.FormatException($"Unexpected s-expr: {sexpr}", sexpr);
             }
         }
     }
@@ -126,7 +158,9 @@ public abstract record Value(DataType DataType)
 
     public static Value CreateDefault(DataType dataType) => dataType switch
     {
+        DataType.UI8 => new UI8(0),
         DataType.I64 => new I64(0),
+        DataType.UI64 => new UI64(0),
         DataType.Bool => new Bool(false),
         DataType.Array(var elementType) => new Array(elementType, new List<Value>()),
         _ => throw new NotImplementedException(dataType.ToString())
@@ -135,6 +169,9 @@ public abstract record Value(DataType DataType)
     public static Value Deserialize(SExpression sexpr)
     {
         try { return I64.Deserialize(sexpr); }
+        catch { }
+
+        try { return UI8.Deserialize(sexpr); }
         catch { }
 
         try { return UI64.Deserialize(sexpr); }

@@ -1,0 +1,9 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (Dump "A€±デ🐉")
+            (Exit 0)
+        )
+    )
+)
