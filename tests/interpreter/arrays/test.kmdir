@@ -8,20 +8,20 @@
 
             (Dump (local 0))
 
-            (Store ((Array I64) (1 2 3)) (local 0))
+            (Store (array I64 1 2 3) (local 0))
             (Dump (local 0))
 
-            (Store (Array I64 4 5 6) (local 0))
+            (Store (array I64 4 5 6) (local 0))
             (Dump (local 0))
 
-            (Store (Array I64) (local 0))
+            (Store (array I64) (local 0))
             (Dump (local 0))
 
             (Load 9)
             (Load 7)
-            (Dump (Array I64 $stack 8 $stack))
+            (Dump (array I64 $stack 8 $stack))
 
-            (Store (Array I64 10) (local 0))
+            (Store (array I64 10) (local 0))
             (GetElement I64 (UI64 0) (local 0) $stack)
             (Dump $stack)
 

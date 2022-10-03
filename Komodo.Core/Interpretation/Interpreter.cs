@@ -106,7 +106,6 @@ public class Interpreter
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
-            case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Store instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
@@ -193,7 +192,7 @@ public class Interpreter
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
             Operand.Array(var elementType, var elements)
-                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
+                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToArray()),
             _ => throw new Exception($"Invalid source: {source}")
         };
 

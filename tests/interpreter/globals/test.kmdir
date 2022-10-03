@@ -7,11 +7,11 @@
         )
 
         (function Main
-            (Dump (global MyModule myDefaultGlobal))
-            (Dump (global MyModule mySetGlobal))
+            (Assert (global MyModule myDefaultGlobal) 0)
+            (Assert (global MyModule mySetGlobal) true)
 
             (Store 1 (global MyModule myDefaultGlobal))
-            (Dump (global MyModule myDefaultGlobal))
+            (Assert (global MyModule myDefaultGlobal) 1)
 
             (Exit 0)
         )

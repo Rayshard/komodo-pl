@@ -5,7 +5,6 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Load,
     Store,
     Syscall,
     Call,
@@ -33,19 +32,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         nodes.Add(new SExpression.UnquotedSymbol(Opcode.ToString()));
         nodes.AddRange(Operands.Select(op => op.AsSExpression()));
         return new SExpression.List(nodes);
-    }
-
-    public record Load(Operand.Source Source) : Instruction(Opcode.Load)
-    {
-        public override IEnumerable<IOperand> Operands => new[] { Source };
-
-        new public static Load Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum<Opcode>(Opcode.Load);
-
-            return new Load(Operand.DeserializeSource(list[1]));
-        }
     }
 
     public record Store(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Store)
@@ -251,7 +237,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
-        Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),

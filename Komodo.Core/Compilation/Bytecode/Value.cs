@@ -13,11 +13,11 @@ public abstract record Value(DataType DataType)
         ValueAsSExpression
     });
 
+    public sealed override string ToString() => AsSExpression().ToString();
+
     public record UI8(Byte Value) : Value(new DataType.UI8())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
-
-        public override string ToString() => $"UI8({Value})";
 
         new public static UI8 Deserialize(SExpression sexpr)
         {
@@ -33,8 +33,6 @@ public abstract record Value(DataType DataType)
     public record I64(Int64 Value) : Value(new DataType.I64())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
-
-        public override string ToString() => $"I64({Value})";
 
         new public static I64 Deserialize(SExpression sexpr)
         {
@@ -52,8 +50,6 @@ public abstract record Value(DataType DataType)
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
-        public override string ToString() => $"UI64({Value})";
-
         new public static UI64 Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(2);
@@ -66,8 +62,6 @@ public abstract record Value(DataType DataType)
     public record Bool(bool Value) : Value(new DataType.Bool())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value ? "true" : "false");
-
-        public override string ToString() => Value ? "Bool(true)" : "Bool(false)";
 
         new public static Bool Deserialize(SExpression sexpr)
         {
@@ -83,23 +77,21 @@ public abstract record Value(DataType DataType)
 
     public record Array(DataType ElementType) : Value(new DataType.Array(ElementType))
     {
-        private List<Value> elements = new List<Value>();
-        public ReadOnlyCollection<Value> Elements => elements.AsReadOnly();
-
-        public Array(DataType elementType, IEnumerable<Value> elements) : this(elementType)
-        {
-            foreach (var element in elements)
-            {
-                if (element.DataType != ElementType)
-                    throw new Exception($"Cannot add element of type '{element.DataType}' to an array of type '{DataType}'");
-
-                this.elements.Add(element);
-            }
-        }
+        public ReadOnlyCollection<Value> Elements { get; } = new ReadOnlyCollection<Value>(new Value[0]);
 
         protected override SExpression ValueAsSExpression => new SExpression.List(Elements.Select(element => element.AsSExpression()));
 
-        public override string ToString() => Utility.Stringify(Elements, ", ", ("[", "]"));
+        public Array(DataType elementType, IEnumerable<Value> elements) : this(elementType)
+        {
+            Elements = new ReadOnlyCollection<Value>(elements.ToArray());
+
+            // Verify elements have the same data type
+            foreach (var element in Elements)
+            {
+                if (element.DataType != ElementType)
+                    throw new Exception($"Element of type '{element.DataType}' cannot be a memeber of an array of type '{DataType}'");
+            }
+        }
 
         new public static Array Deserialize(SExpression sexpr)
         {
@@ -109,39 +101,31 @@ public abstract record Value(DataType DataType)
                     {
                         list.ExpectLength(2, null);
 
-                        if (list.Count() == 2)
+                        if (list[0] is SExpression.UnquotedSymbol)
                         {
-                            try
-                            {
-                                // empty array
-                                var elementType = list.Expect(DataType.Array.Deserialize).ElementType;
-                                return new Array(elementType, new List<Value>());
-                            }
-                            catch
-                            {
-                                var elementType = list[0].Expect(DataType.Array.Deserialize).ElementType;
-                                var elements = list[1].ExpectList().Select(Value.Deserialize).ToList();
+                            list.ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("array"))
+                                .ExpectLength(3, null)
+                                .ExpectItem(1, DataType.Deserialize, out var elementType)
+                                .ExpectItems(Value.Deserialize, out var elements, 2);
 
-                                return new Array(elementType, elements);
-                            }
+                            return new Array(elementType, elements);
                         }
                         else
                         {
-                            list[0].ExpectUnquotedSymbol().ExpectValue("Array");
-
-                            var elementType = list[1].Expect(DataType.Deserialize);
-                            var elements = list.Skip(2).Select(Value.Deserialize).ToList();
+                            list.ExpectLength(2)
+                                .ExpectItem(0, item => DataType.Array.Deserialize(item).ElementType, out var elementType)
+                                .ExpectItem(1, item => item.ExpectList().Select(Value.Deserialize).ToArray(), out var elements);
 
                             return new Array(elementType, elements);
                         }
                     }
-                    case SExpression.QuotedSymbol qs:
+                case SExpression.QuotedSymbol qs:
                     {
                         var bytes = Encoding.UTF8.GetBytes(qs.Value).Select(b => new UI8(b));
-                        return new Array(new DataType.UI8(), bytes); 
+                        return new Array(new DataType.UI8(), bytes);
                     }
                 default:
-                    throw new SExpression.FormatException($"Unexpected s-expr: {sexpr}", sexpr);
+                    throw SExpression.FormatException.Expected("array value expression", sexpr, sexpr);
             }
         }
     }
@@ -162,7 +146,7 @@ public abstract record Value(DataType DataType)
         DataType.I64 => new I64(0),
         DataType.UI64 => new UI64(0),
         DataType.Bool => new Bool(false),
-        DataType.Array(var elementType) => new Array(elementType, new List<Value>()),
+        DataType.Array(var elementType) => new Array(elementType, new Value[0]),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 

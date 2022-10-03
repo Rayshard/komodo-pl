@@ -8,16 +8,16 @@
                 (Bool myLocalBool)
             )
 
-            (Dump (local 0))
-            (Dump (local myLocalI64))
-            (Dump (local myLocalBool))
+            (Assert (local 0) 0)
+            (Assert (local myLocalI64) 0)
+            (Assert (local myLocalBool) false)
 
             (Store 1 (local 0))
-            (Dump (local 0))
+            (Assert (local 0) 1)
             (Store 2 (local 1))
-            (Dump (local myLocalI64))
-            (Store false (local 2))
-            (Dump (local myLocalBool))
+            (Assert (local myLocalI64) 2)
+            (Store true (local 2))
+            (Assert (local myLocalBool) true)
 
             (Exit 0)
         )

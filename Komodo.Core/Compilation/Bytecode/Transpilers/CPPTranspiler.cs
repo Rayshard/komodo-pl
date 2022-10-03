@@ -96,7 +96,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     {
         var result = instruction switch
         {
-            Instruction.Load l => Convert(l),
             Instruction.Syscall s => Convert(s),
             Instruction.Dump d => Convert(d),
             Instruction.Call c => Convert(c),
@@ -148,7 +147,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     };
 
 
-    public string Convert(Instruction.Load instruction) => $"interpreter.PushStack({Convert(instruction.Source)});";
     public string Convert(Instruction.Syscall instruction) => $"interpreter.Syscall(\"{instruction.Name}\");";
     public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
 

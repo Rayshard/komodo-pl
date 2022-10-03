@@ -121,7 +121,8 @@ public abstract record Operand : IOperand
             => Variable.Deserialize<Global, (string Module, string Name)>(
                 sexpr,
                 SYMBOL,
-                idList => {
+                idList =>
+                {
                     idList.ExpectLength(2)
                           .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var module)
                           .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
@@ -145,40 +146,20 @@ public abstract record Operand : IOperand
 
     public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new[]
-        {
-            new Bytecode.DataType.Array(ElementType).AsSExpression(),
-            new SExpression.List(Elements.Select(element => element.AsSExpression()))
-        });
+        public override SExpression AsSExpression() => new SExpression.List(
+            Elements.Select(element => element.AsSExpression())
+                    .Prepend(ElementType.AsSExpression())
+                    .Prepend(new SExpression.UnquotedSymbol("array"))
+        );
 
         public static Array Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2, null);
+            sexpr.ExpectList().ExpectLength(2, null)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("array"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var elementType)
+                 .ExpectItems(DeserializeSource, out var elements, 2);
 
-            if (list.Count() == 2)
-            {
-                try
-                {
-                    var elementType = list.Expect(Bytecode.DataType.Array.Deserialize).ElementType;
-                    return new Array(elementType, new Source[0]);
-                }
-                catch
-                {
-                    var elementType = list[0].Expect(Bytecode.DataType.Array.Deserialize).ElementType;
-                    var elements = list[1].ExpectList().Select(DeserializeSource).ToList();
-
-                    return new Array(elementType, elements);
-                }
-            }
-            else
-            {
-                list[0].ExpectUnquotedSymbol().ExpectValue("Array");
-
-                var elementType = list[1].Expect(Bytecode.DataType.Deserialize);
-                var elements = list.Skip(2).Select(DeserializeSource).ToArray();
-
-                return new Array(elementType, elements);
-            }
+            return new Array(elementType, elements);
         }
     }
 

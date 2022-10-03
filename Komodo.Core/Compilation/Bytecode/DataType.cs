@@ -80,10 +80,12 @@ public abstract record DataType
 
         new public static Array Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectUnquotedSymbol().ExpectValue("Array");
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("Array"))
+                 .ExpectItem(1, DataType.Deserialize, out var elementType);
 
-            return new Array(DataType.Deserialize(list[1]));
+            return new Array(elementType);
         }
     }
 

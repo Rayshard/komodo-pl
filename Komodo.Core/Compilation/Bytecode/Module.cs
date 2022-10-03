@@ -7,13 +7,12 @@ public record Global(string Name, DataType DataType, Value? DefaultValue = null)
 {
     public static Global Deserialize(SExpression sexpr)
     {
-        var remaining = sexpr.ExpectList()
-             .ExpectLength(2, 3)
-             .ExpectItem(0, DataType.Deserialize, out var dataType)
-             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
-             .Skip(2).ToArray();
+        var list = sexpr.ExpectList()
+                        .ExpectLength(2, 3)
+                        .ExpectItem(0, DataType.Deserialize, out var dataType)
+                        .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
 
-        var defaultValue = remaining.IsEmpty() ? null : remaining[0].Expect(Value.Deserialize);
+        var defaultValue = list.Count() == 2 ? null : list[2].Expect(Value.Deserialize);
         return new Global(name, dataType, defaultValue);
     }
 }
