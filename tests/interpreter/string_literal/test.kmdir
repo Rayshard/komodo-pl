@@ -1,8 +1,11 @@
 (program MyProgram
     (entry MyModule Main)
+    (data
+        (myString "A€±デ🐉")
+    )
     (module MyModule
         (function Main
-            (Assert "A€±デ🐉" (array UI8 (UI8 65) (UI8 226) (UI8 130) (UI8 172) (UI8 194) (UI8 177) (UI8 227) (UI8 131) (UI8 135) (UI8 240) (UI8 159) (UI8 144) (UI8 137)))
+            (Dump (data myString))
             (Exit 0)
         )
     )

@@ -1,5 +1,3 @@
-using System.Collections.ObjectModel;
-using System.Text;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -75,59 +73,9 @@ public abstract record Value(DataType DataType)
         }
     }
 
-    public record Array(DataType ElementType) : Value(new DataType.Array(ElementType))
+    public record Array(DataType ElementType, UInt64 Address) : Value(new DataType.Array(ElementType))
     {
-        public ReadOnlyCollection<Value> Elements { get; } = new ReadOnlyCollection<Value>(new Value[0]);
-
-        protected override SExpression ValueAsSExpression => new SExpression.List(Elements.Select(element => element.AsSExpression()));
-
-        public Array(DataType elementType, IEnumerable<Value> elements) : this(elementType)
-        {
-            Elements = new ReadOnlyCollection<Value>(elements.ToArray());
-
-            // Verify elements have the same data type
-            foreach (var element in Elements)
-            {
-                if (element.DataType != ElementType)
-                    throw new Exception($"Element of type '{element.DataType}' cannot be a memeber of an array of type '{DataType}'");
-            }
-        }
-
-        new public static Array Deserialize(SExpression sexpr)
-        {
-            switch (sexpr)
-            {
-                case SExpression.List list:
-                    {
-                        list.ExpectLength(2, null);
-
-                        if (list[0] is SExpression.UnquotedSymbol)
-                        {
-                            list.ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("array"))
-                                .ExpectLength(3, null)
-                                .ExpectItem(1, DataType.Deserialize, out var elementType)
-                                .ExpectItems(Value.Deserialize, out var elements, 2);
-
-                            return new Array(elementType, elements);
-                        }
-                        else
-                        {
-                            list.ExpectLength(2)
-                                .ExpectItem(0, item => DataType.Array.Deserialize(item).ElementType, out var elementType)
-                                .ExpectItem(1, item => item.ExpectList().Select(Value.Deserialize).ToArray(), out var elements);
-
-                            return new Array(elementType, elements);
-                        }
-                    }
-                case SExpression.QuotedSymbol qs:
-                    {
-                        var bytes = Encoding.UTF8.GetBytes(qs.Value).Select(b => new UI8(b));
-                        return new Array(new DataType.UI8(), bytes);
-                    }
-                default:
-                    throw SExpression.FormatException.Expected("array value expression", sexpr, sexpr);
-            }
-        }
+        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol($"0x{Address.ToString("X")}");
     }
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
@@ -146,7 +94,7 @@ public abstract record Value(DataType DataType)
         DataType.I64 => new I64(0),
         DataType.UI64 => new UI64(0),
         DataType.Bool => new Bool(false),
-        DataType.Array(var elementType) => new Array(elementType, new Value[0]),
+        DataType.Array(var elementType) => new Array(elementType, 0),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 
@@ -162,9 +110,6 @@ public abstract record Value(DataType DataType)
         catch { }
 
         try { return Bool.Deserialize(sexpr); }
-        catch { }
-
-        try { return Array.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid value: {sexpr}", sexpr);

@@ -13,16 +13,22 @@ public class Interpreter
     public Program Program { get; }
     public InterpreterConfig Config { get; }
 
+    private Dictionary<string, UInt64> dataItems = new Dictionary<string, UInt64>();
     private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
+
+    private Heap heap = new Heap();
 
     public Interpreter(Program program, InterpreterConfig config)
     {
         State = InterpreterState.NotStarted;
         Program = program;
         Config = config;
+
+        foreach(var dataItem in program.DataSegemnt.Values)
+            dataItems.Add(dataItem.Name, heap.Allocate(dataItem.Bytes));
 
         foreach (var module in program.Modules)
         {
