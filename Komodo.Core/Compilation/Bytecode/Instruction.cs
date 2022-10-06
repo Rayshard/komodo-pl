@@ -9,7 +9,7 @@ public enum Opcode
     Syscall,
     Call,
     Return,
-    CJump,
+    Jump,
     Assert,
     Exit,
 
@@ -206,19 +206,23 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record CJump(string Label, Operand.Source Condtion) : Instruction(Opcode.CJump)
+    public record Jump(string Label, Operand.Source? Condition) : Instruction(Opcode.Jump)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Label), Condtion };
+        public override IEnumerable<IOperand> Operands
+            => Condition is null
+            ? new IOperand[] { new Operand.Identifier(Label) }
+            : new IOperand[] { new Operand.Identifier(Label), Condition };
 
-        new public static CJump Deserialize(SExpression sexpr)
+        new public static Jump Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.CJump);
+           var list = sexpr.ExpectList()
+                           .ExpectLength(2, 3, out var listLength)
+                           .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Jump))
+                           .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var label);
 
-            return new CJump(
-                list[1].ExpectUnquotedSymbol().Value,
-                Operand.DeserializeSource(list[2])
-            );
+            var condition = listLength == 3 ? Operand.DeserializeSource(list[2]) : null;
+
+            return new Jump(label, condition);
         }
     }
 
@@ -244,7 +248,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Unop.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),
-        Opcode.CJump => CJump.Deserialize(sexpr),
+        Opcode.Jump => Jump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Exit => Exit.Deserialize(sexpr),

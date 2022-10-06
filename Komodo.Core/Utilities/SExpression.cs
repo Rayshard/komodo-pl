@@ -128,17 +128,17 @@ public abstract record SExpression(TextLocation? Location)
         public List ExpectLength(int length)
             => Items.Count() == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count()}", this);
 
-        public List ExpectLength(uint? min, uint? max)
+        public List ExpectLength(uint? min, uint? max, out uint length)
         {
-            if (min.HasValue && max.HasValue && max < min)
-                throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'");
-            else if (min.HasValue && Items.Count() < min)
-                throw new FormatException($"Expected list of length at least {min}, but found list of length {Items.Count()}", this);
-            else if (max.HasValue && Items.Count() > max)
-                throw new FormatException($"Expected list of length at most {max}, but found list of length {Items.Count()}", this);
-            else
-                return this;
+            length = (uint)Items.Count();
+
+            if (min.HasValue && max.HasValue && max < min) { throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'"); }
+            else if (min.HasValue && length < min) { throw new FormatException($"Expected list of length at least {min}, but found list of length {length}", this); }
+            else if (max.HasValue && length > max) { throw new FormatException($"Expected list of length at most {max}, but found list of length {length}", this); }
+            else { return this; }
         }
+
+        public List ExpectLength(uint? min, uint? max) => ExpectLength(min, max, out var _);
 
         public List ExpectItem(int index, Action<SExpression> validator)
         {

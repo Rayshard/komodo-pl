@@ -103,7 +103,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
             Instruction.Assert a => Convert(a),
             Instruction.Unop u => Convert(u),
             Instruction.Binop b => Convert(b),
-            Instruction.CJump cj => Convert(cj),
+            Instruction.Jump j => Convert(j),
             Instruction.Return r => Convert(r),
             _ => throw new NotImplementedException(instruction.ToString())
         };
@@ -193,16 +193,9 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         return Convert(instruction.Destination, rValue);
     }
 
-    public string Convert(Instruction.CJump instruction)
-    {
-        var condition = Convert(instruction.Condtion);
-
-        return
-    $@"
-if ({condition})
-    goto {instruction.Label};
-".Trim();
-    }
+    public string Convert(Instruction.Jump instruction) => instruction.Condition is null
+        ? $"goto {instruction.Label};"
+        : $"if ({Convert(instruction.Condition)})\n    goto {instruction.Label};";
 
     public string Convert(Instruction.Return instruction)
         => Utility.Stringify(instruction.Sources.Select((s, i) => $"returns[{i}] = {Convert(s)};").Append("return;"), Environment.NewLine);

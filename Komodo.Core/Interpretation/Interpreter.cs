@@ -196,9 +196,11 @@ public class Interpreter
                     PopStackFrame(values);
                 }
                 break;
-            case Instruction.CJump instr:
+            case Instruction.Jump instr:
                 {
-                    if (GetSourceOperandValue(stackFrame, instr.Condtion, new DataType.Bool()).As<Value.Bool>().Value)
+                    var condition = instr.Condition is null || GetSourceOperandValue(stackFrame, instr.Condition, new DataType.Bool()).As<Value.Bool>().Value;
+                    
+                    if (condition)
                     {
                         var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
                         nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
