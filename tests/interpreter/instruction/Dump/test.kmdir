@@ -3,6 +3,7 @@
     (module MyModule
         (function Main
             (Dump 11)
+            (Dump (array I64 1 2 3))
             (Exit 0)
         )
     )

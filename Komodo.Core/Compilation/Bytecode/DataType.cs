@@ -9,12 +9,13 @@ public abstract record DataType
 
     public abstract SExpression AsSExpression();
 
+    public sealed override string ToString() => AsSExpression().ToString();
+
     public record I8 : DataType
     {
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
-        public override string ToString() => AsSExpression().ToString();
 
         new public static I8 Deserialize(SExpression sexpr)
         {
@@ -28,7 +29,6 @@ public abstract record DataType
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
-        public override string ToString() => AsSExpression().ToString();
 
         new public static UI8 Deserialize(SExpression sexpr)
         {
@@ -42,7 +42,6 @@ public abstract record DataType
         public override uint ByteSize => 8;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
-        public override string ToString() => AsSExpression().ToString();
 
         new public static I64 Deserialize(SExpression sexpr)
         {
@@ -57,8 +56,6 @@ public abstract record DataType
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
 
-        public override string ToString() => AsSExpression().ToString();
-
         new public static UI64 Deserialize(SExpression sexpr)
         {
             sexpr.ExpectUnquotedSymbol().ExpectValue("UI64");
@@ -71,8 +68,6 @@ public abstract record DataType
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Bool");
-
-        public override string ToString() => AsSExpression().ToString();
 
         new public static Bool Deserialize(SExpression sexpr)
         {
@@ -89,8 +84,6 @@ public abstract record DataType
             new SExpression.UnquotedSymbol("Array"),
             ElementType.AsSExpression()
         });
-
-        public override string ToString() => AsSExpression().ToString();
 
         new public static Array Deserialize(SExpression sexpr)
         {

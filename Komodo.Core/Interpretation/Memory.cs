@@ -14,16 +14,21 @@ public record Chunk(Address Address, Byte[] Data)
 
 public class Memory
 {
-    private List<Chunk> chunks = new List<Chunk> { new Chunk(0, new Byte[1]) };
+    public static Address NULL = 0;
+
+    private List<Chunk> chunks = new List<Chunk> { new Chunk(NULL, new Byte[1]) };
 
     // A map of chunk addresses to their indices in chunks
-    private Dictionary<Address, int> allocatedChunks = new Dictionary<Address, int> { { 0, 0 } };
+    private Dictionary<Address, int> allocatedChunks = new Dictionary<Address, int> { { NULL, 0 } };
 
     // A map of chunk size to a set of indicies for chunks in memoery with that size
     private Dictionary<UInt64, HashSet<int>> freeChunks = new Dictionary<UInt64, HashSet<int>>();
 
     public Address Allocate(UInt64 size)
     {
+        if (size == 0)
+            throw new Exception("Unable to allocate memory of size 0");
+
         Address address;
 
         if (freeChunks.TryGetValue(size, out var indices))
@@ -37,6 +42,7 @@ public class Memory
             address = chunks[index].Address;
             chunks[index] = new Chunk(address, new Byte[size]);
 
+            Console.WriteLine(address);
             allocatedChunks.Add(address, index);
         }
         else
@@ -63,8 +69,8 @@ public class Memory
 
     public void Free(Address address)
     {
-        if(address == 0) { throw new Exception("Unable to free address: 0x0000000000000000"); }
-        if (!allocatedChunks.Remove(address, out var index)) { throw new Exception($"Unable to free chunks: address 0x{address.ToString("X")} is not the start of an allocated chunk.");}
+        if (address == 0) { throw new Exception("Unable to free address: 0x0000000000000000"); }
+        if (!allocatedChunks.Remove(address, out var index)) { throw new Exception($"Unable to free chunks: address 0x{address.ToString("X")} is not the start of an allocated chunk."); }
 
         var chunkSize = chunks[index].Size;
 

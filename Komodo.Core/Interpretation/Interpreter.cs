@@ -32,7 +32,7 @@ public class Interpreter
         {
             foreach (var item in module.Data.Values)
             {
-                var array = new Value.Array(new DataType.UI8(), memory.Allocate(item.Bytes), (UInt64)item.Bytes.Length);
+                var array = new Value.Array(new DataType.UI8(), (UInt64)item.Bytes.Length, memory.Allocate(item.Bytes));
                 data.Add((module.Name, item.Name), array);
             }
 
@@ -116,7 +116,6 @@ public class Interpreter
                                     case 0: Config.StandardOutput.Write(bufferAsString); break;
                                     default: throw new Exception($"Unknown handle: {handle}");
                                 }
-
                             }
                             break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
@@ -163,7 +162,14 @@ public class Interpreter
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Dump instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Dump instr:
+                Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source) switch
+                {
+                    Value.Array a => a.Length == 0
+                        ? "[]"
+                        : memory.Read(a.ElementType, a.Address, a.Length).Stringify(", ", ("[", "]")),
+                    var value => value
+                }); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
@@ -215,6 +221,13 @@ public class Interpreter
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
             Operand.Data(var module, var name) => data[(module, name)],
+            Operand.Array(var elementType, var elements) => new Value.Array(
+                elementType,
+                (UInt64)elements.Count,
+                elements.Count == 0
+                    ? Memory.NULL
+                    : memory.Allocate(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType).AsBytes()).Flatten())
+            ),
             _ => throw new Exception($"Invalid source: {source}")
         };
 

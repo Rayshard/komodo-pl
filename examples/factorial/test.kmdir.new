@@ -1,0 +1,32 @@
+program {
+    entry MyModule Main;
+
+    module MyModule
+    {
+        function Main () -> ()
+        {
+            Call MyModule Factorial (20);
+            Dump $stack;
+
+            Exit 0;
+        }
+
+        function Factorial (number I64) -> (I64)
+        {
+            local equalsZero Bool;
+            local numberMinus1 I64; 
+            local result I64;
+
+            Eq I64 (arg number) 0 (local equalsZero);
+            CJump retOneOnZero (local equalsZero);
+        
+            Dec I64 (arg number) (local numberMinus1);
+            Call MyModule Factorial (local numberMinus1);
+            Mul I64 (arg number) $stack (local result);
+            Return (local result);
+
+          label retOneOnZero:
+            Return 1;
+        }
+    }
+}

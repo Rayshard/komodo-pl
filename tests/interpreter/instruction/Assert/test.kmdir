@@ -2,13 +2,10 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Load true)
-            (Assert $stack true)
-                
-            (Load false)
-            (Assert $stack true)
+            (Assert true true)
+            (Assert false true)
 
-            (Dump 2)
+            (Exit 0)
         )
     )
 )

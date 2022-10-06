@@ -17,8 +17,8 @@
             (Store (array I64) (local 0))
             (Dump (local 0))
 
-            (Load 9)
-            (Load 7)
+            (Store 9 $stack)
+            (Store 7 $stack)
             (Dump (array I64 $stack 8 $stack))
 
             (Store (array I64 10) (local 0))

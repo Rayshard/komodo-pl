@@ -117,4 +117,6 @@ public static class Utility
         Array.Copy(data, index, result, 0, length);
         return result;
     }
+
+    public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> enumerable) => enumerable.SelectMany(x => x);
 }

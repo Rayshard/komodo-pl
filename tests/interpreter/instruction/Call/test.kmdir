@@ -3,30 +3,23 @@
     (module MyModule
         (function Main
             (Call MyModule TestNoArgument)
-            (Call MyModule TestSingleArgument 2)
-            (Call MyModule TestMultipleArguments 3 4 5)
+            (Call MyModule TestSingleArgument 1)
+            (Call MyModule TestMultipleArguments 2 3 4)
 
             (Exit 0)
         )
         (function TestNoArgument
-            (Dump true)
+            (Dump 0)
             (Return)
         )
         (function TestSingleArgument (params I64)
-            (Load (arg 0))
-            (Assert $stack 2)
+            (Dump (arg 0))
             (Return)
         )
         (function TestMultipleArguments (params I64 I64 I64)
-            (Load (arg 0))
-            (Assert $stack 3)
-
-            (Load (arg 1))
-            (Assert $stack 4)
-
-            (Load (arg 2))
-            (Assert $stack 5)
-
+            (Dump (arg 0))
+            (Dump (arg 1))
+            (Dump (arg 2))
             (Return)
         )
     )

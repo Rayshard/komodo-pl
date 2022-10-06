@@ -2,6 +2,13 @@
   "args": ["run-ir", "test.kmdir"],
   "exitcode": 0,
   "stdin": [],
-  "stdout": ["Bool(true)", ""],
+  "stdout": [
+    "(I64 0)",
+    "(I64 1)",
+    "(I64 2)",
+    "(I64 3)",
+    "(I64 4)",
+    ""
+  ],
   "stderr": []
 }

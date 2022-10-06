@@ -14,6 +14,8 @@ public abstract record Operand : IOperand
     public interface Source : IOperand { }
     public interface Destination : IOperand { }
 
+    public sealed override string ToString() => AsSExpression().ToString();
+
     public record Constant(Value Value) : Operand, Source
     {
         public override SExpression AsSExpression() => Value.AsSExpression();
