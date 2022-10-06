@@ -96,15 +96,15 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     {
         var result = instruction switch
         {
-            Instruction.Syscall s => Convert(s),
-            Instruction.Dump d => Convert(d),
-            Instruction.Call c => Convert(c),
-            Instruction.Store s => Convert(s),
-            Instruction.Assert a => Convert(a),
-            Instruction.Unop u => Convert(u),
-            Instruction.Binop b => Convert(b),
-            Instruction.Jump j => Convert(j),
-            Instruction.Return r => Convert(r),
+            Instruction.Syscall i => Convert(i),
+            Instruction.Dump i => Convert(i),
+            Instruction.Call i => Convert(i),
+            Instruction.Move i => Convert(i),
+            Instruction.Assert i => Convert(i),
+            Instruction.Unop i => Convert(i),
+            Instruction.Binop i => Convert(i),
+            Instruction.Jump i => Convert(i),
+            Instruction.Return i => Convert(i),
             _ => throw new NotImplementedException(instruction.ToString())
         };
 
@@ -163,7 +163,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 ".Trim();
     }
 
-    public string Convert(Instruction.Store instruction) => $"throw std::runtime_error(\"Not implemented\");";
+    public string Convert(Instruction.Move instruction) => $"throw std::runtime_error(\"Not implemented\");";
     public string Convert(Instruction.Assert instruction) => $"throw std::runtime_error(\"Not implemented\");";
 
     public string Convert(Instruction.Binop instruction)

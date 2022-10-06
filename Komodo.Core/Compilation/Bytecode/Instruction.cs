@@ -5,7 +5,7 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Store,
+    Move,
     Syscall,
     Call,
     Return,
@@ -34,16 +34,16 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         return new SExpression.List(nodes);
     }
 
-    public record Store(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Store)
+    public record Move(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Move)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
 
-        new public static Store Deserialize(SExpression sexpr)
+        new public static Move Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.Store);
+            list[0].ExpectEnum<Opcode>(Opcode.Move);
 
-            return new Store(
+            return new Move(
                 Operand.DeserializeSource(list[1]),
                 Operand.DeserializeDestination(list[2])
             );
@@ -252,7 +252,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Exit => Exit.Deserialize(sexpr),
-        Opcode.Store => Store.Deserialize(sexpr),
+        Opcode.Move => Move.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };

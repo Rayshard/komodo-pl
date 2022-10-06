@@ -8,7 +8,7 @@
         (function Main
             (Assert (global MyModule myGlobal) 0)
 
-            (Store 1 (global MyModule myGlobal))
+            (Move 1 (global MyModule myGlobal))
             (Assert (global MyModule myGlobal) 1)
 
             (Exit 0)

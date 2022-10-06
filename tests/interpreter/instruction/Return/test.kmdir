@@ -2,16 +2,16 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Store 123 $stack)
+            (Move 123 $stack)
             (Call MyModule TestNoReturn)
             (Assert $stack 123)
 
-            (Store 123 $stack)
+            (Move 123 $stack)
             (Call MyModule TestSingleReturn)
             (Assert $stack 789)
             (Assert $stack 123)
 
-            (Store 123 $stack)
+            (Move 123 $stack)
             (Call MyModule TestMultipleReturn)
             (Assert $stack 10)
             (Assert $stack 11)

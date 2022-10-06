@@ -128,7 +128,7 @@ public class Interpreter
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
-            case Instruction.Store instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
                     var source1 = GetSourceOperandValue(stackFrame, instr.Source1);
