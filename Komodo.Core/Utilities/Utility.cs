@@ -110,4 +110,11 @@ public static class Utility
 
     public static (ReadOnlyCollection<TItem>, ReadOnlyDictionary<TKey, int>) ToArrayWithMap<TItem, TKey>(this IEnumerable<TItem> enumerable, Func<TItem, TKey?> keySelector) where TKey : notnull
         => enumerable.ToCollectionWithMap(keySelector, item => item);
+
+    public static T[] SubArray<T>(this T[] data, int index, int length)
+    {
+        T[] result = new T[length];
+        Array.Copy(data, index, result, 0, length);
+        return result;
+    }
 }

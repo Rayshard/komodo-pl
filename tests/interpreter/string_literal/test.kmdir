@@ -1,11 +1,15 @@
 (program MyProgram
     (entry MyModule Main)
-    (data
-        (myString "A€±デ🐉")
-    )
     (module MyModule
+        (data
+            (myString "A€±デ🐉\n")
+        )
+
         (function Main
-            (Dump (data myString))
+            (Store (data MyModule myString) $stack)
+            (Store 0 $stack)
+            (Syscall Write)
+
             (Exit 0)
         )
     )

@@ -5,10 +5,14 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public abstract record DataType
 {
+    public abstract uint ByteSize { get; }
+
     public abstract SExpression AsSExpression();
 
     public record I8 : DataType
     {
+        public override uint ByteSize => 1;
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
         public override string ToString() => AsSExpression().ToString();
 
@@ -21,6 +25,8 @@ public abstract record DataType
 
     public record UI8 : DataType
     {
+        public override uint ByteSize => 1;
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
         public override string ToString() => AsSExpression().ToString();
 
@@ -33,6 +39,8 @@ public abstract record DataType
 
     public record I64 : DataType
     {
+        public override uint ByteSize => 8;
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
         public override string ToString() => AsSExpression().ToString();
 
@@ -45,6 +53,8 @@ public abstract record DataType
 
     public record UI64 : DataType
     {
+        public override uint ByteSize => 8;
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
 
         public override string ToString() => AsSExpression().ToString();
@@ -58,6 +68,8 @@ public abstract record DataType
 
     public record Bool : DataType
     {
+        public override uint ByteSize => 1;
+
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Bool");
 
         public override string ToString() => AsSExpression().ToString();
@@ -71,6 +83,8 @@ public abstract record DataType
 
     public record Array(DataType ElementType) : DataType
     {
+        public override uint ByteSize => 16; // Length = 8, Address = 8
+
         public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("Array"),
             ElementType.AsSExpression()

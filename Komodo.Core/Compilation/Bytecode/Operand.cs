@@ -42,7 +42,7 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand, Source
+    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand
     {
         public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
@@ -57,7 +57,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public abstract record Local(SExpression ID) : Variable(SYMBOL, ID), Destination
+    public abstract record Local(SExpression ID) : Variable(SYMBOL, ID), Source, Destination
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("local");
 
@@ -85,7 +85,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public abstract record Arg(SExpression ID) : Variable(SYMBOL, ID)
+    public abstract record Arg(SExpression ID) : Variable(SYMBOL, ID), Source
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("arg");
 
@@ -113,7 +113,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Global(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Destination
+    public record Global(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Source, Destination
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("global");
 
@@ -163,6 +163,26 @@ public abstract record Operand : IOperand
         }
     }
 
+    public record Data(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Source
+    {
+        private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("data");
+
+        public static Data Deserialize(SExpression sexpr)
+            => Variable.Deserialize<Data, (string Module, string Name)>(
+                sexpr,
+                SYMBOL,
+                idList =>
+                {
+                    idList.ExpectLength(2)
+                          .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var module)
+                          .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
+
+                    return (module, name);
+                },
+                id => new Data(id.Module, id.Name)
+            );
+    }
+
     public static Source DeserializeSource(SExpression sexpr)
     {
         try { return Constant.Deserialize(sexpr); }
@@ -181,6 +201,9 @@ public abstract record Operand : IOperand
         catch { }
 
         try { return Array.Deserialize(sexpr); }
+        catch { }
+
+        try { return Data.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);

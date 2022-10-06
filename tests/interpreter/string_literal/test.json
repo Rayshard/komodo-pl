@@ -2,6 +2,6 @@
   "args": ["run-ir", "test.kmdir"],
   "exitcode": 0,
   "stdin": [],
-  "stdout": [],
+  "stdout": ["A€±デ🐉\n"],
   "stderr": []
 }

@@ -1,3 +1,4 @@
+using System.Text;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
 
@@ -13,13 +14,13 @@ public class Interpreter
     public Program Program { get; }
     public InterpreterConfig Config { get; }
 
-    private Dictionary<string, UInt64> dataItems = new Dictionary<string, UInt64>();
     private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
+    private Dictionary<(string Module, string Name), Value.Array> data = new Dictionary<(string Module, string Name), Value.Array>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
 
-    private Heap heap = new Heap();
+    private Memory memory = new Memory();
 
     public Interpreter(Program program, InterpreterConfig config)
     {
@@ -27,11 +28,14 @@ public class Interpreter
         Program = program;
         Config = config;
 
-        foreach(var dataItem in program.DataSegemnt.Values)
-            dataItems.Add(dataItem.Name, heap.Allocate(dataItem.Bytes));
-
         foreach (var module in program.Modules)
         {
+            foreach (var item in module.Data.Values)
+            {
+                var array = new Value.Array(new DataType.UI8(), memory.Allocate(item.Bytes), (UInt64)item.Bytes.Length);
+                data.Add((module.Name, item.Name), array);
+            }
+
             foreach (var global in module.Globals.Values)
                 globals.Add((module.Name, global.Name), global.DefaultValue is null ? Value.CreateDefault(global.DataType) : global.DefaultValue);
         }
@@ -97,9 +101,22 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
-                        case "GetTime":
+                        case "GetTime": stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks)); break;
+                        case "Write":
                             {
-                                stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks));
+                                var handle = PopStack<Value.I64>().Value;
+                                var array = PopStack(new DataType.Array(new DataType.UI8())).As<Value.Array>();
+                                var buffer = memory.Read(array.ElementType, array.Address, array.Length)
+                                                   .Select(value => value.As<Value.UI8>().Value)
+                                                   .ToArray();
+                                var bufferAsString = Encoding.UTF8.GetString(buffer);
+
+                                switch (handle)
+                                {
+                                    case 0: Config.StandardOutput.Write(bufferAsString); break;
+                                    default: throw new Exception($"Unknown handle: {handle}");
+                                }
+
                             }
                             break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
@@ -124,9 +141,9 @@ public class Interpreter
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a)
-                            => index < (UInt64)a.Elements.Count
-                                ? a.Elements[(int)index].Expect(instr.DataType)
-                                : throw new Exception($"Index {index} is greater than array length: {a.Elements.Count}"),
+                            => index < a.Length
+                                ? memory.Read(a.ElementType, a.Address + index * a.ElementType.ByteSize)
+                                : throw new Exception($"Index {index} is greater than array length: {a.Length}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -197,8 +214,7 @@ public class Interpreter
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
-            Operand.Array(var elementType, var elements)
-                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToArray()),
+            Operand.Data(var module, var name) => data[(module, name)],
             _ => throw new Exception($"Invalid source: {source}")
         };
 

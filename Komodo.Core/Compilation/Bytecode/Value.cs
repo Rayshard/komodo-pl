@@ -73,9 +73,12 @@ public abstract record Value(DataType DataType)
         }
     }
 
-    public record Array(DataType ElementType, UInt64 Address) : Value(new DataType.Array(ElementType))
+    public record Array(DataType ElementType, UInt64 Address, UInt64 Length) : Value(new DataType.Array(ElementType))
     {
-        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol($"0x{Address.ToString("X")}");
+        protected override SExpression ValueAsSExpression => new SExpression.List(new[] {
+            new SExpression.List(new[] { new SExpression.UnquotedSymbol("address"), new SExpression.UnquotedSymbol($"0x{Address.ToString("X")}")} ),
+            new SExpression.List(new[] { new SExpression.UnquotedSymbol("length"), SExpression.UInt64(Length) })
+        });
     }
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
@@ -94,7 +97,7 @@ public abstract record Value(DataType DataType)
         DataType.I64 => new I64(0),
         DataType.UI64 => new UI64(0),
         DataType.Bool => new Bool(false),
-        DataType.Array(var elementType) => new Array(elementType, 0),
+        DataType.Array(var elementType) => new Array(elementType, 0, 0),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 
