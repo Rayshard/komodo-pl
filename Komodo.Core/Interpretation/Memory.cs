@@ -2,7 +2,6 @@ namespace Komodo.Core.Interpretation;
 
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
-using Address = UInt64;
 
 public record Chunk(Address Address, Byte[] Data)
 {
@@ -14,12 +13,10 @@ public record Chunk(Address Address, Byte[] Data)
 
 public class Memory
 {
-    public static Address NULL = 0;
-
-    private List<Chunk> chunks = new List<Chunk> { new Chunk(NULL, new Byte[1]) };
+    private List<Chunk> chunks = new List<Chunk> { new Chunk(Address.NULL, new Byte[1]) };
 
     // A map of chunk addresses to their indices in chunks
-    private Dictionary<Address, int> allocatedChunks = new Dictionary<Address, int> { { NULL, 0 } };
+    private Dictionary<Address, int> allocatedChunks = new Dictionary<Address, int> { { Address.NULL, 0 } };
 
     // A map of chunk size to a set of indicies for chunks in memoery with that size
     private Dictionary<UInt64, HashSet<int>> freeChunks = new Dictionary<UInt64, HashSet<int>>();
@@ -70,7 +67,7 @@ public class Memory
     public void Free(Address address)
     {
         if (address == 0) { throw new Exception("Unable to free address: 0x0000000000000000"); }
-        if (!allocatedChunks.Remove(address, out var index)) { throw new Exception($"Unable to free chunks: address 0x{address.ToString("X")} is not the start of an allocated chunk."); }
+        if (!allocatedChunks.Remove(address, out var index)) { throw new Exception($"Unable to free chunks: address {address} is not the start of an allocated chunk."); }
 
         var chunkSize = chunks[index].Size;
 
@@ -78,14 +75,29 @@ public class Memory
         else { freeChunks.Add(chunkSize, new HashSet<int>() { index }); }
     }
 
-    public Value Read(DataType dataType, Address address)
+    public Byte Read(Address start)
     {
-        var chunk = GetContainingChunk(address);
+        var chunk = GetContainingChunk(start);
+        return chunk.Data[(int)(start - chunk.Address)];
+    }
 
-        if (address + dataType.ByteSize - 1 >= chunk.Next)
-            throw new Exception($"Unable to read memory: address range [0x{address.ToString("X")}, 0x{(address + dataType.ByteSize - 1).ToString("X")}] crosses a chunk boundary.");
+    public Byte[] Read(Address start, UInt64 count)
+    {
+        if(count == 0)
+            return new Byte[0];
 
-        var bytes = chunk.Data.SubArray((int)(address - chunk.Address), (int)dataType.ByteSize);
+        var chunk = GetContainingChunk(start);
+        var end = new Address(start + count - 1);
+
+        if (end >= chunk.Next)
+            throw new Exception($"Unable to read memory: address range [{start}, {end}] crosses a chunk boundary.");
+
+        return chunk.Data.SubArray((int)(start - chunk.Address), (int)count);;
+    }
+
+    public Value Read(Address start, DataType dataType)
+    {
+        var bytes = Read(start, dataType.ByteSize);
 
         return dataType switch
         {
@@ -98,20 +110,19 @@ public class Memory
         };
     }
 
-    public Value[] Read(DataType dataType, Address start, UInt64 count)
+    public Value[] Read(Address start, DataType dataType, UInt64 count)
     {
         var buffer = new Value[count];
         var address = start;
 
         for (UInt64 i = 0; i < count; i++)
         {
-            buffer[i] = Read(dataType, address);
+            buffer[i] = Read(address, dataType);
             address += dataType.ByteSize;
         }
 
         return buffer;
     }
-
 
     private Chunk GetContainingChunk(Address address)
     {
@@ -121,6 +132,6 @@ public class Memory
                 return chunk;
         }
 
-        throw new Exception($"Unable to get containing chunk: address 0x{address.ToString("X")} is not in memory range.");
+        throw new Exception($"Unable to get containing chunk: address {address} is not in memory range.");
     }
 }

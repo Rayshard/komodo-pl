@@ -2,6 +2,25 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
+public record Address(UInt64 Value)
+{
+    public static readonly Address NULL = new Address(0ul);
+
+    public bool IsNull => this == NULL;
+
+    public Byte[] AsBytes() => BitConverter.GetBytes(Value);
+
+    public override string ToString() => $"0x{Value.ToString("X")}";
+
+    public SExpression AsSExpression() => new SExpression.List(new[] {
+        new SExpression.UnquotedSymbol("address"),
+        new SExpression.UnquotedSymbol(ToString())
+    });
+
+    public static implicit operator UInt64(Address a) => a.Value;
+    public static implicit operator Address(UInt64 value) => new Address(value);
+}
+
 public abstract record Value(DataType DataType)
 {
     protected abstract SExpression ValueAsSExpression { get; }
@@ -43,14 +62,23 @@ public abstract record Value(DataType DataType)
         public override Byte[] AsBytes() => new Byte[] { Value ? (byte)1 : (byte)0 };
     }
 
-    public record Array(DataType ElementType, UInt64 Length, UInt64 Address) : Value(new DataType.Array(ElementType))
+    public record Array(DataType ElementType, UInt64 Length, Address Address) : Value(new DataType.Array(ElementType))
     {
-        public override Byte[] AsBytes() => new[] { BitConverter.GetBytes(Length), BitConverter.GetBytes(Address) }.Flatten().ToArray();
+        public override Byte[] AsBytes() => new[] { BitConverter.GetBytes(Length), Address.AsBytes() }.Flatten().ToArray();
 
         protected override SExpression ValueAsSExpression => new SExpression.List(new[] {
-            new SExpression.List(new[] { new SExpression.UnquotedSymbol("address"), new SExpression.UnquotedSymbol($"0x{Address.ToString("X")}")} ),
+            Address.AsSExpression(),
             new SExpression.List(new[] { new SExpression.UnquotedSymbol("length"), SExpression.UInt64(Length) })
         });
+    }
+
+    public record Type(Address Address) : Value(new DataType.Type())
+    {
+        public bool IsUnknown => Address.IsNull;
+
+        public override Byte[] AsBytes() => Address.AsBytes();
+
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
     }
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
@@ -69,7 +97,8 @@ public abstract record Value(DataType DataType)
         DataType.I64 => new I64(0),
         DataType.UI64 => new UI64(0),
         DataType.Bool => new Bool(false),
-        DataType.Array(var elementType) => new Array(elementType, 0, 0),
+        DataType.Array(var elementType) => new Array(elementType, 0, Address.NULL),
+        DataType.Type => new Type(Address.NULL),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 }

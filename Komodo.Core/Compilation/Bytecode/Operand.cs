@@ -248,6 +248,24 @@ public abstract record Operand : IOperand
             );
     }
 
+    public record Typeof(Bytecode.DataType Type) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("typeof"),
+            Type.AsSExpression()
+        });
+
+        public static Typeof Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("typeof"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var type);
+
+            return new Typeof(type);
+        }
+    }
+    
     public static Source DeserializeSource(SExpression sexpr)
     {
         try { return Constant.Deserialize(sexpr); }
@@ -269,6 +287,9 @@ public abstract record Operand : IOperand
         catch { }
 
         try { return Data.Deserialize(sexpr); }
+        catch { }
+
+        try { return Typeof.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);

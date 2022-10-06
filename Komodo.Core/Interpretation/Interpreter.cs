@@ -106,7 +106,7 @@ public class Interpreter
                             {
                                 var handle = PopStack<Value.I64>().Value;
                                 var array = PopStack(new DataType.Array(new DataType.UI8())).As<Value.Array>();
-                                var buffer = memory.Read(array.ElementType, array.Address, array.Length)
+                                var buffer = memory.Read(array.Address, array.ElementType, array.Length)
                                                    .Select(value => value.As<Value.UI8>().Value)
                                                    .ToArray();
                                 var bufferAsString = Encoding.UTF8.GetString(buffer);
@@ -141,7 +141,7 @@ public class Interpreter
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a)
                             => index < a.Length
-                                ? memory.Read(a.ElementType, a.Address + index * a.ElementType.ByteSize)
+                                ? memory.Read(a.Address + index * a.ElementType.ByteSize, a.ElementType)
                                 : throw new Exception($"Index {index} is greater than array length: {a.Length}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
@@ -167,7 +167,10 @@ public class Interpreter
                 {
                     Value.Array a => a.Length == 0
                         ? "[]"
-                        : memory.Read(a.ElementType, a.Address, a.Length).Stringify(", ", ("[", "]")),
+                        : memory.Read(a.Address, a.ElementType, a.Length).Stringify(", ", ("[", "]")),
+                    Value.Type t => t.IsUnknown
+                        ? "unknown"
+                        : Encoding.UTF8.GetString(memory.Read(t.Address + 8, BitConverter.ToUInt64(memory.Read(t.Address, 8)))),
                     var value => value
                 }); break;
             case Instruction.Assert instr:
@@ -227,9 +230,10 @@ public class Interpreter
                 elementType,
                 (UInt64)elements.Count,
                 elements.Count == 0
-                    ? Memory.NULL
+                    ? Address.NULL
                     : memory.Allocate(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType).AsBytes()).Flatten())
             ),
+            Operand.Typeof(var type) => new Value.Type(memory.Allocate(type.AsLengthPrefixedMangledString())),
             _ => throw new Exception($"Invalid source: {source}")
         };
 

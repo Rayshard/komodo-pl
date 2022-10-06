@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using Komodo.Core.Utilities;
 
@@ -8,6 +9,13 @@ public abstract record DataType
     public abstract uint ByteSize { get; }
 
     public abstract SExpression AsSExpression();
+    public abstract string AsMangledString();
+
+    public Byte[] AsLengthPrefixedMangledString()
+    {
+        var mangledString = AsMangledString();
+        return BitConverter.GetBytes((UInt64)mangledString.Length).Concat(Encoding.UTF8.GetBytes(mangledString)).ToArray();
+    }
 
     public sealed override string ToString() => AsSExpression().ToString();
 
@@ -16,6 +24,7 @@ public abstract record DataType
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
+        public override string AsMangledString() => "I8";
 
         new public static I8 Deserialize(SExpression sexpr)
         {
@@ -29,6 +38,7 @@ public abstract record DataType
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
+        public override string AsMangledString() => "UI8";
 
         new public static UI8 Deserialize(SExpression sexpr)
         {
@@ -42,6 +52,7 @@ public abstract record DataType
         public override uint ByteSize => 8;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
+        public override string AsMangledString() => "I64";
 
         new public static I64 Deserialize(SExpression sexpr)
         {
@@ -55,6 +66,7 @@ public abstract record DataType
         public override uint ByteSize => 8;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
+        public override string AsMangledString() => "UI64";
 
         new public static UI64 Deserialize(SExpression sexpr)
         {
@@ -68,6 +80,7 @@ public abstract record DataType
         public override uint ByteSize => 1;
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Bool");
+        public override string AsMangledString() => "Bool";
 
         new public static Bool Deserialize(SExpression sexpr)
         {
@@ -84,6 +97,7 @@ public abstract record DataType
             new SExpression.UnquotedSymbol("Array"),
             ElementType.AsSExpression()
         });
+        public override string AsMangledString() => $"{ElementType.AsMangledString()}[]";
 
         new public static Array Deserialize(SExpression sexpr)
         {
@@ -93,6 +107,20 @@ public abstract record DataType
                  .ExpectItem(1, DataType.Deserialize, out var elementType);
 
             return new Array(elementType);
+        }
+    }
+
+    public record Type : DataType
+    {
+        public override uint ByteSize => 8; // Address to length prefixed mangled type string
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Type");
+        public override string AsMangledString() => "Type";
+
+        new public static Type Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue("Type");
+            return new Type();
         }
     }
 
@@ -116,6 +144,9 @@ public abstract record DataType
         catch { }
 
         try { return Array.Deserialize(sexpr); }
+        catch { }
+
+        try { return Type.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
@@ -151,6 +182,6 @@ public record OptionallyNamedDataType(DataType DataType, string? Name = null)
         }
         catch { }
 
-        throw new SExpression.FormatException($"Invalid named data type: {sexpr}", sexpr);
+        throw new SExpression.FormatException($"Invalid optionally named data type: {sexpr}", sexpr);
     }
 }
