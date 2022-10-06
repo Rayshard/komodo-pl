@@ -20,7 +20,70 @@ public abstract record Operand : IOperand
     {
         public override SExpression AsSExpression() => Value.AsSExpression();
 
-        public static Constant Deserialize(SExpression sexpr) => new Constant(Value.Deserialize(sexpr));
+        public static Constant Deserialize(SExpression sexpr)
+        {
+            try { return new Constant(DeserializeUI8(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeI64(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeUI64(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeBool(sexpr)); }
+            catch { }
+
+            throw new SExpression.FormatException($"Invalid constant: {sexpr}", sexpr);
+        }
+
+        public static Value.UI8 DeserializeUI8(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.UI8.Deserialize)
+                 .ExpectItem(1, item => item.ExpectUInt8(), out var value);
+
+            return new Value.UI8(value);
+        }
+
+        public static Value.I64 DeserializeI64(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.I64.Deserialize)
+                 .ExpectItem(1, item => item.ExpectInt64(), out var value);
+
+                return new Value.I64(value);
+            }
+            else { return new Value.I64(sexpr.ExpectInt64()); }
+        }
+
+        public static Value.UI64 DeserializeUI64(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.UI64.Deserialize)
+                 .ExpectItem(1, item => item.ExpectUInt64(), out var value);
+
+            return new Value.UI64(value);
+        }
+
+        public static Value.Bool DeserializeBool(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.Bool.Deserialize)
+                     .ExpectItem(1, item => item.ExpectBool(), out var value);
+
+                return new Value.Bool(value);
+            }
+            else { return new Value.Bool(sexpr.ExpectBool()); }
+        }
     }
 
     public record DataType(Bytecode.DataType Value) : Operand

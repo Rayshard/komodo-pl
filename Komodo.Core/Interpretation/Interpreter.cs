@@ -37,7 +37,7 @@ public class Interpreter
             }
 
             foreach (var global in module.Globals.Values)
-                globals.Add((module.Name, global.Name), global.DefaultValue is null ? Value.CreateDefault(global.DataType) : global.DefaultValue);
+                globals.Add((module.Name, global.Name), Value.CreateDefault(global.DataType));
         }
     }
 
