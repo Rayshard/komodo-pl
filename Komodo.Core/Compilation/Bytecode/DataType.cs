@@ -14,57 +14,161 @@ public abstract record DataType
 
     public record I8 : DataType
     {
+        private static string Symbol => "I8";
+
         public override UInt64 ByteSize => ByteSizeOf<I8>();
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
-        public override string AsMangledString() => "I8";
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
 
         new public static I8 Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectUnquotedSymbol().ExpectValue("I8");
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
             return new I8();
         }
     }
 
     public record UI8 : DataType
     {
+        private static string Symbol => "UI8";
+
         public override UInt64 ByteSize => ByteSizeOf<UI8>();
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
-        public override string AsMangledString() => "UI8";
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
 
         new public static UI8 Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectUnquotedSymbol().ExpectValue("UI8");
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
             return new UI8();
+        }
+    }
+
+    public record I16 : DataType
+    {
+        private static string Symbol => "I16";
+
+        public override UInt64 ByteSize => ByteSizeOf<I16>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static I16 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new I16();
+        }
+    }
+
+    public record UI16 : DataType
+    {
+        private static string Symbol => "UI16";
+
+        public override UInt64 ByteSize => ByteSizeOf<UI16>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static UI16 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new UI16();
+        }
+    }
+
+    public record I32 : DataType
+    {
+        private static string Symbol => "I32";
+
+        public override UInt64 ByteSize => ByteSizeOf<I32>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static I32 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new I32();
+        }
+    }
+
+    public record UI32 : DataType
+    {
+        private static string Symbol => "UI32";
+
+        public override UInt64 ByteSize => ByteSizeOf<UI32>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static UI32 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new UI32();
         }
     }
 
     public record I64 : DataType
     {
+        private static string Symbol => "I64";
+
         public override UInt64 ByteSize => ByteSizeOf<I64>();
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
-        public override string AsMangledString() => "I64";
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
 
         new public static I64 Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectUnquotedSymbol().ExpectValue("I64");
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
             return new I64();
         }
     }
 
     public record UI64 : DataType
     {
+        private static string Symbol => "UI64";
+
         public override UInt64 ByteSize => ByteSizeOf<UI64>();
 
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
-        public override string AsMangledString() => "UI64";
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
 
         new public static UI64 Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectUnquotedSymbol().ExpectValue("UI64");
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
             return new UI64();
+        }
+    }
+
+    public record F32 : DataType
+    {
+        private static string Symbol => "F32";
+
+        public override UInt64 ByteSize => ByteSizeOf<F32>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static F32 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new F32();
+        }
+    }
+
+    public record F64 : DataType
+    {
+        private static string Symbol => "F64";
+
+        public override UInt64 ByteSize => ByteSizeOf<F64>();
+
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Symbol);
+        public override string AsMangledString() => Symbol;
+
+        new public static F64 Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectUnquotedSymbol().ExpectValue(Symbol);
+            return new F64();
         }
     }
 
@@ -140,9 +244,10 @@ public abstract record DataType
 
     public static UInt64 ByteSizeOf<T>() where T : DataType => typeof(T) switch
     {
-        var type when type == typeof(I8) || type == typeof(UI8) => 1,
-        var type when type == typeof(I64) || type == typeof(UI64) => 8,
-        var type when type == typeof(Bool) => 1,
+        var type when type == typeof(I8) || type == typeof(UI8) || type == typeof(Bool) => 1,
+        var type when type == typeof(I16) || type == typeof(UI16) => 2,
+        var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
+        var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
         var type when type == typeof(Array) => ByteSizeOf<UI64>() + Address.ByteSize,
         var type when type == typeof(Type) => Address.ByteSize,
         var type when type == typeof(Reference) => Address.ByteSize,
