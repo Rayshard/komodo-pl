@@ -343,6 +343,13 @@ public abstract record Operand : IOperand
         Convert.Deserialize,
     };
 
+    private static Func<SExpression, Destination>[] DestinationDeserializers => new Func<SExpression, Destination>[] {
+        Local.Deserialize,
+        Global.Deserialize,
+        Stack.Deserialize,
+        Memory.Deserialize,
+    };
+
     public static Source DeserializeSource(SExpression sexpr)
     {
         foreach (var deserializer in SourceDeserializers)
@@ -356,17 +363,11 @@ public abstract record Operand : IOperand
 
     public static Destination DeserializeDestination(SExpression sexpr)
     {
-        try { return Local.Deserialize(sexpr); }
-        catch { }
-
-        try { return Global.Deserialize(sexpr); }
-        catch { }
-
-        try { return Stack.Deserialize(sexpr); }
-        catch { }
-
-        try { return Memory.Deserialize(sexpr); }
-        catch { }
+        foreach (var deserializer in DestinationDeserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
 
         throw new SExpression.FormatException($"Invalid destination operand: {sexpr}", sexpr);
     }
