@@ -147,8 +147,25 @@ public class Interpreter
             case Instruction.Allocate instr:
                 {
                     var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
-                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType)); break;
+                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType));
                 }
+                break;
+            case Instruction.Load instr:
+                {
+                    var reference = GetSourceOperandValue(stackFrame, instr.Reference).As<Value.Reference>();
+                    var value = memory.ReadValue(reference);
+
+                    SetDestinationOperandValue(stackFrame, instr.Destination, value, reference.ValueType);
+                }
+                break;
+            case Instruction.Store instr:
+                {
+                    var value = GetSourceOperandValue(stackFrame, instr.Value);
+                    var reference = GetSourceOperandValue(stackFrame, instr.Reference, new DataType.Reference(value.DataType)).As<Value.Reference>();
+
+                    memory.Write(reference.Address, value);
+                }
+                break;
             case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
@@ -254,7 +271,6 @@ public class Interpreter
                     : memory.AllocateWrite(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType)))
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
-            Operand.Memory operand => memory.ReadValue(GetSourceOperandValue(stackFrame, operand.Address).As<Value.Reference>()),
             Operand.Convert operand => GetSourceOperandValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
             _ => throw new Exception($"Invalid source: {source}")
         };
@@ -303,14 +319,6 @@ public class Interpreter
             case Operand.Stack:
                 {
                     setter = delegate { stack.Push(value); };
-                    destDataType = value.DataType;
-                }
-                break;
-            case Operand.Memory m:
-                {
-                    var reference = GetSourceOperandValue(stackFrame, m.Address, new DataType.Reference(value.DataType)).As<Value.Reference>();
-
-                    setter = delegate { memory.Write(reference.Address, value); };
                     destDataType = value.DataType;
                 }
                 break;

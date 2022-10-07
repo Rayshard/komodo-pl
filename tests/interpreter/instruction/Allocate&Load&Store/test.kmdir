@@ -4,23 +4,16 @@
         (function Main
             (locals
                 (Ref I64)
-                (Ref I64)
             )
 
-            (Assert (local 0) (null I64))
-
             (Allocate I64 (local 0))
+
             (Load (local 0) $stack)
             (Assert $stack 0)
 
             (Store 123 (local 0))
             (Load (local 0) $stack)
             (Assert $stack 123)
-
-            (Move (local 0) (local 1))
-            (Store 456 (local 1))
-            (Load (local 0) $stack)
-            (Assert $stack 456)
 
             (Exit 0)
         )

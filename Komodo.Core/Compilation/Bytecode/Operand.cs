@@ -291,24 +291,6 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Memory(Source Address) : Operand, Source, Destination
-    {
-        public override SExpression AsSExpression() => new SExpression.List(new[]{
-            new SExpression.UnquotedSymbol("mem"),
-            Address.AsSExpression()
-        });
-
-        public static Memory Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("mem"))
-                 .ExpectItem(1, DeserializeSource, out var source);
-
-            return new Memory(source);
-        }
-    }
-
     public record Convert(Bytecode.DataType ResultType, Source Value) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
@@ -339,7 +321,6 @@ public abstract record Operand : IOperand
         Data.Deserialize,
         Null.Deserialize,
         Typeof.Deserialize,
-        Memory.Deserialize,
         Convert.Deserialize,
     };
 
@@ -347,7 +328,6 @@ public abstract record Operand : IOperand
         Local.Deserialize,
         Global.Deserialize,
         Stack.Deserialize,
-        Memory.Deserialize,
     };
 
     public static Source DeserializeSource(SExpression sexpr)

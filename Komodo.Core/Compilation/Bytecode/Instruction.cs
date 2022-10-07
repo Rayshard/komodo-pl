@@ -11,8 +11,11 @@ public enum Opcode
     Return,
     Jump,
     Assert,
-    Allocate,
     Exit,
+
+    Allocate,
+    Load,
+    Store,
 
     Add,
     Eq,
@@ -256,6 +259,38 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
+    public record Load(Operand.Source Reference, Operand.Destination Destination) : Instruction(Opcode.Load)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Reference, Destination };
+
+        new public static Load Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Load))
+                 .ExpectItem(1, Operand.DeserializeSource, out var reference)
+                 .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+
+            return new Load(reference, destination);
+        }
+    }
+
+    public record Store(Operand.Source Value, Operand.Source Reference) : Instruction(Opcode.Store)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, Reference };
+
+        new public static Store Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Store))
+                 .ExpectItem(1, Operand.DeserializeSource, out var value)
+                 .ExpectItem(2, Operand.DeserializeSource, out var reference);
+
+            return new Store(value, reference);
+        }
+    }
+
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
         Opcode.Add => Binop.Deserialize(sexpr),
@@ -271,7 +306,11 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Exit => Exit.Deserialize(sexpr),
         Opcode.Move => Move.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
+        
         Opcode.Allocate => Allocate.Deserialize(sexpr),
+        Opcode.Load => Load.Deserialize(sexpr),
+        Opcode.Store => Store.Deserialize(sexpr),
+      
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }
