@@ -2,7 +2,7 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Exit 1)
+            (Exit 0)
         )
     )
 )
