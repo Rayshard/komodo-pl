@@ -56,7 +56,7 @@ public class Memory
         return address;
     }
 
-    public Address Allocate(IEnumerable<Byte> data, bool prefixWithLength = false)
+    public Address AllocateWrite(IEnumerable<Byte> data, bool prefixWithLength = false)
     {
         var bytes = data.ToArray();
 
@@ -69,16 +69,37 @@ public class Memory
         return address;
     }
 
-    public Address Allocate(Value value, bool prefixWithType = false)
+    public Address AllocateWrite(string data, bool prefixWithLength = false) => AllocateWrite(Encoding.UTF8.GetBytes(data), prefixWithLength);
+
+    public Address AllocateWrite(Value value, bool prefixWithType = false)
     {
         if (prefixWithType)
         {
             var mangledString = value.DataType.AsMangledString();
             var typeData = BitConverter.GetBytes((UInt64)mangledString.Length).Concat(Encoding.UTF8.GetBytes(mangledString));
 
-            return Allocate(typeData.Concat(value.AsBytes()));
+            return AllocateWrite(typeData.Concat(value.AsBytes()));
         }
-        else { return Allocate(value.AsBytes()); }
+        else { return AllocateWrite(value.AsBytes()); }
+    }
+
+    public Address AllocateWrite(IEnumerable<Value> values, bool prefixWithType = false)
+    {
+        if (prefixWithType)
+        {
+            IEnumerable<Byte> data = new Byte[0];
+
+            foreach (Value value in values)
+            {
+                var mangledString = value.DataType.AsMangledString();
+                var typeData = BitConverter.GetBytes((UInt64)mangledString.Length).Concat(Encoding.UTF8.GetBytes(mangledString));
+
+                data = data.Concat(typeData).Concat(value.AsBytes());
+            }
+
+            return AllocateWrite(data);
+        }
+        else { return AllocateWrite(values.Select(value => value.AsBytes()).Flatten()); }
     }
 
     public void Free(Address address)

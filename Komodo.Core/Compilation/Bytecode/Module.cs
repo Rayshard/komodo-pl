@@ -8,10 +8,10 @@ public record Data(string Name, Byte[] Bytes)
 {
     public static Data Deserialize(SExpression sexpr)
     {
-        var list = sexpr.ExpectList()
-                        .ExpectLength(2)
-                        .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
-                        .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
+        sexpr.ExpectList()
+             .ExpectLength(2)
+             .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
+             .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
 
         return new Data(name, bytes);
     }
@@ -21,10 +21,10 @@ public record Global(string Name, DataType DataType)
 {
     public static Global Deserialize(SExpression sexpr)
     {
-        var list = sexpr.ExpectList()
-                        .ExpectLength(2)
-                        .ExpectItem(0, DataType.Deserialize, out var dataType)
-                        .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
+        sexpr.ExpectList()
+             .ExpectLength(2)
+             .ExpectItem(0, DataType.Deserialize, out var dataType)
+             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
 
         return new Global(name, dataType);
     }

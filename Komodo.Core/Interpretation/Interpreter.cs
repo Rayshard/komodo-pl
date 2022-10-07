@@ -38,7 +38,7 @@ public class Interpreter
         {
             foreach (var item in module.Data.Values)
             {
-                var array = new Value.Array(new DataType.UI8(), (UInt64)item.Bytes.Length, memory.Allocate(item.Bytes));
+                var array = new Value.Array(new DataType.UI8(), (UInt64)item.Bytes.Length, memory.AllocateWrite(item.Bytes));
                 data.Add((module.Name, item.Name), array);
             }
 
@@ -89,10 +89,7 @@ public class Interpreter
             }
             catch (Exception e)
             {
-                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}");
-
-                if (e.StackTrace is not null)
-                    Logger.Debug(e.StackTrace, true);
+                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}" + (e.StackTrace is null ? "" : $"\n{e.StackTrace}"));
 
                 exitcode = 1;
                 break;
@@ -149,7 +146,7 @@ public class Interpreter
                 break;
             case Instruction.Allocate instr:
                 {
-                    var address = memory.Allocate(Value.CreateDefault(instr.DataType));
+                    var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
                     SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType)); break;
                 }
             case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
@@ -196,6 +193,9 @@ public class Interpreter
                     Value.Type t => t.IsUnknown
                         ? "unknown"
                         : Encoding.UTF8.GetString(memory.ReadBytes(t.Address + 8, memory.ReadUInt64(t.Address))),
+                    Value.Reference r => r.IsSet
+                        ? $"ref {memory.ReadValue(r.Address, r.ValueType)}"
+                        : $"ref ({r.DataType} null)",
                     var value => value
                 }); break;
             case Instruction.Assert instr:
@@ -252,10 +252,10 @@ public class Interpreter
                 (UInt64)elements.Count,
                 elements.Count == 0
                     ? Address.NULL
-                    : memory.Allocate(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType).AsBytes()).Flatten())
+                    : memory.AllocateWrite(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType)))
             ),
             Operand.Typeof(var type)
-                => new Value.Type(memory.Allocate(Encoding.UTF8.GetBytes(type.AsMangledString()), true)),
+                => new Value.Type(memory.AllocateWrite(type.AsMangledString(), true)),
             Operand.Memory(var address)
                 => memory.ReadValue(GetSourceOperandValue(stackFrame, address).As<Value.Reference>()),
             _ => throw new Exception($"Invalid source: {source}")

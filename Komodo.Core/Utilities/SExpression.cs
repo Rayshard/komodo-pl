@@ -290,6 +290,16 @@ public abstract record SExpression(TextLocation? Location)
         else { throw FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, this); }
     }
 
+    public SByte ExpectInt8()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (SByte.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 8-bit signed integer", this);
+    }
+
     public Byte ExpectUInt8()
     {
         var value = ExpectUnquotedSymbol().Value;
@@ -307,7 +317,7 @@ public abstract record SExpression(TextLocation? Location)
         if (Int64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an 64-bit integer", this);
+        throw new FormatException($"'{value}' is not an 64-bit signed integer", this);
     }
 
     public UInt64 ExpectUInt64()
@@ -333,6 +343,16 @@ public abstract record SExpression(TextLocation? Location)
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;
     public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public bool IsInt8()
+    {
+        try
+        {
+            ExpectInt8();
+            return true;
+        }
+        catch { return false; }
+    }
 
     public bool IsUInt8()
     {

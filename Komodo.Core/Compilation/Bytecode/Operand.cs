@@ -22,6 +22,9 @@ public abstract record Operand : IOperand
 
         public static Constant Deserialize(SExpression sexpr)
         {
+try { return new Constant(DeserializeI8(sexpr)); }
+            catch { }
+
             try { return new Constant(DeserializeUI8(sexpr)); }
             catch { }
 
@@ -36,6 +39,17 @@ public abstract record Operand : IOperand
 
             throw new SExpression.FormatException($"Invalid constant: {sexpr}", sexpr);
         }
+
+        public static Value.I8 DeserializeI8(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.I8.Deserialize)
+                 .ExpectItem(1, item => item.ExpectInt8(), out var value);
+
+            return new Value.I8(value);
+        }
+
 
         public static Value.UI8 DeserializeUI8(SExpression sexpr)
         {
@@ -91,13 +105,6 @@ public abstract record Operand : IOperand
         public override SExpression AsSExpression() => Value.AsSExpression();
 
         public static DataType Deserialize(SExpression sexpr) => new DataType(Bytecode.DataType.Deserialize(sexpr));
-    }
-
-    public record Enumeration<T>(T Value) : Operand where T : struct, Enum
-    {
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Value.ToString());
-
-        public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.ExpectEnum<T>());
     }
 
     public record Identifier(string Value) : Operand
@@ -351,6 +358,6 @@ public abstract record Operand : IOperand
         try { return Memory.Deserialize(sexpr); }
         catch { }
 
-        throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
+        throw new SExpression.FormatException($"Invalid destination operand: {sexpr}", sexpr);
     }
 }

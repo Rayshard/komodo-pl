@@ -11,7 +11,6 @@ public enum Opcode
     Return,
     Jump,
     Assert,
-    Deref,
     Allocate,
     Convert,
     Exit,
@@ -66,22 +65,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                 Operand.DeserializeSource(list[1]),
                 Operand.DeserializeSource(list[2])
             );
-        }
-    }
-
-    public record Deref(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Deref)
-    {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
-
-        new public static Deref Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(3)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Deref))
-                 .ExpectItem(1, Operand.DeserializeSource, out var source)
-                 .ExpectItem(2, Operand.DeserializeDestination, out var destination);
-
-            return new Deref(source, destination);
         }
     }
 
@@ -292,7 +275,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.GetElement => Binop.Deserialize(sexpr),
         Opcode.Convert => Unop.Deserialize(sexpr),
         Opcode.Allocate => Allocate.Deserialize(sexpr),
-        Opcode.Deref => Deref.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

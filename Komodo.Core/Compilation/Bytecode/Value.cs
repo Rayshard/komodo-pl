@@ -19,6 +19,13 @@ public abstract record Value(DataType DataType)
 
     public virtual Value ConvertTo(DataType dataType) => throw new Exception($"Invalid conversion from {DataType} to {dataType}");
 
+    public record I8(SByte Value) : Value(new DataType.I8())
+    {
+        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
+
+        public override Byte[] AsBytes() => new Byte[] { (Byte)Value };
+    }
+
     public record UI8(Byte Value) : Value(new DataType.UI8())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
@@ -77,17 +84,9 @@ public abstract record Value(DataType DataType)
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
 
-    public Value Expect(DataType dataType) => dataType switch
-    {
-        DataType.I64 when this is I64 => this,
-        DataType.Bool when this is Bool => this,
-        DataType.Array(var elementType) when this is Array a && a.DataType == elementType => this,
-        DataType.Reference(var valueType) when this is Reference r && r.ValueType == valueType => this,
-        _ => throw new Exception($"Invalid value cast: Expected {dataType}, but found {DataType}")
-    };
-
     public static Value CreateDefault(DataType dataType) => dataType switch
     {
+        DataType.I8 => new I8(0),
         DataType.UI8 => new UI8(0),
         DataType.I64 => new I64(0),
         DataType.UI64 => new UI64(0),
