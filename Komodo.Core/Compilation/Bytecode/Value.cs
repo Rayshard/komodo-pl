@@ -2,27 +2,10 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public record Address(UInt64 Value)
-{
-    public static readonly Address NULL = new Address(0ul);
-
-    public bool IsNull => this == NULL;
-
-    public Byte[] AsBytes() => BitConverter.GetBytes(Value);
-
-    public override string ToString() => $"0x{Value.ToString("X")}";
-
-    public SExpression AsSExpression() => new SExpression.List(new[] {
-        new SExpression.UnquotedSymbol("address"),
-        new SExpression.UnquotedSymbol(ToString())
-    });
-
-    public static implicit operator UInt64(Address a) => a.Value;
-    public static implicit operator Address(UInt64 value) => new Address(value);
-}
-
 public abstract record Value(DataType DataType)
 {
+    public UInt64 ByteSize => DataType.ByteSize;
+
     protected abstract SExpression ValueAsSExpression { get; }
 
     public abstract Byte[] AsBytes();
@@ -33,6 +16,8 @@ public abstract record Value(DataType DataType)
     });
 
     public sealed override string ToString() => AsSExpression().ToString();
+
+    public virtual Value ConvertTo(DataType dataType) => throw new Exception($"Invalid conversion from {DataType} to {dataType}");
 
     public record UI8(Byte Value) : Value(new DataType.UI8())
     {
@@ -81,6 +66,15 @@ public abstract record Value(DataType DataType)
         protected override SExpression ValueAsSExpression => Address.AsSExpression();
     }
 
+    public record Reference(DataType ValueType, Address Address) : Value(new DataType.Reference(ValueType))
+    {
+        public bool IsSet => !Address.IsNull;
+
+        public override Byte[] AsBytes() => Address.AsBytes();
+
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+    }
+
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
 
     public Value Expect(DataType dataType) => dataType switch
@@ -88,6 +82,7 @@ public abstract record Value(DataType DataType)
         DataType.I64 when this is I64 => this,
         DataType.Bool when this is Bool => this,
         DataType.Array(var elementType) when this is Array a && a.DataType == elementType => this,
+        DataType.Reference(var valueType) when this is Reference r && r.ValueType == valueType => this,
         _ => throw new Exception($"Invalid value cast: Expected {dataType}, but found {DataType}")
     };
 
@@ -99,6 +94,7 @@ public abstract record Value(DataType DataType)
         DataType.Bool => new Bool(false),
         DataType.Array(var elementType) => new Array(elementType, 0, Address.NULL),
         DataType.Type => new Type(Address.NULL),
+        DataType.Reference(var valueType) => new Reference(valueType, Address.NULL),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 }

@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.RegularExpressions;
 using Komodo.Core.Utilities;
 
@@ -6,22 +5,16 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public abstract record DataType
 {
-    public abstract uint ByteSize { get; }
+    public abstract UInt64 ByteSize { get; }
 
     public abstract SExpression AsSExpression();
     public abstract string AsMangledString();
-
-    public Byte[] AsLengthPrefixedMangledString()
-    {
-        var mangledString = AsMangledString();
-        return BitConverter.GetBytes((UInt64)mangledString.Length).Concat(Encoding.UTF8.GetBytes(mangledString)).ToArray();
-    }
 
     public sealed override string ToString() => AsSExpression().ToString();
 
     public record I8 : DataType
     {
-        public override uint ByteSize => 1;
+        public override UInt64 ByteSize => ByteSizeOf<I8>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I8");
         public override string AsMangledString() => "I8";
@@ -35,7 +28,7 @@ public abstract record DataType
 
     public record UI8 : DataType
     {
-        public override uint ByteSize => 1;
+        public override UInt64 ByteSize => ByteSizeOf<UI8>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI8");
         public override string AsMangledString() => "UI8";
@@ -49,7 +42,7 @@ public abstract record DataType
 
     public record I64 : DataType
     {
-        public override uint ByteSize => 8;
+        public override UInt64 ByteSize => ByteSizeOf<I64>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("I64");
         public override string AsMangledString() => "I64";
@@ -63,7 +56,7 @@ public abstract record DataType
 
     public record UI64 : DataType
     {
-        public override uint ByteSize => 8;
+        public override UInt64 ByteSize => ByteSizeOf<UI64>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("UI64");
         public override string AsMangledString() => "UI64";
@@ -77,7 +70,7 @@ public abstract record DataType
 
     public record Bool : DataType
     {
-        public override uint ByteSize => 1;
+        public override UInt64 ByteSize => ByteSizeOf<Bool>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Bool");
         public override string AsMangledString() => "Bool";
@@ -91,7 +84,7 @@ public abstract record DataType
 
     public record Array(DataType ElementType) : DataType
     {
-        public override uint ByteSize => 16; // Length = 8, Address = 8
+        public override UInt64 ByteSize => ByteSizeOf<Array>();
 
         public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("Array"),
@@ -112,7 +105,7 @@ public abstract record DataType
 
     public record Type : DataType
     {
-        public override uint ByteSize => 8; // Address to length prefixed mangled type string
+        public override UInt64 ByteSize => ByteSizeOf<Type>();
 
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Type");
         public override string AsMangledString() => "Type";
@@ -124,7 +117,37 @@ public abstract record DataType
         }
     }
 
+    public record Reference(DataType ValueType) : DataType
+    {
+        public override UInt64 ByteSize => ByteSizeOf<Reference>();
+
+        public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
+
+        public override string AsMangledString() => $"Ref {ValueType.AsMangledString()}";
+
+        new public static Reference Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("Ref"))
+                 .ExpectItem(1, DataType.Deserialize, out var valueType);
+
+            return new Reference(valueType);
+        }
+    }
+
     public T As<T>() where T : DataType => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
+
+    public static UInt64 ByteSizeOf<T>() where T : DataType => typeof(T) switch
+    {
+        var type when type == typeof(I8) || type == typeof(UI8) => 1,
+        var type when type == typeof(I64) || type == typeof(UI64) => 8,
+        var type when type == typeof(Bool) => 1,
+        var type when type == typeof(Array) => ByteSizeOf<UI64>() + Address.ByteSize,
+        var type when type == typeof(Type) => Address.ByteSize,
+        var type when type == typeof(Reference) => Address.ByteSize,
+        var type => throw new NotImplementedException(type.ToString())
+    };
 
     public static DataType Deserialize(SExpression sexpr)
     {
@@ -149,8 +172,24 @@ public abstract record DataType
         try { return Type.Deserialize(sexpr); }
         catch { }
 
+        try { return Reference.Deserialize(sexpr); }
+        catch { }
+
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
     }
+
+    public static DataType Demangle(string mangledString) => mangledString switch
+    {
+        "I8" => new I8(),
+        "UI8" => new UI8(),
+        "I64" => new I64(),
+        "UI64" => new UI64(),
+        "Bool" => new Bool(),
+        "Type" => new Type(),
+        var ms when ms.EndsWith("@") => new Reference(Demangle(ms.Substring(0, ms.Length - 1))),
+        var ms when ms.EndsWith("[]") => new Array(Demangle(ms.Substring(0, ms.Length - 2))),
+        var ms => throw new Exception($"Unable to parse mangled datatype string: {ms}")
+    };
 }
 
 public record NamedDataType(DataType DataType, string Name)

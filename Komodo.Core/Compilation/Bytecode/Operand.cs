@@ -266,6 +266,42 @@ public abstract record Operand : IOperand
         }
     }
     
+    public record Null(Bytecode.DataType ValueType) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("null"),
+            ValueType.AsSExpression()
+        });
+            
+        public static Null Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("null"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var valueType);
+
+            return new Null(valueType);
+        }
+    }
+
+    public record Memory(Source Address) : Operand, Source, Destination
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("mem"),
+            Address.AsSExpression()
+        });
+
+        public static Memory Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("mem"))
+                 .ExpectItem(1,DeserializeSource, out var source);
+
+            return new Memory(source);
+        }
+    }
+
     public static Source DeserializeSource(SExpression sexpr)
     {
         try { return Constant.Deserialize(sexpr); }
@@ -292,6 +328,12 @@ public abstract record Operand : IOperand
         try { return Typeof.Deserialize(sexpr); }
         catch { }
 
+        try { return Null.Deserialize(sexpr); }
+        catch { }
+
+        try { return Memory.Deserialize(sexpr); }
+        catch { }
+
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
     }
 
@@ -304,6 +346,9 @@ public abstract record Operand : IOperand
         catch { }
 
         try { return Stack.Deserialize(sexpr); }
+        catch { }
+
+        try { return Memory.Deserialize(sexpr); }
         catch { }
 
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
