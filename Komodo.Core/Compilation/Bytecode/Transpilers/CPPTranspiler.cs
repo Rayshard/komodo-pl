@@ -96,16 +96,15 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     {
         var result = instruction switch
         {
-            Instruction.Load l => Convert(l),
-            Instruction.Syscall s => Convert(s),
-            Instruction.Dump d => Convert(d),
-            Instruction.Call c => Convert(c),
-            Instruction.Store s => Convert(s),
-            Instruction.Assert a => Convert(a),
-            Instruction.Unop u => Convert(u),
-            Instruction.Binop b => Convert(b),
-            Instruction.CJump cj => Convert(cj),
-            Instruction.Return r => Convert(r),
+            Instruction.Syscall i => Convert(i),
+            Instruction.Dump i => Convert(i),
+            Instruction.Call i => Convert(i),
+            Instruction.Move i => Convert(i),
+            Instruction.Assert i => Convert(i),
+            Instruction.Unop i => Convert(i),
+            Instruction.Binop i => Convert(i),
+            Instruction.Jump i => Convert(i),
+            Instruction.Return i => Convert(i),
             _ => throw new NotImplementedException(instruction.ToString())
         };
 
@@ -148,7 +147,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     };
 
 
-    public string Convert(Instruction.Load instruction) => $"interpreter.PushStack({Convert(instruction.Source)});";
     public string Convert(Instruction.Syscall instruction) => $"interpreter.Syscall(\"{instruction.Name}\");";
     public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
 
@@ -165,7 +163,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 ".Trim();
     }
 
-    public string Convert(Instruction.Store instruction) => $"throw std::runtime_error(\"Not implemented\");";
+    public string Convert(Instruction.Move instruction) => $"throw std::runtime_error(\"Not implemented\");";
     public string Convert(Instruction.Assert instruction) => $"throw std::runtime_error(\"Not implemented\");";
 
     public string Convert(Instruction.Binop instruction)
@@ -195,16 +193,9 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         return Convert(instruction.Destination, rValue);
     }
 
-    public string Convert(Instruction.CJump instruction)
-    {
-        var condition = Convert(instruction.Condtion);
-
-        return
-    $@"
-if ({condition})
-    goto {instruction.Label};
-".Trim();
-    }
+    public string Convert(Instruction.Jump instruction) => instruction.Condition is null
+        ? $"goto {instruction.Label};"
+        : $"if ({Convert(instruction.Condition)})\n    goto {instruction.Label};";
 
     public string Convert(Instruction.Return instruction)
         => Utility.Stringify(instruction.Sources.Select((s, i) => $"returns[{i}] = {Convert(s)};").Append("return;"), Environment.NewLine);

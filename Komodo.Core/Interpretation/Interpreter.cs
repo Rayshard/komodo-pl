@@ -1,3 +1,4 @@
+using System.Text;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
 
@@ -7,6 +8,12 @@ public enum InterpreterState { NotStarted, Running, ShuttingDown, Terminated }
 
 public record InterpreterConfig(TextWriter StandardOutput);
 
+public class InterpreterException : Exception
+{
+    public InterpreterException(string message) : base(message) { }
+    public InterpreterException(string message, Exception inner) : base(message, inner) { }
+}
+
 public class Interpreter
 {
     public InterpreterState State { get; private set; }
@@ -14,9 +21,12 @@ public class Interpreter
     public InterpreterConfig Config { get; }
 
     private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
+    private Dictionary<(string Module, string Name), Value.Array> data = new Dictionary<(string Module, string Name), Value.Array>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
+
+    private Memory memory = new Memory();
 
     public Interpreter(Program program, InterpreterConfig config)
     {
@@ -26,8 +36,14 @@ public class Interpreter
 
         foreach (var module in program.Modules)
         {
+            foreach (var item in module.Data.Values)
+            {
+                var array = new Value.Array(new DataType.UI8(), (UInt64)item.Bytes.Length, memory.AllocateWrite(item.Bytes));
+                data.Add((module.Name, item.Name), array);
+            }
+
             foreach (var global in module.Globals.Values)
-                globals.Add((module.Name, global.Name), global.DefaultValue is null ? Value.CreateDefault(global.DataType) : global.DefaultValue);
+                globals.Add((module.Name, global.Name), Value.CreateDefault(global.DataType));
         }
     }
 
@@ -51,20 +67,29 @@ public class Interpreter
             try
             {
                 ExecuteNextInstruction(stackFrame, ref exitcode, out var nextIP);
+
                 numInstructionsExecuted++;
 
                 var stackAsString = StackToString();
                 stackAsString = stackAsString.Length == 0 ? " Empty" : ("\n" + stackAsString);
 
                 Logger.Debug($"Current Stack:{stackAsString}");
+
                 stackFrame.IP = nextIP;
+            }
+            catch (InterpreterException e)
+            {
+                Config.StandardOutput.WriteLine($"Exception: {e.Message}");
+
+                foreach (var ip in GetStackTrace())
+                    Config.StandardOutput.WriteLine($"    at {ip}            {GetInstruction(ip).AsSExpression()}");
+
+                exitcode = 1;
+                break;
             }
             catch (Exception e)
             {
-                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}");
-
-                if (e.StackTrace is not null)
-                    Logger.Debug(e.StackTrace, true);
+                Logger.Error($"An error occurred at {stackFrame.IP}: {e.Message}" + (e.StackTrace is null ? "" : $"\n{e.StackTrace}"));
 
                 exitcode = 1;
                 break;
@@ -81,6 +106,7 @@ public class Interpreter
     {
         var instruction = GetInstruction(stackFrame.IP);
 
+        stackFrame.LastIP = stackFrame.IP;
         nextIP = stackFrame.IP + 1;
 
         Logger.Debug($"{stackFrame.IP}: {instruction}");
@@ -91,9 +117,21 @@ public class Interpreter
                 {
                     switch (instr.Name)
                     {
-                        case "GetTime":
+                        case "GetTime": stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks)); break;
+                        case "Write":
                             {
-                                stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks));
+                                var handle = PopStack<Value.I64>().Value;
+                                var array = PopStack(new DataType.Array(new DataType.UI8())).As<Value.Array>();
+                                var buffer = memory.ReadValues(array.Address, array.ElementType, array.Length)
+                                                   .Select(value => value.As<Value.UI8>().Value)
+                                                   .ToArray();
+                                var bufferAsString = Encoding.UTF8.GetString(buffer);
+
+                                switch (handle)
+                                {
+                                    case 0: Config.StandardOutput.Write(bufferAsString); break;
+                                    default: throw new Exception($"Unknown handle: {handle}");
+                                }
                             }
                             break;
                         default: throw new Exception($"Unknown Syscall: {instr.Name}");
@@ -106,8 +144,12 @@ public class Interpreter
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
-            case Instruction.Load instr: stack.Push(GetSourceOperandValue(stackFrame, instr.Source)); break;
-            case Instruction.Store instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Allocate instr:
+                {
+                    var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
+                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType)); break;
+                }
+            case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
                     var source1 = GetSourceOperandValue(stackFrame, instr.Source1);
@@ -119,9 +161,9 @@ public class Interpreter
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a)
-                            => index < (UInt64)a.Elements.Count
-                                ? a.Elements[(int)index].Expect(instr.DataType)
-                                : throw new Exception($"Index {index} is greater than array length: {a.Elements.Count}"),
+                            => index < a.Length
+                                ? memory.ReadValue(a.Address + index * a.ElementType.ByteSize, a.ElementType)
+                                : throw new Exception($"Index {index} is greater than array length: {a.Length}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -132,28 +174,37 @@ public class Interpreter
                 {
                     var source = GetSourceOperandValue(stackFrame, instr.Source);
 
-                    Value result = (instr.Opcode, source) switch
+                    Value result = (instr.Opcode, source, instr.DataType) switch
                     {
-                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
+                        (Opcode.Dec, Value.I64(var op), DataType.I64) => new Value.I64(op - 1),
+                        (Opcode.Convert, Value v, DataType dt) => v.ConvertTo(dt),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
                     SetDestinationOperandValue(stackFrame, instr.Destination, result);
                 }
                 break;
-            case Instruction.Dump instr: Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Dump instr:
+                Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source) switch
+                {
+                    Value.Array a => a.Length == 0
+                        ? "[]"
+                        : memory.ReadValues(a.Address, a.ElementType, a.Length).Stringify(", ", ("[", "]")),
+                    Value.Type t => t.IsUnknown
+                        ? "unknown"
+                        : Encoding.UTF8.GetString(memory.ReadBytes(t.Address + 8, memory.ReadUInt64(t.Address))),
+                    Value.Reference r => r.IsSet
+                        ? $"ref {memory.ReadValue(r.Address, r.ValueType)}"
+                        : $"ref ({r.DataType} null)",
+                    var value => value
+                }); break;
             case Instruction.Assert instr:
                 {
                     var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
                     var value2 = GetSourceOperandValue(stackFrame, instr.Source2);
 
                     if (value1 != value2)
-                    {
-                        Config.StandardOutput.WriteLine($"Assertion Failed at {stackFrame.IP}: {value1} != {value2}.");
-
-                        exitcode = 1;
-                        State = InterpreterState.ShuttingDown;
-                    }
+                        throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
                 }
                 break;
             case Instruction.Call instr:
@@ -168,9 +219,11 @@ public class Interpreter
                     PopStackFrame(values);
                 }
                 break;
-            case Instruction.CJump instr:
+            case Instruction.Jump instr:
                 {
-                    if (GetSourceOperandValue(stackFrame, instr.Condtion, new DataType.Bool()).As<Value.Bool>().Value)
+                    var condition = instr.Condition is null || GetSourceOperandValue(stackFrame, instr.Condition, new DataType.Bool()).As<Value.Bool>().Value;
+
+                    if (condition)
                     {
                         var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
                         nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
@@ -192,8 +245,19 @@ public class Interpreter
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Stack => PopStack(),
-            Operand.Array(var elementType, var elements)
-                => new Value.Array(elementType, elements.Select(elem => GetSourceOperandValue(stackFrame, elem, elementType)).ToList()),
+            Operand.Null(var valueType) => new Value.Reference(valueType, Address.NULL),
+            Operand.Data(var module, var name) => data[(module, name)],
+            Operand.Array(var elementType, var elements) => new Value.Array(
+                elementType,
+                (UInt64)elements.Count,
+                elements.Count == 0
+                    ? Address.NULL
+                    : memory.AllocateWrite(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType)))
+            ),
+            Operand.Typeof(var type)
+                => new Value.Type(memory.AllocateWrite(type.AsMangledString(), true)),
+            Operand.Memory(var address)
+                => memory.ReadValue(GetSourceOperandValue(stackFrame, address).As<Value.Reference>()),
             _ => throw new Exception($"Invalid source: {source}")
         };
 
@@ -241,6 +305,14 @@ public class Interpreter
             case Operand.Stack:
                 {
                     setter = delegate { stack.Push(value); };
+                    destDataType = value.DataType;
+                }
+                break;
+            case Operand.Memory m:
+                {
+                    var reference = GetSourceOperandValue(stackFrame, m.Address, new DataType.Reference(value.DataType)).As<Value.Reference>();
+
+                    setter = delegate { memory.Write(reference.Address, value); };
                     destDataType = value.DataType;
                 }
                 break;
@@ -332,6 +404,7 @@ public class Interpreter
     }
 
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
+    public InstructionPointer[] GetStackTrace() => callStack.Select(sf => sf.LastIP ?? sf.IP).ToArray();
 
     public Function GetFunction(string module, string function) => Program.GetModule(module).GetFunction(function);
     private Instruction GetInstruction(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];

@@ -5,13 +5,14 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Load,
-    Store,
+    Move,
     Syscall,
     Call,
     Return,
-    CJump,
+    Jump,
     Assert,
+    Allocate,
+    Convert,
     Exit,
 
     Add,
@@ -35,29 +36,16 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         return new SExpression.List(nodes);
     }
 
-    public record Load(Operand.Source Source) : Instruction(Opcode.Load)
-    {
-        public override IEnumerable<IOperand> Operands => new[] { Source };
-
-        new public static Load Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(2);
-            list[0].ExpectEnum<Opcode>(Opcode.Load);
-
-            return new Load(Operand.DeserializeSource(list[1]));
-        }
-    }
-
-    public record Store(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Store)
+    public record Move(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Move)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
 
-        new public static Store Deserialize(SExpression sexpr)
+        new public static Move Deserialize(SExpression sexpr)
         {
             var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.Store);
+            list[0].ExpectEnum<Opcode>(Opcode.Move);
 
-            return new Store(
+            return new Move(
                 Operand.DeserializeSource(list[1]),
                 Operand.DeserializeDestination(list[2])
             );
@@ -136,6 +124,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
             Opcode.Dec => opcode,
+            Opcode.Convert => opcode,
             _ => throw new ArgumentException($"'{opcode}' is not a unop!")
         };
 
@@ -220,19 +209,23 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record CJump(string Label, Operand.Source Condtion) : Instruction(Opcode.CJump)
+    public record Jump(string Label, Operand.Source? Condition) : Instruction(Opcode.Jump)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Label), Condtion };
+        public override IEnumerable<IOperand> Operands
+            => Condition is null
+            ? new IOperand[] { new Operand.Identifier(Label) }
+            : new IOperand[] { new Operand.Identifier(Label), Condition };
 
-        new public static CJump Deserialize(SExpression sexpr)
+        new public static Jump Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.CJump);
+           var list = sexpr.ExpectList()
+                           .ExpectLength(2, 3, out var listLength)
+                           .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Jump))
+                           .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var label);
 
-            return new CJump(
-                list[1].ExpectUnquotedSymbol().Value,
-                Operand.DeserializeSource(list[2])
-            );
+            var condition = listLength == 3 ? Operand.DeserializeSource(list[2]) : null;
+
+            return new Jump(label, condition);
         }
     }
 
@@ -249,9 +242,24 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
+    public record Allocate(DataType DataType, Operand.Destination Destination) : Instruction(Opcode.Allocate)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Destination };
+
+        new public static Allocate Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
+                 .ExpectItem(1, DataType.Deserialize, out var dataType)
+                 .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+
+            return new Allocate(dataType, destination);
+        }
+    }
+
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
-        Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
@@ -259,12 +267,14 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Unop.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),
-        Opcode.CJump => CJump.Deserialize(sexpr),
+        Opcode.Jump => Jump.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Exit => Exit.Deserialize(sexpr),
-        Opcode.Store => Store.Deserialize(sexpr),
+        Opcode.Move => Move.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
+        Opcode.Convert => Unop.Deserialize(sexpr),
+        Opcode.Allocate => Allocate.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

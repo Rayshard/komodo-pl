@@ -15,7 +15,7 @@
             )
             
             (Eq I64 (arg number) 0 (local equalsZero))
-            (CJump retOneOnZero (local equalsZero))
+            (Jump retOneOnZero (local equalsZero))
             
             (Dec I64 (arg number) (local numberMinus1))
             (Call MyModule Factorial (local numberMinus1))

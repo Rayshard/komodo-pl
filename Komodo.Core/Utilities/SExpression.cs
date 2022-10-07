@@ -128,17 +128,17 @@ public abstract record SExpression(TextLocation? Location)
         public List ExpectLength(int length)
             => Items.Count() == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count()}", this);
 
-        public List ExpectLength(uint? min, uint? max)
+        public List ExpectLength(uint? min, uint? max, out uint length)
         {
-            if (min.HasValue && max.HasValue && max < min)
-                throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'");
-            else if (min.HasValue && Items.Count() < min)
-                throw new FormatException($"Expected list of length at least {min}, but found list of length {Items.Count()}", this);
-            else if (max.HasValue && Items.Count() > max)
-                throw new FormatException($"Expected list of length at most {max}, but found list of length {Items.Count()}", this);
-            else
-                return this;
+            length = (uint)Items.Count();
+
+            if (min.HasValue && max.HasValue && max < min) { throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'"); }
+            else if (min.HasValue && length < min) { throw new FormatException($"Expected list of length at least {min}, but found list of length {length}", this); }
+            else if (max.HasValue && length > max) { throw new FormatException($"Expected list of length at most {max}, but found list of length {length}", this); }
+            else { return this; }
         }
+
+        public List ExpectLength(uint? min, uint? max) => ExpectLength(min, max, out var _);
 
         public List ExpectItem(int index, Action<SExpression> validator)
         {
@@ -163,6 +163,8 @@ public abstract record SExpression(TextLocation? Location)
         }
 
         public List ExpectItem(int index, SExpression template) => ExpectItem(index, item => item.Expect(template), out _);
+
+        public List ExpectItem<T>(int index, Func<SExpression, T> validator) => ExpectItem(index, validator, out var _);
 
         public List ExpectItems<T>(Func<SExpression[], T> validator, out T result, int start = 0)
         {
@@ -288,6 +290,26 @@ public abstract record SExpression(TextLocation? Location)
         else { throw FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, this); }
     }
 
+    public SByte ExpectInt8()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (SByte.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 8-bit signed integer", this);
+    }
+
+    public Byte ExpectUInt8()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Byte.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 8-bit unsigned integer", this);
+    }
+
     public Int64 ExpectInt64()
     {
         var value = ExpectUnquotedSymbol().Value;
@@ -295,7 +317,7 @@ public abstract record SExpression(TextLocation? Location)
         if (Int64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an 64-bit integer", this);
+        throw new FormatException($"'{value}' is not an 64-bit signed integer", this);
     }
 
     public UInt64 ExpectUInt64()
@@ -321,6 +343,26 @@ public abstract record SExpression(TextLocation? Location)
     public bool IsList() => this is List;
     public bool IsQuotedSymbol() => this is QuotedSymbol;
     public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+
+    public bool IsInt8()
+    {
+        try
+        {
+            ExpectInt8();
+            return true;
+        }
+        catch { return false; }
+    }
+
+    public bool IsUInt8()
+    {
+        try
+        {
+            ExpectUInt8();
+            return true;
+        }
+        catch { return false; }
+    }
 
     public bool IsInt64()
     {

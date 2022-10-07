@@ -2,16 +2,14 @@
     (entry MyModule Main)
     (module MyModule
         (globals
-            (I64 myDefaultGlobal)
-            (Bool mySetGlobal true)
+            (I64 myGlobal)
         )
 
         (function Main
-            (Dump (global MyModule myDefaultGlobal))
-            (Dump (global MyModule mySetGlobal))
+            (Assert (global MyModule myGlobal) 0)
 
-            (Store 1 (global MyModule myDefaultGlobal))
-            (Dump (global MyModule myDefaultGlobal))
+            (Move 1 (global MyModule myGlobal))
+            (Assert (global MyModule myGlobal) 1)
 
             (Exit 0)
         )

@@ -2,10 +2,8 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (CJump badExit false)
-            (Dump 123)
-
-            (CJump goodExit true)
+            (Jump badExit false)
+            (Jump goodExit true)
 
             (Exit 2)
 
@@ -13,7 +11,10 @@
             (Exit 1)
 
           (label goodExit)
-            (Dump 456)
+            (Jump exit)
+            (Exit 3)
+            
+          (label exit)
             (Exit 0)
         )
     )

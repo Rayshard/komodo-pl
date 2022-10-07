@@ -7,6 +7,7 @@ namespace Komodo.Core.Interpretation;
 public class StackFrame
 {
     public InstructionPointer IP;
+    public InstructionPointer? LastIP;
 
     public int FramePointer { get; }
     public ReadOnlyCollection<Value> Arguments { get; }

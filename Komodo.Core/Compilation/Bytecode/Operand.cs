@@ -1,5 +1,4 @@
 using Komodo.Core.Utilities;
-using System.Text.RegularExpressions;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
@@ -15,11 +14,90 @@ public abstract record Operand : IOperand
     public interface Source : IOperand { }
     public interface Destination : IOperand { }
 
+    public sealed override string ToString() => AsSExpression().ToString();
+
     public record Constant(Value Value) : Operand, Source
     {
         public override SExpression AsSExpression() => Value.AsSExpression();
 
-        public static Constant Deserialize(SExpression sexpr) => new Constant(Value.Deserialize(sexpr));
+        public static Constant Deserialize(SExpression sexpr)
+        {
+try { return new Constant(DeserializeI8(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeUI8(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeI64(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeUI64(sexpr)); }
+            catch { }
+
+            try { return new Constant(DeserializeBool(sexpr)); }
+            catch { }
+
+            throw new SExpression.FormatException($"Invalid constant: {sexpr}", sexpr);
+        }
+
+        public static Value.I8 DeserializeI8(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.I8.Deserialize)
+                 .ExpectItem(1, item => item.ExpectInt8(), out var value);
+
+            return new Value.I8(value);
+        }
+
+
+        public static Value.UI8 DeserializeUI8(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.UI8.Deserialize)
+                 .ExpectItem(1, item => item.ExpectUInt8(), out var value);
+
+            return new Value.UI8(value);
+        }
+
+        public static Value.I64 DeserializeI64(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.I64.Deserialize)
+                 .ExpectItem(1, item => item.ExpectInt64(), out var value);
+
+                return new Value.I64(value);
+            }
+            else { return new Value.I64(sexpr.ExpectInt64()); }
+        }
+
+        public static Value.UI64 DeserializeUI64(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, Bytecode.DataType.UI64.Deserialize)
+                 .ExpectItem(1, item => item.ExpectUInt64(), out var value);
+
+            return new Value.UI64(value);
+        }
+
+        public static Value.Bool DeserializeBool(SExpression sexpr)
+        {
+            if (sexpr is SExpression.List list)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.Bool.Deserialize)
+                     .ExpectItem(1, item => item.ExpectBool(), out var value);
+
+                return new Value.Bool(value);
+            }
+            else { return new Value.Bool(sexpr.ExpectBool()); }
+        }
     }
 
     public record DataType(Bytecode.DataType Value) : Operand
@@ -29,13 +107,6 @@ public abstract record Operand : IOperand
         public static DataType Deserialize(SExpression sexpr) => new DataType(Bytecode.DataType.Deserialize(sexpr));
     }
 
-    public record Enumeration<T>(T Value) : Operand where T : struct, Enum
-    {
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Value.ToString());
-
-        public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.ExpectEnum<T>());
-    }
-
     public record Identifier(string Value) : Operand
     {
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Value);
@@ -43,7 +114,7 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand, Source
+    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand
     {
         public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
@@ -58,7 +129,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public abstract record Local(SExpression ID) : Variable(SYMBOL, ID), Destination
+    public abstract record Local(SExpression ID) : Variable(SYMBOL, ID), Source, Destination
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("local");
 
@@ -86,7 +157,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public abstract record Arg(SExpression ID) : Variable(SYMBOL, ID)
+    public abstract record Arg(SExpression ID) : Variable(SYMBOL, ID), Source
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("arg");
 
@@ -114,7 +185,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Global(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Destination
+    public record Global(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Source, Destination
     {
         private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("global");
 
@@ -122,7 +193,8 @@ public abstract record Operand : IOperand
             => Variable.Deserialize<Global, (string Module, string Name)>(
                 sexpr,
                 SYMBOL,
-                idList => {
+                idList =>
+                {
                     idList.ExpectLength(2)
                           .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var module)
                           .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
@@ -146,40 +218,94 @@ public abstract record Operand : IOperand
 
     public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new[]
-        {
-            new Bytecode.DataType.Array(ElementType).AsSExpression(),
-            new SExpression.List(Elements.Select(element => element.AsSExpression()))
-        });
+        public override SExpression AsSExpression() => new SExpression.List(
+            Elements.Select(element => element.AsSExpression())
+                    .Prepend(ElementType.AsSExpression())
+                    .Prepend(new SExpression.UnquotedSymbol("array"))
+        );
 
         public static Array Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(2, null);
+            sexpr.ExpectList().ExpectLength(2, null)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("array"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var elementType)
+                 .ExpectItems(DeserializeSource, out var elements, 2);
 
-            if (list.Count() == 2)
-            {
-                try
+            return new Array(elementType, elements);
+        }
+    }
+
+    public record Data(string Module, string Name) : Variable(SYMBOL, new SExpression.UnquotedSymbol(Module), new SExpression.UnquotedSymbol(Name)), Source
+    {
+        private static readonly SExpression SYMBOL = new SExpression.UnquotedSymbol("data");
+
+        public static Data Deserialize(SExpression sexpr)
+            => Variable.Deserialize<Data, (string Module, string Name)>(
+                sexpr,
+                SYMBOL,
+                idList =>
                 {
-                    var elementType = list.Expect(Bytecode.DataType.Array.Deserialize).ElementType;
-                    return new Array(elementType, new Source[0]);
-                }
-                catch
-                {
-                    var elementType = list[0].Expect(Bytecode.DataType.Array.Deserialize).ElementType;
-                    var elements = list[1].ExpectList().Select(DeserializeSource).ToList();
+                    idList.ExpectLength(2)
+                          .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var module)
+                          .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
 
-                    return new Array(elementType, elements);
-                }
-            }
-            else
-            {
-                list[0].ExpectUnquotedSymbol().ExpectValue("Array");
+                    return (module, name);
+                },
+                id => new Data(id.Module, id.Name)
+            );
+    }
 
-                var elementType = list[1].Expect(Bytecode.DataType.Deserialize);
-                var elements = list.Skip(2).Select(DeserializeSource).ToArray();
+    public record Typeof(Bytecode.DataType Type) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("typeof"),
+            Type.AsSExpression()
+        });
 
-                return new Array(elementType, elements);
-            }
+        public static Typeof Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("typeof"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var type);
+
+            return new Typeof(type);
+        }
+    }
+    
+    public record Null(Bytecode.DataType ValueType) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("null"),
+            ValueType.AsSExpression()
+        });
+            
+        public static Null Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("null"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var valueType);
+
+            return new Null(valueType);
+        }
+    }
+
+    public record Memory(Source Address) : Operand, Source, Destination
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new []{
+            new SExpression.UnquotedSymbol("mem"),
+            Address.AsSExpression()
+        });
+
+        public static Memory Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("mem"))
+                 .ExpectItem(1,DeserializeSource, out var source);
+
+            return new Memory(source);
         }
     }
 
@@ -203,6 +329,18 @@ public abstract record Operand : IOperand
         try { return Array.Deserialize(sexpr); }
         catch { }
 
+        try { return Data.Deserialize(sexpr); }
+        catch { }
+
+        try { return Typeof.Deserialize(sexpr); }
+        catch { }
+
+        try { return Null.Deserialize(sexpr); }
+        catch { }
+
+        try { return Memory.Deserialize(sexpr); }
+        catch { }
+
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
     }
 
@@ -217,6 +355,9 @@ public abstract record Operand : IOperand
         try { return Stack.Deserialize(sexpr); }
         catch { }
 
-        throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
+        try { return Memory.Deserialize(sexpr); }
+        catch { }
+
+        throw new SExpression.FormatException($"Invalid destination operand: {sexpr}", sexpr);
     }
 }

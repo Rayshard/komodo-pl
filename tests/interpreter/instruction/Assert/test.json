@@ -2,6 +2,10 @@
   "args": ["run-ir", "test.kmdir"],
   "exitcode": 1,
   "stdin": [],
-  "stdout": ["Assertion Failed at MyModule.Main.3: Bool(false) != Bool(true).", ""],
+  "stdout": [
+    "Exception: Assertion Failed: (Bool false) != (Bool true).",
+    "    at MyModule.Main.1            (Assert (Bool false) (Bool true))",
+    ""
+  ],
   "stderr": []
 }

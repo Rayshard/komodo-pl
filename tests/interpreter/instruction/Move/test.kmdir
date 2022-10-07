@@ -4,17 +4,17 @@
         (function Main
             (locals)
             
-            (Call MyModule TestStoreLocal)
+            (Call MyModule TestMoveLocal)
 
-            (Store 15 $stack)
+            (Move 15 $stack)
             (Assert $stack 15)
 
             (Exit 0)
         )
-        (function TestStoreLocal
+        (function TestMoveLocal
             (locals I64)
 
-            (Store 55 (local 0))
+            (Move 55 (local 0))
             (Assert (local 0) 55)
             (Return)
         )

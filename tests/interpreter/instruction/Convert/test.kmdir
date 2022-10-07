@@ -2,9 +2,6 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (Assert true true)
-            (Assert false true)
-
             (Exit 0)
         )
     )

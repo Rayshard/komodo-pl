@@ -1,0 +1,25 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                (Ref I64)
+                (Ref I64)
+            )
+
+            (Assert (local 0) (null I64))
+
+            (Allocate I64 (local 0))
+            (Assert (mem (local 0)) 0)
+
+            (Move 123 (mem (local 0)))
+            (Assert (mem (local 0)) 123)
+
+            (Move (local 0) (local 1))
+            (Move 456 (mem (local 1)))
+
+            (Assert (mem (local 0)) 456)
+            (Exit 0)
+        )
+    )
+)

@@ -41,19 +41,21 @@ public class Program
 
     public static Program Deserialize(SExpression sexpr)
     {
-        var list = sexpr.ExpectList().ExpectLength(3, null);
-        list[0].ExpectUnquotedSymbol().ExpectValue("program");
+        var remaining = sexpr.ExpectList()
+                             .ExpectLength(3, null)
+                             .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("program"))
+                             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
+                             .ExpectItem(2, item => item.ExpectList().ExpectLength(3), out var entryNode)
+                             .Skip(3);
 
-        var name = list[1].ExpectUnquotedSymbol().Value;
+        // Deserialize entry
+        entryNode.ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("entry"))
+                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var entryModule)
+                 .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var entryFunction);
 
-        var entryNode = list[2].ExpectList().ExpectLength(3);
-        entryNode.ElementAt(0).ExpectUnquotedSymbol().ExpectValue("entry");
-
-        var entryModule = entryNode.ElementAt(1).ExpectUnquotedSymbol().Value;
-        var entryFunction = entryNode.ElementAt(2).ExpectUnquotedSymbol().Value;
         var program = new Program(name, (entryModule, entryFunction));
 
-        foreach (var item in list.Skip(3))
+        foreach (var item in remaining)
             program.AddModule(Module.Deserialize(item));
 
         return program;

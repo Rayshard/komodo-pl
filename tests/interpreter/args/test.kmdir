@@ -7,9 +7,9 @@
             (Exit 0)
         )
         (function TestArgs (params I64 (I64 myArgI64) (Bool myArgBool))
-            (Dump (arg 0))
-            (Dump (arg myArgI64))
-            (Dump (arg myArgBool))
+            (Assert (arg 0) 123)
+            (Assert (arg myArgI64) 456)
+            (Assert (arg myArgBool) true)
 
             (Return)
         )

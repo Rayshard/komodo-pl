@@ -1,0 +1,16 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (data
+            (myString "A€±デ🐉\n")
+        )
+
+        (function Main
+            (Move (data MyModule myString) $stack)
+            (Move 0 $stack)
+            (Syscall Write)
+
+            (Exit 0)
+        )
+    )
+)

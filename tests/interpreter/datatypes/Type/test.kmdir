@@ -1,0 +1,16 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                Type
+            )
+
+            (Dump (local 0))
+            (Dump (typeof I64))
+            (Dump (typeof (Array I64)))
+
+            (Exit 0)
+        )
+    )
+)
