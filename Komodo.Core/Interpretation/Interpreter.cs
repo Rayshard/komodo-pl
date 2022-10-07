@@ -82,7 +82,7 @@ public class Interpreter
                 Config.StandardOutput.WriteLine($"Exception: {e.Message}");
 
                 foreach (var ip in GetStackTrace())
-                    Config.StandardOutput.WriteLine($"\tat {ip}\t\t{GetInstruction(ip).AsSExpression()}");
+                    Config.StandardOutput.WriteLine($"    at {ip}            {GetInstruction(ip).AsSExpression()}");
 
                 exitcode = 1;
                 break;

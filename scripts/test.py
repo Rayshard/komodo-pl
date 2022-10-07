@@ -62,6 +62,8 @@ class TestResult:
                 print(textwrap.indent(str(result.expected), " " * 12), file=stream)
                 print(f"        Actual", file=stream)
                 print(textwrap.indent(str(result.actual), " " * 12), file=stream)
+                print(bytes(result.expected, "utf-8"))
+                print(bytes(result.actual, "utf-8"))
 
             return stream.getvalue()
 
