@@ -147,8 +147,25 @@ public class Interpreter
             case Instruction.Allocate instr:
                 {
                     var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
-                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType)); break;
+                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType));
                 }
+                break;
+            case Instruction.Load instr:
+                {
+                    var reference = GetSourceOperandValue(stackFrame, instr.Reference).As<Value.Reference>();
+                    var value = memory.ReadValue(reference);
+
+                    SetDestinationOperandValue(stackFrame, instr.Destination, value, reference.ValueType);
+                }
+                break;
+            case Instruction.Store instr:
+                {
+                    var value = GetSourceOperandValue(stackFrame, instr.Value);
+                    var reference = GetSourceOperandValue(stackFrame, instr.Reference, new DataType.Reference(value.DataType)).As<Value.Reference>();
+
+                    memory.Write(reference.Address, value);
+                }
+                break;
             case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
