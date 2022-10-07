@@ -10,15 +10,18 @@
             (Assert (local 0) (null I64))
 
             (Allocate I64 (local 0))
-            (Assert (mem (local 0)) 0)
+            (Load (local 0) $stack)
+            (Assert $stack 0)
 
-            (Move 123 (mem (local 0)))
-            (Assert (mem (local 0)) 123)
+            (Store 123 (local 0))
+            (Load (local 0) $stack)
+            (Assert $stack 123)
 
             (Move (local 0) (local 1))
-            (Move 456 (mem (local 1)))
+            (Store 456 (local 1))
+            (Load (local 0) $stack)
+            (Assert $stack 456)
 
-            (Assert (mem (local 0)) 456)
             (Exit 0)
         )
     )
