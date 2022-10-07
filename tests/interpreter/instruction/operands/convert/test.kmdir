@@ -1,0 +1,56 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (Call MyModule I8Convert)
+            (Call MyModule UI8Convert)
+            (Call MyModule I16Convert)
+            (Call MyModule UI16Convert)
+            (Call MyModule I32Convert)
+            (Call MyModule UI32Convert)
+            (Call MyModule I64Convert)
+            (Call MyModule UI64Convert)
+            (Call MyModule F32Convert)
+            (Call MyModule F64Convert)
+            (Call MyModule BoolConvert)
+
+            (Exit 0)
+        )
+        (function I8Convert
+            (Return)
+        )
+        (function UI8Convert
+            (Return)
+        )
+        (function I16Convert
+            (Return)
+        )
+        (function UI16Convert
+            (Return)
+        )
+        (function I32Convert
+            (Return)
+        )
+        (function UI32Convert
+            (Return)
+        )
+        (function I64Convert
+            (Assert (convert I64 (I64 123)) (I64 123))
+            (Assert (convert UI64 (I64 123)) (UI64 123))
+
+            (Return)
+        )
+        (function UI64Convert
+            (Return)
+        )
+        (function F32Convert
+            (Return)
+        )
+        (function F64Convert
+            (Return)
+        )
+        (function BoolConvert
+            (Return)
+        )
+    )
+)

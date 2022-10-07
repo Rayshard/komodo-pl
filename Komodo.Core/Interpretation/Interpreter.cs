@@ -177,7 +177,6 @@ public class Interpreter
                     Value result = (instr.Opcode, source, instr.DataType) switch
                     {
                         (Opcode.Dec, Value.I64(var op), DataType.I64) => new Value.I64(op - 1),
-                        (Opcode.Convert, Value v, DataType dt) => v.ConvertTo(dt),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
@@ -254,10 +253,9 @@ public class Interpreter
                     ? Address.NULL
                     : memory.AllocateWrite(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType)))
             ),
-            Operand.Typeof(var type)
-                => new Value.Type(memory.AllocateWrite(type.AsMangledString(), true)),
-            Operand.Memory(var address)
-                => memory.ReadValue(GetSourceOperandValue(stackFrame, address).As<Value.Reference>()),
+            Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
+            Operand.Memory operand => memory.ReadValue(GetSourceOperandValue(stackFrame, operand.Address).As<Value.Reference>()),
+            Operand.Convert operand => GetSourceOperandValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
             _ => throw new Exception($"Invalid source: {source}")
         };
 

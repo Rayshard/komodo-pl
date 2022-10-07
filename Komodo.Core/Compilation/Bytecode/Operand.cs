@@ -22,7 +22,7 @@ public abstract record Operand : IOperand
 
         public static Constant Deserialize(SExpression sexpr)
         {
-try { return new Constant(DeserializeI8(sexpr)); }
+            try { return new Constant(DeserializeI8(sexpr)); }
             catch { }
 
             try { return new Constant(DeserializeUI8(sexpr)); }
@@ -257,7 +257,7 @@ try { return new Constant(DeserializeI8(sexpr)); }
 
     public record Typeof(Bytecode.DataType Type) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new []{
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("typeof"),
             Type.AsSExpression()
         });
@@ -272,14 +272,14 @@ try { return new Constant(DeserializeI8(sexpr)); }
             return new Typeof(type);
         }
     }
-    
+
     public record Null(Bytecode.DataType ValueType) : Operand, Source
     {
-        public override SExpression AsSExpression() => new SExpression.List(new []{
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("null"),
             ValueType.AsSExpression()
         });
-            
+
         public static Null Deserialize(SExpression sexpr)
         {
             sexpr.ExpectList()
@@ -293,7 +293,7 @@ try { return new Constant(DeserializeI8(sexpr)); }
 
     public record Memory(Source Address) : Operand, Source, Destination
     {
-        public override SExpression AsSExpression() => new SExpression.List(new []{
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("mem"),
             Address.AsSExpression()
         });
@@ -303,43 +303,53 @@ try { return new Constant(DeserializeI8(sexpr)); }
             sexpr.ExpectList()
                  .ExpectLength(2)
                  .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("mem"))
-                 .ExpectItem(1,DeserializeSource, out var source);
+                 .ExpectItem(1, DeserializeSource, out var source);
 
             return new Memory(source);
         }
     }
 
+    public record Convert(Bytecode.DataType ResultType, Source Value) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
+            new SExpression.UnquotedSymbol("convert"),
+            ResultType.AsSExpression(),
+            Value.AsSExpression()
+        });
+
+        public static Convert Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("convert"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var resultType)
+                 .ExpectItem(2, DeserializeSource, out var value);
+
+            return new Convert(resultType, value);
+        }
+    }
+
+    private static Func<SExpression, Source>[] SourceDeserializers => new Func<SExpression, Source>[] {
+        Constant.Deserialize,
+        Local.Deserialize,
+        Arg.Deserialize,
+        Global.Deserialize,
+        Stack.Deserialize,
+        Array.Deserialize,
+        Data.Deserialize,
+        Null.Deserialize,
+        Typeof.Deserialize,
+        Memory.Deserialize,
+        Convert.Deserialize,
+    };
+
     public static Source DeserializeSource(SExpression sexpr)
     {
-        try { return Constant.Deserialize(sexpr); }
-        catch { }
-
-        try { return Local.Deserialize(sexpr); }
-        catch { }
-
-        try { return Arg.Deserialize(sexpr); }
-        catch { }
-
-        try { return Global.Deserialize(sexpr); }
-        catch { }
-
-        try { return Stack.Deserialize(sexpr); }
-        catch { }
-
-        try { return Array.Deserialize(sexpr); }
-        catch { }
-
-        try { return Data.Deserialize(sexpr); }
-        catch { }
-
-        try { return Typeof.Deserialize(sexpr); }
-        catch { }
-
-        try { return Null.Deserialize(sexpr); }
-        catch { }
-
-        try { return Memory.Deserialize(sexpr); }
-        catch { }
+        foreach (var deserializer in SourceDeserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
 
         throw new SExpression.FormatException($"Invalid source operand: {sexpr}", sexpr);
     }

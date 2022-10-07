@@ -12,7 +12,6 @@ public enum Opcode
     Jump,
     Assert,
     Allocate,
-    Convert,
     Exit,
 
     Add,
@@ -124,7 +123,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         public static Opcode Verify(Opcode opcode) => opcode switch
         {
             Opcode.Dec => opcode,
-            Opcode.Convert => opcode,
             _ => throw new ArgumentException($"'{opcode}' is not a unop!")
         };
 
@@ -273,7 +271,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Exit => Exit.Deserialize(sexpr),
         Opcode.Move => Move.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
-        Opcode.Convert => Unop.Deserialize(sexpr),
         Opcode.Allocate => Allocate.Deserialize(sexpr),
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
