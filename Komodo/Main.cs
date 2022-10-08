@@ -7,7 +7,6 @@ using Komodo.Core.Interpretation;
 using Komodo.Core.Utilities;
 
 
-
 static class Entry
 {
     static int DoRun(CLI.Arguments args)
