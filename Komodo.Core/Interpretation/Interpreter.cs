@@ -121,9 +121,9 @@ public class Interpreter
                         case "Write":
                             {
                                 var handle = PopStack<Value.I64>().Value;
-                                var array = PopStack(new DataType.Array(new DataType.UI8())).As<Value.Array>();
-                                var buffer = memory.ReadValues(array.Address, array.ElementType, array.Length)
-                                                   .Select(value => value.As<Value.UI8>().Value)
+                                var array = PopStack<Value.Array>(new DataType.Array(new DataType.UI8()));
+                                var buffer = memory.Read<Value.UI8>(array.Address, array.ElementType, array.Length)
+                                                   .Select(value => value.Value)
                                                    .ToArray();
                                 var bufferAsString = Encoding.UTF8.GetString(buffer);
 
@@ -140,37 +140,37 @@ public class Interpreter
                 break;
             case Instruction.Exit instr:
                 {
-                    exitcode = GetSourceOperandValue(stackFrame, instr.Code, new DataType.I64()).As<Value.I64>().Value;
+                    exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
             case Instruction.Allocate instr:
                 {
                     var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
-                    SetDestinationOperandValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address), new DataType.Reference(instr.DataType));
+                    SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
                 }
                 break;
             case Instruction.Load instr:
                 {
-                    var reference = GetSourceOperandValue(stackFrame, instr.Reference).As<Value.Reference>();
-                    var value = memory.ReadValue(reference);
+                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference);
+                    var value = memory.Read(reference);
 
-                    SetDestinationOperandValue(stackFrame, instr.Destination, value, reference.ValueType);
+                    SetValue(stackFrame, instr.Destination, value);
                 }
                 break;
             case Instruction.Store instr:
                 {
-                    var value = GetSourceOperandValue(stackFrame, instr.Value);
-                    var reference = GetSourceOperandValue(stackFrame, instr.Reference, new DataType.Reference(value.DataType)).As<Value.Reference>();
+                    var value = GetValue(stackFrame, instr.Value);
+                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference, new DataType.Reference(value.DataType));
 
                     memory.Write(reference.Address, value);
                 }
                 break;
-            case Instruction.Move instr: SetDestinationOperandValue(stackFrame, instr.Destination, GetSourceOperandValue(stackFrame, instr.Source)); break;
+            case Instruction.Move instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
-                    var source1 = GetSourceOperandValue(stackFrame, instr.Source1);
-                    var source2 = GetSourceOperandValue(stackFrame, instr.Source2);
+                    var source1 = GetValue(stackFrame, instr.Source1);
+                    var source2 = GetValue(stackFrame, instr.Source2);
 
                     Value result = (instr.Opcode, source1, source2) switch
                     {
@@ -179,17 +179,17 @@ public class Interpreter
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a)
                             => index < a.Length
-                                ? memory.ReadValue(a.Address + index * a.ElementType.ByteSize, a.ElementType)
+                                ? memory.Read(a.Address + index * a.ElementType.ByteSize, a.ElementType)
                                 : throw new Exception($"Index {index} is greater than array length: {a.Length}"),
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
-                    SetDestinationOperandValue(stackFrame, instr.Destination, result);
+                    SetValue(stackFrame, instr.Destination, result);
                 }
                 break;
             case Instruction.Unop instr:
                 {
-                    var source = GetSourceOperandValue(stackFrame, instr.Source);
+                    var source = GetValue(stackFrame, instr.Source);
 
                     Value result = (instr.Opcode, source, instr.DataType) switch
                     {
@@ -197,27 +197,27 @@ public class Interpreter
                         var operands => throw new Exception($"Cannot apply operation to {operands}.")
                     };
 
-                    SetDestinationOperandValue(stackFrame, instr.Destination, result);
+                    SetValue(stackFrame, instr.Destination, result);
                 }
                 break;
             case Instruction.Dump instr:
-                Config.StandardOutput.WriteLine(GetSourceOperandValue(stackFrame, instr.Source) switch
+                Config.StandardOutput.WriteLine(GetValue(stackFrame, instr.Source) switch
                 {
                     Value.Array a => a.Length == 0
                         ? "[]"
-                        : memory.ReadValues(a.Address, a.ElementType, a.Length).Stringify(", ", ("[", "]")),
+                        : memory.Read(a.Address, a.ElementType, a.Length).Stringify(", ", ("[", "]")),
                     Value.Type t => t.IsUnknown
                         ? "unknown"
-                        : Encoding.UTF8.GetString(memory.ReadBytes(t.Address + 8, memory.ReadUInt64(t.Address))),
+                        : Encoding.UTF8.GetString(memory.Read(t.Address + 8, memory.ReadUInt64(t.Address))),
                     Value.Reference r => r.IsSet
-                        ? $"ref {memory.ReadValue(r.Address, r.ValueType)}"
+                        ? $"ref {memory.Read(r.Address, r.ValueType)}"
                         : $"ref ({r.DataType} null)",
                     var value => value
                 }); break;
             case Instruction.Assert instr:
                 {
-                    var value1 = GetSourceOperandValue(stackFrame, instr.Source1);
-                    var value2 = GetSourceOperandValue(stackFrame, instr.Source2);
+                    var value1 = GetValue(stackFrame, instr.Source1);
+                    var value2 = GetValue(stackFrame, instr.Source2);
 
                     if (value1 != value2)
                         throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
@@ -225,19 +225,19 @@ public class Interpreter
                 break;
             case Instruction.Call instr:
                 {
-                    var receivedArgs = instr.Args.Select(source => GetSourceOperandValue(stackFrame, source)).ToArray();
+                    var receivedArgs = instr.Args.Select(source => GetValue(stackFrame, source)).ToArray();
                     PushStackFrame((instr.Module, instr.Function), receivedArgs);
                 }
                 break;
             case Instruction.Return instr:
                 {
-                    var values = instr.Sources.Select(source => GetSourceOperandValue(stackFrame, source)).ToArray();
+                    var values = instr.Sources.Select(source => GetValue(stackFrame, source)).ToArray();
                     PopStackFrame(values);
                 }
                 break;
             case Instruction.Jump instr:
                 {
-                    var condition = instr.Condition is null || GetSourceOperandValue(stackFrame, instr.Condition, new DataType.Bool()).As<Value.Bool>().Value;
+                    var condition = instr.Condition is null || GetValue<Value.Bool>(stackFrame, instr.Condition, new DataType.Bool()).Value;
 
                     if (condition)
                     {
@@ -250,7 +250,7 @@ public class Interpreter
         }
     }
 
-    private Value GetSourceOperandValue(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null)
+    private Value GetValue(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null)
     {
         var value = source switch
         {
@@ -268,20 +268,23 @@ public class Interpreter
                 (UInt64)elements.Count,
                 elements.Count == 0
                     ? Address.NULL
-                    : memory.AllocateWrite(elements.Select(e => GetSourceOperandValue(stackFrame, e, elementType)))
+                    : memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)))
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
-            Operand.Convert operand => GetSourceOperandValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
+            Operand.Convert operand => GetValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
             _ => throw new Exception($"Invalid source: {source}")
         };
 
         if (expectedDataType is not null && value.DataType != expectedDataType)
-            throw new Exception($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
+            throw new InterpreterException($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
 
         return value;
     }
 
-    private void SetDestinationOperandValue(StackFrame stackFrame, Operand.Destination destination, Value value, DataType? expectedDataType = null)
+    private T GetValue<T>(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null) where T : Value
+        => GetValue(stackFrame, source).As<T>();
+
+    private void SetValue(StackFrame stackFrame, Operand.Destination destination, Value value)
     {
         Action setter;
         DataType destDataType;
@@ -290,24 +293,14 @@ public class Interpreter
         {
             case Operand.Local.Indexed l:
                 {
-                    var local = stackFrame.Locals[l.Index];
-
-                    if (value.DataType != local.DataType)
-                        throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
-
                     setter = delegate { stackFrame.Locals[l.Index] = value; };
-                    destDataType = local.DataType;
+                    destDataType = stackFrame.Locals[l.Index].DataType;
                 }
                 break;
             case Operand.Local.Named l:
                 {
-                    var local = stackFrame.GetLocal(l.Name);
-
-                    if (value.DataType != local.DataType)
-                        throw new InvalidCastException($"Cannot set local to {value}. Expected {local.DataType}.");
-
                     setter = delegate { stackFrame.SetLocal(l.Name, value); };
-                    destDataType = local.DataType;
+                    destDataType = stackFrame.GetLocal(l.Name).DataType;
                 }
                 break;
             case Operand.Global g:
@@ -325,37 +318,32 @@ public class Interpreter
             default: throw new Exception($"Invalid destination: {destination}");
         }
 
-        if (expectedDataType is not null)
-        {
-            if (value.DataType != expectedDataType) { throw new Exception($"Expected {expectedDataType}, but found {value}"); }
-            else if (destDataType != expectedDataType) { throw new Exception($"Invalid data type for destination: {destination}. Expected {expectedDataType}, but found {destDataType}"); }
-        }
+        if (destDataType != value.DataType)
+            throw new Exception($"Invalid data type for destination: {destination}. Expected {value.DataType}, but found {destDataType}");
 
         setter();
     }
 
-    private Value PopStack() => stack.Count != 0 ? stack.Pop() : throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
-
-    private T PopStack<T>() where T : Value
+    private Value PopStack(DataType? dt = null)
     {
         if (!stack.TryPeek(out var stackTop))
             throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
 
-        if (stackTop is not T)
-            throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
-
-        return (T)stack.Pop();
-    }
-
-    private Value PopStack(DataType dt)
-    {
-        if (!stack.TryPeek(out var stackTop))
-            throw new InvalidOperationException("Cannot pop value from stack. The stack is empty.");
-
-        if (stackTop.DataType != dt)
+        if (dt is not null && stackTop.DataType != dt)
             throw new InvalidCastException($"Unable to pop '{dt}' off stack. Found '{stackTop.DataType}'");
 
         return stack.Pop();
+    }
+
+    private T PopStack<T>(DataType? dt = null) where T : Value
+    {
+        var stackTop = PopStack(dt);
+
+        if(stackTop is T converted)
+            return converted;
+
+        stack.Push(stackTop);
+        throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
     }
 
     private void PushStackFrame((string Module, string Function) Target, Value[] args)

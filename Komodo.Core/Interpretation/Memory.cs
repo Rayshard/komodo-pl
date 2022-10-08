@@ -113,13 +113,13 @@ public class Memory
         else { freeChunks.Add(chunkSize, new HashSet<int>() { index }); }
     }
 
-    public Byte ReadByte(Address start)
+    public Byte Read(Address start)
     {
         var chunk = GetContainingChunk(start);
         return chunk.Data[(int)(start - chunk.Address)];
     }
 
-    public Byte[] ReadBytes(Address start, UInt64 count)
+    public Byte[] Read(Address start, UInt64 count)
     {
         if (count == 0)
             return new Byte[0];
@@ -133,9 +133,9 @@ public class Memory
         return chunk.Data.SubArray((int)(start - chunk.Address), (int)count); ;
     }
 
-    public Value ReadValue(Address start, DataType dataType)
+    public Value Read(Address start, DataType dataType)
     {
-        var bytes = ReadBytes(start, dataType.ByteSize);
+        var bytes = Read(start, dataType.ByteSize);
 
         return dataType switch
         {
@@ -148,30 +148,29 @@ public class Memory
         };
     }
 
-    public Value ReadValue(Value.Reference reference) => ReadValue(reference.Address, reference.ValueType);
-
-    public Value[] ReadValues(Address start, DataType dataType, UInt64 count)
+    public Value[] Read(Address start, DataType dataType, UInt64 count)
     {
         var buffer = new Value[count];
         var address = start;
 
         for (UInt64 i = 0; i < count; i++)
         {
-            buffer[i] = ReadValue(address, dataType);
+            buffer[i] = Read(address, dataType);
             address += dataType.ByteSize;
         }
 
         return buffer;
     }
 
-    public UInt64 ReadUInt64(Address start) => BitConverter.ToUInt64(ReadBytes(start, 8));
-    public string ReadString(Address start) => Encoding.UTF8.GetString(ReadBytes(start + 8, ReadUInt64(start)));
+    public Value Read(Value.Reference reference) => Read(reference.Address, reference.ValueType);
+    public T Read<T>(Address start, DataType dataType) where T : Value => Read(start, dataType).As<T>();
+    public T Read<T>(Value.Reference reference) where T : Value => Read<T>(reference);
+    
+    public T[] Read<T>(Address start, DataType dataType, UInt64 count) where T : Value
+        => Read(start, dataType, count).Select(v => v.As<T>()).ToArray();
 
-    public Value ReadTypePrefixedValue(Address start)
-    {
-        var mangledString = ReadString(start);
-        return ReadValue(start + (UInt64)Encoding.UTF8.GetByteCount(mangledString), DataType.Demangle(mangledString));
-    }
+    public UInt64 ReadUInt64(Address start) => BitConverter.ToUInt64(Read(start, 8));
+    public string ReadString(Address start) => Encoding.UTF8.GetString(Read(start + 8, ReadUInt64(start)));
 
     public void Write(Address start, Byte data)
     {
