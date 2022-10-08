@@ -12,7 +12,10 @@ public abstract record DataType
 
     public sealed override string ToString() => AsSExpression().ToString();
 
-    public record I8 : DataType
+    public abstract record Primitive : DataType;
+    public abstract record Pointer : DataType;
+
+    public record I8 : Primitive
     {
         private static string Symbol => "I8";
 
@@ -28,7 +31,7 @@ public abstract record DataType
         }
     }
 
-    public record UI8 : DataType
+    public record UI8 : Primitive
     {
         private static string Symbol => "UI8";
 
@@ -44,7 +47,7 @@ public abstract record DataType
         }
     }
 
-    public record I16 : DataType
+    public record I16 : Primitive
     {
         private static string Symbol => "I16";
 
@@ -60,7 +63,7 @@ public abstract record DataType
         }
     }
 
-    public record UI16 : DataType
+    public record UI16 : Primitive
     {
         private static string Symbol => "UI16";
 
@@ -76,7 +79,7 @@ public abstract record DataType
         }
     }
 
-    public record I32 : DataType
+    public record I32 : Primitive
     {
         private static string Symbol => "I32";
 
@@ -92,7 +95,7 @@ public abstract record DataType
         }
     }
 
-    public record UI32 : DataType
+    public record UI32 : Primitive
     {
         private static string Symbol => "UI32";
 
@@ -108,7 +111,7 @@ public abstract record DataType
         }
     }
 
-    public record I64 : DataType
+    public record I64 : Primitive
     {
         private static string Symbol => "I64";
 
@@ -124,7 +127,7 @@ public abstract record DataType
         }
     }
 
-    public record UI64 : DataType
+    public record UI64 : Primitive
     {
         private static string Symbol => "UI64";
 
@@ -140,7 +143,7 @@ public abstract record DataType
         }
     }
 
-    public record F32 : DataType
+    public record F32 : Primitive
     {
         private static string Symbol => "F32";
 
@@ -156,7 +159,7 @@ public abstract record DataType
         }
     }
 
-    public record F64 : DataType
+    public record F64 : Primitive
     {
         private static string Symbol => "F64";
 
@@ -172,7 +175,7 @@ public abstract record DataType
         }
     }
 
-    public record Bool : DataType
+    public record Bool : Primitive
     {
         public override UInt64 ByteSize => ByteSizeOf<Bool>();
 
@@ -186,7 +189,7 @@ public abstract record DataType
         }
     }
 
-    public record Array(DataType ElementType) : DataType
+    public record Array(DataType ElementType) : Pointer
     {
         public override UInt64 ByteSize => ByteSizeOf<Array>();
 
@@ -207,7 +210,7 @@ public abstract record DataType
         }
     }
 
-    public record Type : DataType
+    public record Type : Pointer
     {
         public override UInt64 ByteSize => ByteSizeOf<Type>();
 
@@ -221,7 +224,7 @@ public abstract record DataType
         }
     }
 
-    public record Reference(DataType ValueType) : DataType
+    public record Reference(DataType ValueType) : Pointer
     {
         public override UInt64 ByteSize => ByteSizeOf<Reference>();
 
@@ -248,9 +251,7 @@ public abstract record DataType
         var type when type == typeof(I16) || type == typeof(UI16) => 2,
         var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
         var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
-        var type when type == typeof(Array) => ByteSizeOf<UI64>() + Address.ByteSize,
-        var type when type == typeof(Type) => Address.ByteSize,
-        var type when type == typeof(Reference) => Address.ByteSize,
+        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) => Address.ByteSize,
         var type => throw new NotImplementedException(type.ToString())
     };
 
