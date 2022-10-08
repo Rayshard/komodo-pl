@@ -56,20 +56,6 @@ public class ModuleBuilder
     private Dictionary<string, Global> globals = new Dictionary<string, Global>();
     private Dictionary<string, Function> functions = new Dictionary<string, Function>();
 
-    public void SetName(string? value) => name = value;
-
-    public void AddData(Data data) => this.data.Add(data.Name, data);
-    public bool HasData(string name) => data.ContainsKey(name);
-    public Data GetData(string name) => data[name];
-
-    public void AddGlobal(Global global) => globals.Add(global.Name, global);
-    public bool HasGlobal(string name) => globals.ContainsKey(name);
-    public Global GetGlobal(string name) => globals[name];
-
-    public void AddFunction(Function function) => functions.Add(function.Name, function);
-    public bool HasFunction(string name) => functions.ContainsKey(name);
-    public Function GetFunction(string name) => functions[name];
-
     public ModuleBuilder(SExpression sexpr)
     {
         var remaining = sexpr.ExpectList()
@@ -110,6 +96,20 @@ public class ModuleBuilder
         foreach (var function in remaining.Select(Function.Deserialize))
             AddFunction(function);
     }
+
+    public void SetName(string? value) => name = value;
+
+    public void AddData(Data data) => this.data.Add(data.Name, data);
+    public bool HasData(string name) => data.ContainsKey(name);
+    public Data GetData(string name) => data[name];
+
+    public void AddGlobal(Global global) => globals.Add(global.Name, global);
+    public bool HasGlobal(string name) => globals.ContainsKey(name);
+    public Global GetGlobal(string name) => globals[name];
+
+    public void AddFunction(Function function) => functions.Add(function.Name, function);
+    public bool HasFunction(string name) => functions.ContainsKey(name);
+    public Function GetFunction(string name) => functions[name];
 
     public Module Build()
     {

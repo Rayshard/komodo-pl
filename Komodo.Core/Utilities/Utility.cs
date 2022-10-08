@@ -76,6 +76,8 @@ public static class Utility
 
     public static bool IsEmpty<T>(this ICollection<T> collection) => collection.Count == 0;
 
+    public static IEnumerable<(int Index, T Value)> WithIndices<T>(this IEnumerable<T> enumerable) => enumerable.Select((value, i) => (i, value));
+
     public static IEnumerable<TItem> AssertAllDistinct<TItem, TKey>(this IEnumerable<TItem> enumerable, Func<TItem, TKey> keySelector)
     {
         var seen = new HashSet<TKey>();
