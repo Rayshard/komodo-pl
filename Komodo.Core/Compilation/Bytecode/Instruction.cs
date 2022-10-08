@@ -18,6 +18,7 @@ public enum Opcode
     Store,
 
     Convert,
+    Reinterpret,
 
     Add,
     Eq,
@@ -310,6 +311,22 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
+public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Reinterpret)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, new Operand.DataType(Target), Destination };
+
+        new public static Reinterpret Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(4)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Reinterpret))
+                 .ExpectItem(1, Operand.DeserializeSource, out var value)
+                 .ExpectItem(2, DataType.Deserialize, out var target)
+                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+            return new Reinterpret(value, target, destination);
+        }
+    }
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
@@ -332,6 +349,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Store => Store.Deserialize(sexpr),
 
         Opcode.Convert => Convert.Deserialize(sexpr),
+        Opcode.Reinterpret => Reinterpret.Deserialize(sexpr),
       
         var opcode => throw new NotImplementedException(opcode.ToString())
     };

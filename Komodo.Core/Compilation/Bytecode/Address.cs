@@ -20,4 +20,5 @@ public record Address(UInt64 Value)
 
     public static implicit operator UInt64(Address a) => a.Value;
     public static implicit operator Address(UInt64 value) => new Address(value);
+    public static Address FromBytes(ReadOnlySpan<Byte> bytes) => new Address(BitConverter.ToUInt64(bytes));
 }

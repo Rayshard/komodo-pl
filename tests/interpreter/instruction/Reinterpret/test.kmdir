@@ -1,0 +1,59 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (Call MyModule I8Reinterpret)
+            (Call MyModule UI8Reinterpret)
+            (Call MyModule I16Reinterpret)
+            (Call MyModule UI16Reinterpret)
+            (Call MyModule I32Reinterpret)
+            (Call MyModule UI32Reinterpret)
+            (Call MyModule I64Reinterpret)
+            (Call MyModule UI64Reinterpret)
+            (Call MyModule F32Reinterpret)
+            (Call MyModule F64Reinterpret)
+            (Call MyModule BoolReinterpret)
+
+            (Exit 0)
+        )
+        (function I8Reinterpret
+            (Return)
+        )
+        (function UI8Reinterpret
+            (Return)
+        )
+        (function I16Reinterpret
+            (Return)
+        )
+        (function UI16Reinterpret
+            (Return)
+        )
+        (function I32Reinterpret
+            (Return)
+        )
+        (function UI32Reinterpret
+            (Return)
+        )
+        (function I64Reinterpret
+            (Reinterpret (I64 123) I64 $stack)
+            (Assert $stack (I64 123))
+
+            (Reinterpret (I64 -123) UI64 $stack)
+            (Assert $stack (UI64 18446744073709551493))
+
+            (Return)
+        )
+        (function UI64Reinterpret
+            (Return)
+        )
+        (function F32Reinterpret
+            (Return)
+        )
+        (function F64Reinterpret
+            (Return)
+        )
+        (function BoolReinterpret
+            (Return)
+        )
+    )
+)

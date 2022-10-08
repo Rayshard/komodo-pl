@@ -123,7 +123,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         var v = value switch
         {
             Value.I64(var i) => i.ToString(),
-            Value.Bool(var b) => b ? "true" : "false",
+            Value.Bool b => b.IsTrue ? "true" : "false",
             _ => throw new NotImplementedException(value.ToString())
         };
 
