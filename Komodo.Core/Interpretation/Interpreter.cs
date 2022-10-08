@@ -270,7 +270,18 @@ public class Interpreter
     {
         var value = source switch
         {
-            Operand.Constant(var v) => v,
+            Operand.Constant.I8(var constant) => new Value.I8(constant),
+            Operand.Constant.UI8(var constant) => new Value.UI8(constant),
+            Operand.Constant.I16(var constant) => new Value.I16(constant),
+            Operand.Constant.UI16(var constant) => new Value.UI16(constant),
+            Operand.Constant.I32(var constant) => new Value.I32(constant),
+            Operand.Constant.UI32(var constant) => new Value.UI32(constant),
+            Operand.Constant.I64(var constant) => new Value.I64(constant),
+            Operand.Constant.UI64(var constant) => new Value.UI64(constant),
+            Operand.Constant.F32(var constant) => new Value.F32(constant),
+            Operand.Constant.F64(var constant) => new Value.F64(constant),
+            Operand.Constant.True => new Value.Bool(true),
+            Operand.Constant.False => new Value.Bool(false),
             Operand.Local.Indexed(var i) => stackFrame.Locals[(int)i],
             Operand.Local.Named(var n) => stackFrame.GetLocal(n),
             Operand.Global(var module, var name) => globals[(module, name)],

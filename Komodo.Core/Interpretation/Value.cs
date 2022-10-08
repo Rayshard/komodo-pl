@@ -1,6 +1,7 @@
+using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
 
-namespace Komodo.Core.Compilation.Bytecode;
+namespace Komodo.Core.Interpretation;
 
 public abstract record Value(DataType DataType)
 {
@@ -91,14 +92,14 @@ public abstract record Value(DataType DataType)
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record F32(float Value) : Value(new DataType.F32())
+    public record F32(Single Value) : Value(new DataType.F32())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record F64(double Value) : Value(new DataType.F64())
+    public record F64(Double Value) : Value(new DataType.F64())
     {
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 

@@ -251,7 +251,7 @@ public abstract record DataType
         var type when type == typeof(I16) || type == typeof(UI16) => 2,
         var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
         var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
-        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) => Address.ByteSize,
+        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) => 8,
         var type => throw new NotImplementedException(type.ToString())
     };
 

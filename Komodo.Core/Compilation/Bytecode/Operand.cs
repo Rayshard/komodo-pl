@@ -16,87 +16,264 @@ public abstract record Operand : IOperand
 
     public sealed override string ToString() => AsSExpression().ToString();
 
-    public record Constant(Value Value) : Operand, Source
+    public abstract record Constant : Operand, Source
     {
-        public override SExpression AsSExpression() => Value.AsSExpression();
+        new public abstract Bytecode.DataType DataType { get; }
 
-        public static Constant Deserialize(SExpression sexpr)
+        public record I8(SByte Value) : Constant
         {
-            try { return new Constant(DeserializeI8(sexpr)); }
-            catch { }
+            public override Bytecode.DataType DataType => new Bytecode.DataType.I8();
 
-            try { return new Constant(DeserializeUI8(sexpr)); }
-            catch { }
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("I8"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
 
-            try { return new Constant(DeserializeI64(sexpr)); }
-            catch { }
-
-            try { return new Constant(DeserializeUI64(sexpr)); }
-            catch { }
-
-            try { return new Constant(DeserializeBool(sexpr)); }
-            catch { }
-
-            throw new SExpression.FormatException($"Invalid constant: {sexpr}", sexpr);
-        }
-
-        public static Value.I8 DeserializeI8(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, Bytecode.DataType.I8.Deserialize)
-                 .ExpectItem(1, item => item.ExpectInt8(), out var value);
-
-            return new Value.I8(value);
-        }
-
-
-        public static Value.UI8 DeserializeUI8(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, Bytecode.DataType.UI8.Deserialize)
-                 .ExpectItem(1, item => item.ExpectUInt8(), out var value);
-
-            return new Value.UI8(value);
-        }
-
-        public static Value.I64 DeserializeI64(SExpression sexpr)
-        {
-            if (sexpr is SExpression.List list)
-            {
-                sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, Bytecode.DataType.I64.Deserialize)
-                 .ExpectItem(1, item => item.ExpectInt64(), out var value);
-
-                return new Value.I64(value);
-            }
-            else { return new Value.I64(sexpr.ExpectInt64()); }
-        }
-
-        public static Value.UI64 DeserializeUI64(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, Bytecode.DataType.UI64.Deserialize)
-                 .ExpectItem(1, item => item.ExpectUInt64(), out var value);
-
-            return new Value.UI64(value);
-        }
-
-        public static Value.Bool DeserializeBool(SExpression sexpr)
-        {
-            if (sexpr is SExpression.List list)
+            new public static I8 Deserialize(SExpression sexpr)
             {
                 sexpr.ExpectList()
                      .ExpectLength(2)
-                     .ExpectItem(0, Bytecode.DataType.Bool.Deserialize)
-                     .ExpectItem(1, item => item.ExpectBool(), out var value);
+                     .ExpectItem(0, Bytecode.DataType.I8.Deserialize)
+                     .ExpectItem(1, item => item.ExpectInt8(), out var value);
 
-                return new Value.Bool(value);
+                return new I8(value);
             }
-            else { return new Value.Bool(sexpr.ExpectBool()); }
+        }
+
+        public record UI8(Byte Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.UI8();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("UI8"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static UI8 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.UI8.Deserialize)
+                     .ExpectItem(1, item => item.ExpectUInt8(), out var value);
+
+                return new UI8(value);
+            }
+        }
+
+        public record I16(Int16 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.I16();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("I16"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static I16 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.I16.Deserialize)
+                     .ExpectItem(1, item => item.ExpectInt16(), out var value);
+
+                return new I16(value);
+            }
+        }
+
+        public record UI16(UInt16 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.UI16();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("UI16"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static UI16 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.UI16.Deserialize)
+                     .ExpectItem(1, item => item.ExpectUInt16(), out var value);
+
+                return new UI16(value);
+            }
+        }
+
+        public record I32(Int32 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.I32();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("I32"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static I32 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.I32.Deserialize)
+                     .ExpectItem(1, item => item.ExpectInt32(), out var value);
+
+                return new I32(value);
+            }
+        }
+
+        public record UI32(UInt32 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.UI32();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("UI32"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static UI32 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.UI32.Deserialize)
+                     .ExpectItem(1, item => item.ExpectUInt32(), out var value);
+
+                return new UI32(value);
+            }
+        }
+
+        public record I64(Int64 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.I64();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("I64"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static I64 Deserialize(SExpression sexpr)
+            {
+                if (sexpr is SExpression.List list)
+                {
+                    sexpr.ExpectList()
+                         .ExpectLength(2)
+                         .ExpectItem(0, Bytecode.DataType.I64.Deserialize)
+                         .ExpectItem(1, item => item.ExpectInt64(), out var value);
+
+                    return new I64(value);
+                }
+                else { return new I64(sexpr.ExpectInt64()); }
+            }
+        }
+
+        public record UI64(UInt64 Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.UI64();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("UI64"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static UI64 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.UI64.Deserialize)
+                     .ExpectItem(1, item => item.ExpectUInt64(), out var value);
+
+                return new UI64(value);
+            }
+        }
+
+        public record F32(Single Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.F32();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("F32"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static F32 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.F32.Deserialize)
+                     .ExpectItem(1, item => item.ExpectFloat(), out var value);
+
+                return new F32(value);
+            }
+        }
+
+        public record F64(Double Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.F64();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("F64"),
+                new SExpression.UnquotedSymbol(Value.ToString())
+            });
+
+            new public static F64 Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, Bytecode.DataType.F64.Deserialize)
+                     .ExpectItem(1, item => item.ExpectDouble(), out var value);
+
+                return new F64(value);
+            }
+        }
+
+        public record True : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.Bool();
+
+            public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("true");
+
+            new public static True Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectUnquotedSymbol().ExpectValue("true");
+                return new True();
+            }
+        }
+
+        public record False : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.Bool();
+
+            public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("false");
+
+            new public static False Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectUnquotedSymbol().ExpectValue("false");
+                return new False();
+            }
+        }
+
+        private static Func<SExpression, Constant>[] Deserializers => new Func<SExpression, Constant>[] {
+            I8.Deserialize,
+            UI8.Deserialize,
+            I16.Deserialize,
+            UI16.Deserialize,
+            I32.Deserialize,
+            UI32.Deserialize,
+            I64.Deserialize,
+            UI64.Deserialize,
+            F32.Deserialize,
+            F64.Deserialize,
+            True.Deserialize,
+            False.Deserialize,
+        };
+
+        public static Constant Deserialize(SExpression sexpr)
+        {
+            foreach (var deserializer in Deserializers)
+            {
+                try { return deserializer(sexpr); }
+                catch { }
+            }
+
+            throw new SExpression.FormatException($"Invalid constant: {sexpr}", sexpr);
         }
     }
 

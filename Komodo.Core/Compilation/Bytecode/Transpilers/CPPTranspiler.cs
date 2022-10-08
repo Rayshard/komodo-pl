@@ -118,23 +118,33 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 ".Trim();
     }
 
-    public string Convert(Value value)
+    public string Convert(Operand.Constant constant)
     {
-        var v = value switch
+        var v = constant switch
         {
-            Value.I64(var i) => i.ToString(),
-            Value.Bool b => b.IsTrue ? "true" : "false",
-            _ => throw new NotImplementedException(value.ToString())
+            Operand.Constant.I8(var value) => value.ToString(),
+            Operand.Constant.UI8(var value) => value.ToString(),
+            Operand.Constant.I16(var value) => value.ToString(),
+            Operand.Constant.UI16(var value) => value.ToString(),
+            Operand.Constant.I32(var value) => value.ToString(),
+            Operand.Constant.UI32(var value) => value.ToString(),
+            Operand.Constant.I64(var value) => value.ToString(),
+            Operand.Constant.UI64(var value) => value.ToString(),
+            Operand.Constant.F32(var value) => value.ToString(),
+            Operand.Constant.F64(var value) => value.ToString(),
+            Operand.Constant.True => "true",
+            Operand.Constant.False => "false",
+            _ => throw new NotImplementedException(constant.ToString())
         };
 
-        return $"{Convert(value.DataType)}({v})";
+        return $"{Convert(constant.DataType)}({v})";
     }
 
     public string Convert(Operand.Source source) => source switch
     {
-        Operand.Constant(var value) => Convert(value),
-        Operand.Arg(var index) => $"arg{index}",
-        Operand.Local(var index) => $"local{index}",
+        Operand.Constant constant => Convert(constant),
+        Operand.Arg.Indexed(var index) => $"arg{index}",
+        Operand.Local.Indexed(var index) => $"local{index}",
         Operand.Stack => "interpreter.PopStack()",
         _ => throw new NotImplementedException(source.ToString())
     };

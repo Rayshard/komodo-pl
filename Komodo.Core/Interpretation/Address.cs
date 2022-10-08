@@ -1,6 +1,6 @@
 using Komodo.Core.Utilities;
 
-namespace Komodo.Core.Compilation.Bytecode;
+namespace Komodo.Core.Interpretation;
 
 public record Address(UInt64 Value)
 {

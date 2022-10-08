@@ -310,6 +310,46 @@ public abstract record SExpression(TextLocation? Location)
         throw new FormatException($"'{value}' is not a 8-bit unsigned integer", this);
     }
 
+    public Int16 ExpectInt16()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Int16.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not an 16-bit signed integer", this);
+    }
+
+    public UInt16 ExpectUInt16()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (System.UInt16.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 16-bit unsigned integer", this);
+    }
+    
+    public Int32 ExpectInt32()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (Int32.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not an 32-bit signed integer", this);
+    }
+
+    public UInt32 ExpectUInt32()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (System.UInt32.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 32-bit unsigned integer", this);
+    }
+    
     public Int64 ExpectInt64()
     {
         var value = ExpectUnquotedSymbol().Value;
@@ -328,6 +368,26 @@ public abstract record SExpression(TextLocation? Location)
             return result;
 
         throw new FormatException($"'{value}' is not a 64-bit unsigned integer", this);
+    }
+
+    public Single ExpectFloat()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (System.Single.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 32-bit floating-point", this);
+    }
+
+    public Double ExpectDouble()
+    {
+        var value = ExpectUnquotedSymbol().Value;
+
+        if (System.Double.TryParse(value, out var result))
+            return result;
+
+        throw new FormatException($"'{value}' is not a 64-bit floating-point", this);
     }
 
     public bool ExpectBool()
