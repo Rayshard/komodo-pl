@@ -1,0 +1,21 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                (Func (I64) (I64))
+            )
+
+            (Dump (local 0))
+            
+            (Move (func MyModule MyFunction) (local 0))
+            (Call (local 0) 123)
+            (Assert $stack 123)
+
+            (Exit 0)
+        )
+        (function MyFunction (params I64) (returns I64)
+            (Return (arg 0))
+        )
+    )
+)

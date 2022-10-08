@@ -230,7 +230,7 @@ public abstract record DataType
 
         public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
 
-        public override string AsMangledString() => $"Ref {ValueType.AsMangledString()}";
+        public override string AsMangledString() => $"{ValueType.AsMangledString()}@";
 
         new public static Reference Deserialize(SExpression sexpr)
         {
@@ -243,6 +243,33 @@ public abstract record DataType
         }
     }
 
+    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns) : Pointer
+    {
+        public override UInt64 ByteSize => ByteSizeOf<Function>();
+
+        public override SExpression AsSExpression() => new SExpression.List(new SExpression[] {
+            new SExpression.UnquotedSymbol("Func"),
+            new SExpression.List(Parameters.Select(p => p.AsSExpression())),
+            new SExpression.List(Returns.Select(r => r.AsSExpression())),
+        });
+
+        public override string AsMangledString() => $"({Parameters.Select(p => p.AsMangledString()).Stringify(", ")}) -> ({Returns.Select(p => p.AsMangledString()).Stringify(", ")})";
+
+        new public static Function Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("Func"))
+                 .ExpectItem(1, item => item.ExpectList(), out var paramsList)
+                 .ExpectItem(2, item => item.ExpectList(), out var returnsList);
+
+            paramsList.ExpectItems(DataType.Deserialize, out var parameters);
+            returnsList.ExpectItems(DataType.Deserialize, out var returns);
+
+            return new Function(new VSROCollection<DataType>(parameters), new VSROCollection<DataType>(returns));
+        }
+    }
+
     public T As<T>() where T : DataType => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
 
     public static UInt64 ByteSizeOf<T>() where T : DataType => typeof(T) switch
@@ -251,7 +278,7 @@ public abstract record DataType
         var type when type == typeof(I16) || type == typeof(UI16) => 2,
         var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
         var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
-        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) => 8,
+        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) || type == typeof(Function) => 8,
         var type => throw new NotImplementedException(type.ToString())
     };
 
@@ -270,6 +297,7 @@ public abstract record DataType
         Array.Deserialize,
         Type.Deserialize,
         Reference.Deserialize,
+        Function.Deserialize,
     };
 
     public static DataType Deserialize(SExpression sexpr)
