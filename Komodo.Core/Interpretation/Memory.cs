@@ -83,23 +83,29 @@ public class Memory
         else { return AllocateWrite(value.AsBytes()); }
     }
 
-    public Address AllocateWrite(IEnumerable<Value> values, bool prefixWithType = false)
+    public Address AllocateWrite(IEnumerable<Value> values, bool prefixEachValueWithType = false, bool prefixWithNumValues = false)
     {
-        if (prefixWithType)
-        {
-            IEnumerable<Byte> data = new Byte[0];
+        var valuesAsArray = values.ToArray();
+        IEnumerable<Byte> data;
 
-            foreach (Value value in values)
+        if (prefixEachValueWithType)
+        {
+            data = new Byte[0];
+
+            foreach (Value value in valuesAsArray)
             {
                 var mangledString = value.DataType.AsMangledString();
                 var typeData = BitConverter.GetBytes((UInt64)mangledString.Length).Concat(Encoding.UTF8.GetBytes(mangledString));
 
                 data = data.Concat(typeData).Concat(value.AsBytes());
             }
-
-            return AllocateWrite(data);
         }
-        else { return AllocateWrite(values.Select(value => value.AsBytes()).Flatten()); }
+        else { data = valuesAsArray.Select(value => value.AsBytes()).Flatten(); }
+
+        if (prefixWithNumValues)
+            data = BitConverter.GetBytes((UInt64)valuesAsArray.Length).Concat(data);
+
+        return AllocateWrite(data);
     }
 
     public void Free(Address address)
@@ -133,20 +139,7 @@ public class Memory
         return chunk.Data.SubArray((int)(start - chunk.Address), (int)count); ;
     }
 
-    public Value Read(Address start, DataType dataType)
-    {
-        var bytes = Read(start, dataType.ByteSize);
-
-        return dataType switch
-        {
-            DataType.UI8 => new Value.UI8(bytes[0]),
-            DataType.I64 => new Value.I64(BitConverter.ToInt64(bytes)),
-            DataType.UI64 => new Value.UI64(BitConverter.ToUInt64(bytes)),
-            DataType.Bool => new Value.Bool(bytes[0] == 0),
-            DataType.Array(var elementType) => new Value.Array(elementType, BitConverter.ToUInt64(bytes), BitConverter.ToUInt64(bytes, 8)),
-            _ => throw new NotImplementedException(dataType.ToString())
-        };
-    }
+    public Value Read(Address start, DataType dataType) => Value.Create(dataType, Read(start, dataType.ByteSize));
 
     public Value[] Read(Address start, DataType dataType, UInt64 count)
     {
@@ -165,12 +158,16 @@ public class Memory
     public Value Read(Value.Reference reference) => Read(reference.Address, reference.ValueType);
     public T Read<T>(Address start, DataType dataType) where T : Value => Read(start, dataType).As<T>();
     public T Read<T>(Value.Reference reference) where T : Value => Read<T>(reference);
-    
+
     public T[] Read<T>(Address start, DataType dataType, UInt64 count) where T : Value
         => Read(start, dataType, count).Select(v => v.As<T>()).ToArray();
 
+
     public UInt64 ReadUInt64(Address start) => BitConverter.ToUInt64(Read(start, 8));
+    public void Read(Address start, out UInt64 value) => value = ReadUInt64(start);
+
     public string ReadString(Address start) => Encoding.UTF8.GetString(Read(start + 8, ReadUInt64(start)));
+    public void Read(Address start, out string value) => value = ReadString(start);
 
     public void Write(Address start, Byte data)
     {

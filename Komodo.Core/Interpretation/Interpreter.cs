@@ -38,12 +38,12 @@ public class Interpreter
         {
             foreach (var item in module.Data.Values)
             {
-                var array = new Value.Array(new DataType.UI8(), (UInt64)item.Bytes.Length, memory.AllocateWrite(item.Bytes));
+                var array = new Value.Array(new DataType.UI8(), memory.AllocateWrite(item.Bytes, true));
                 data.Add((module.Name, item.Name), array);
             }
 
             foreach (var global in module.Globals.Values)
-                globals.Add((module.Name, global.Name), Value.CreateDefault(global.DataType));
+                globals.Add((module.Name, global.Name), CreateDefault(global.DataType));
         }
     }
 
@@ -122,7 +122,7 @@ public class Interpreter
                             {
                                 var handle = PopStack<Value.I64>().Value;
                                 var array = PopStack<Value.Array>(new DataType.Array(new DataType.UI8()));
-                                var buffer = memory.Read<Value.UI8>(array.Address, array.ElementType, array.Length)
+                                var buffer = memory.Read<Value.UI8>(array.ElementsStart, array.ElementType, memory.ReadUInt64(array.LengthStart))
                                                    .Select(value => value.Value)
                                                    .ToArray();
                                 var bufferAsString = Encoding.UTF8.GetString(buffer);
@@ -146,7 +146,7 @@ public class Interpreter
                 break;
             case Instruction.Allocate instr:
                 {
-                    var address = memory.AllocateWrite(Value.CreateDefault(instr.DataType));
+                    var address = memory.AllocateWrite(CreateDefault(instr.DataType));
                     SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
                 }
                 break;
@@ -177,11 +177,10 @@ public class Interpreter
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
-                        (Opcode.GetElement, Value.UI64(var index), Value.Array a)
-                            => index < a.Length
-                                ? memory.Read(a.Address + index * a.ElementType.ByteSize, a.ElementType)
-                                : throw new Exception($"Index {index} is greater than array length: {a.Length}"),
-                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                        (Opcode.GetElement, Value.UI64(var index), Value.Array a) => index < memory.ReadUInt64(a.LengthStart)
+                            ? memory.Read(a.ElementsStart + index * a.ElementType.ByteSize, a.ElementType)
+                            : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(a.LengthStart)}"),
+                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
                     };
 
                     SetValue(stackFrame, instr.Destination, result);
@@ -203,9 +202,11 @@ public class Interpreter
             case Instruction.Dump instr:
                 Config.StandardOutput.WriteLine(GetValue(stackFrame, instr.Source) switch
                 {
-                    Value.Array a => a.Length == 0
-                        ? "[]"
-                        : memory.Read(a.Address, a.ElementType, a.Length).Stringify(", ", ("[", "]")),
+                    Value.Array a => memory.ReadUInt64(a.LengthStart) switch
+                    {
+                        0 => "[]",
+                        var length => memory.Read(a.ElementsStart, a.ElementType, memory.ReadUInt64(a.LengthStart)).Stringify(", ", ("[", "]")),
+                    },
                     Value.Type t => t.IsUnknown
                         ? "unknown"
                         : Encoding.UTF8.GetString(memory.Read(t.Address + 8, memory.ReadUInt64(t.Address))),
@@ -237,13 +238,28 @@ public class Interpreter
                 break;
             case Instruction.Jump instr:
                 {
-                    var condition = instr.Condition is null || GetValue<Value.Bool>(stackFrame, instr.Condition, new DataType.Bool()).Value;
+                    var condition = instr.Condition is null || GetValue<Value.Bool>(stackFrame, instr.Condition, new DataType.Bool()).IsTrue;
 
                     if (condition)
                     {
                         var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
                         nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
                     }
+                }
+                break;
+            case Instruction.Convert instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Value).ConvertTo(instr.Target)); break;
+            case Instruction.Reinterpret instr:
+                {
+                    var value = GetValue(stackFrame, instr.Value);
+
+                    if (value.DataType is DataType.Pointer)
+                        throw new InterpreterException("Pointer types cannot be reinterpreted!");
+
+                    var reinterpretedValue = value.DataType.ByteSize != instr.Target.ByteSize
+                        ? throw new Exception($"Cannot interpret {value.DataType} which has size {value.DataType.ByteSize} as {instr.Target} which has size {instr.Target.ByteSize}")
+                        : Value.Create(instr.Target, value.AsBytes());
+
+                    SetValue(stackFrame, instr.Destination, reinterpretedValue);
                 }
                 break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
@@ -254,7 +270,18 @@ public class Interpreter
     {
         var value = source switch
         {
-            Operand.Constant(var v) => v,
+            Operand.Constant.I8(var constant) => new Value.I8(constant),
+            Operand.Constant.UI8(var constant) => new Value.UI8(constant),
+            Operand.Constant.I16(var constant) => new Value.I16(constant),
+            Operand.Constant.UI16(var constant) => new Value.UI16(constant),
+            Operand.Constant.I32(var constant) => new Value.I32(constant),
+            Operand.Constant.UI32(var constant) => new Value.UI32(constant),
+            Operand.Constant.I64(var constant) => new Value.I64(constant),
+            Operand.Constant.UI64(var constant) => new Value.UI64(constant),
+            Operand.Constant.F32(var constant) => new Value.F32(constant),
+            Operand.Constant.F64(var constant) => new Value.F64(constant),
+            Operand.Constant.True => new Value.Bool(true),
+            Operand.Constant.False => new Value.Bool(false),
             Operand.Local.Indexed(var i) => stackFrame.Locals[(int)i],
             Operand.Local.Named(var n) => stackFrame.GetLocal(n),
             Operand.Global(var module, var name) => globals[(module, name)],
@@ -265,13 +292,9 @@ public class Interpreter
             Operand.Data(var module, var name) => data[(module, name)],
             Operand.Array(var elementType, var elements) => new Value.Array(
                 elementType,
-                (UInt64)elements.Count,
-                elements.Count == 0
-                    ? Address.NULL
-                    : memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)))
+                memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)), false, true)
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
-            Operand.Convert operand => GetValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
             _ => throw new Exception($"Invalid source: {source}")
         };
 
@@ -339,7 +362,7 @@ public class Interpreter
     {
         var stackTop = PopStack(dt);
 
-        if(stackTop is T converted)
+        if (stackTop is T converted)
             return converted;
 
         stack.Push(stackTop);
@@ -365,7 +388,7 @@ public class Interpreter
             arguments[index] = (arg, param.Name);
         }
 
-        var locals = function.Locals.Select(l => (Value.CreateDefault(l.DataType), l.Name)).ToArray();
+        var locals = function.Locals.Select(l => (CreateDefault(l.DataType), l.Name)).ToArray();
 
         callStack.Push(new StackFrame(start, stack.Count, arguments, locals));
     }
@@ -403,4 +426,20 @@ public class Interpreter
     public Function GetFunction(string module, string function) => Program.GetModule(module).GetFunction(function);
     private Instruction GetInstruction(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
     public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.GetModule(module).GetFunction(function).Labels[label].Target;
+
+    public Value CreateDefault(DataType dataType) => dataType switch
+    {
+        DataType.I8 => new Value.I8(0),
+        DataType.UI8 => new Value.UI8(0),
+        DataType.I64 => new Value.I64(0),
+        DataType.UI64 => new Value.UI64(0),
+        DataType.Bool => new Value.Bool(false),
+        DataType.Array(var elementType) => new Value.Array(
+            elementType,
+            memory.AllocateWrite(new Value[0], prefixWithNumValues: true)
+        ),
+        DataType.Type => new Value.Type(Address.NULL),
+        DataType.Reference(var valueType) => new Value.Reference(valueType, Address.NULL),
+        _ => throw new NotImplementedException(dataType.ToString())
+    };
 }
