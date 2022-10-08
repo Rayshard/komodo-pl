@@ -272,7 +272,6 @@ public class Interpreter
                     : memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)))
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
-            Operand.Convert operand => GetValue(stackFrame, operand.Value).ConvertTo(operand.ResultType),
             _ => throw new Exception($"Invalid source: {source}")
         };
 

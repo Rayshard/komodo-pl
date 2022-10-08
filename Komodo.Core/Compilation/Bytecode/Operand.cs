@@ -291,26 +291,6 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Convert(Bytecode.DataType ResultType, Source Value) : Operand, Source
-    {
-        public override SExpression AsSExpression() => new SExpression.List(new[]{
-            new SExpression.UnquotedSymbol("convert"),
-            ResultType.AsSExpression(),
-            Value.AsSExpression()
-        });
-
-        public static Convert Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(3)
-                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("convert"))
-                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var resultType)
-                 .ExpectItem(2, DeserializeSource, out var value);
-
-            return new Convert(resultType, value);
-        }
-    }
-
     private static Func<SExpression, Source>[] SourceDeserializers => new Func<SExpression, Source>[] {
         Constant.Deserialize,
         Local.Deserialize,
@@ -321,7 +301,6 @@ public abstract record Operand : IOperand
         Data.Deserialize,
         Null.Deserialize,
         Typeof.Deserialize,
-        Convert.Deserialize,
     };
 
     private static Func<SExpression, Destination>[] DestinationDeserializers => new Func<SExpression, Destination>[] {
