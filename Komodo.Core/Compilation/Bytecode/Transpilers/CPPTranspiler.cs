@@ -34,7 +34,7 @@ namespace Program
 
     public string Convert(Module module)
     {
-        var functions = Utility.Stringify(module.Functions.Select(Convert), Environment.NewLine + Environment.NewLine);
+        var functions = Utility.Stringify(module.Functions.Values.Select(Convert), Environment.NewLine + Environment.NewLine);
 
         return
 $@"
@@ -47,7 +47,7 @@ namespace {module.Name}
 
     private string GetForwardDeclaration(Module module)
     {
-        var functions = Utility.Stringify(module.Functions.Select(GetForwardDeclaration), Environment.NewLine);
+        var functions = Utility.Stringify(module.Functions.Values.Select(GetForwardDeclaration), Environment.NewLine);
 
         return
 $@"

@@ -423,9 +423,9 @@ public class Interpreter
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
     public InstructionPointer[] GetStackTrace() => callStack.Select(sf => sf.LastIP ?? sf.IP).ToArray();
 
-    public Function GetFunction(string module, string function) => Program.Modules[module].GetFunction(function);
-    private Instruction GetInstruction(InstructionPointer ip) => Program.Modules[ip.Module].GetFunction(ip.Function).Instructions[(int)ip.Index];
-    public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.Modules[module].GetFunction(function).Labels[label].Target;
+    public Function GetFunction(string moduleName, string functionName) => Program.Modules[moduleName].Functions[functionName];
+    private Instruction GetInstruction(InstructionPointer ip) => Program.Modules[ip.Module].Functions[ip.Function].Instructions[(int)ip.Index];
+    public UInt64 GetFunctionLabelTarget(string moduleName, string functionName, string label) => Program.Modules[moduleName].Functions[functionName].Labels[label].Target;
 
     public Value CreateDefault(DataType dataType) => dataType switch
     {

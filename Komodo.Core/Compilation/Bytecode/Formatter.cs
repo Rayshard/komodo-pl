@@ -24,7 +24,7 @@ public class Formatter : Converter<string>
         var builder = new StringBuilder();
         builder.AppendLine($"(module {module.Name}");
 
-        foreach (var function in module.Functions)
+        foreach (var function in module.Functions.Values)
             builder.AppendLine(Convert(function).WithIndent());
 
         builder.Append(")");
