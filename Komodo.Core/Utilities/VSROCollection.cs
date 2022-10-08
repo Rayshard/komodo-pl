@@ -14,16 +14,5 @@ public class VSROCollection<T> : ReadOnlyCollection<T>
 
     public override bool Equals(object? obj) => Equals(obj as VSROCollection<T>);
 
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            int hash = 19;
-
-            foreach (var value in this)
-                hash = hash * 31 + (value is null ? 617 : value.GetHashCode());
-
-            return hash;
-        }
-    }
+    public override int GetHashCode() => this.GetOrderDependentHashCode();
 }

@@ -2,24 +2,20 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public class Program
+public record Program
 {
     public string Name { get; }
     public (string Module, string Function) Entry { get; }
+    public VSRODictionary<string, Module> Modules { get; }
 
-    private Dictionary<string, Module> modules = new Dictionary<string, Module>();
-    public IEnumerable<Module> Modules => modules.Values;
+    public IEnumerable<(string Module, Function Function)> Functions => Modules.Select(m => m.Value.Functions.Select(f => (m.Key, f))).Flatten();
 
-    public IEnumerable<(string Module, Function Function)> Functions => Modules.Select(m => m.Functions.Select(f => (m.Name, f))).SelectMany(f => f);
-
-    public Program(string name, (string Module, string Function) entry)
+    public Program(string name, (string Module, string Function) entry, IEnumerable<Module> modules)
     {
         Name = name;
         Entry = entry;
+        Modules = new VSRODictionary<string, Module>(modules, module => module.Name);
     }
-
-    public void AddModule(Module module) => modules.Add(module.Name, module);
-    public Module GetModule(string name) => modules[name];
 
     public SExpression AsSExpression()
     {
@@ -34,9 +30,37 @@ public class Program
             new SExpression.UnquotedSymbol(Entry.Function),
         });
 
-        nodes.AddRange(Modules.Select(module => module.AsSExpression()));
+        nodes.AddRange(Modules.Select(module => module.Value.AsSExpression()));
 
         return new SExpression.List(nodes);
+    }
+}
+
+public class ProgramBuilder
+{
+    private string? name;
+    private (string Module, string Function)? entry;
+    private Dictionary<string, Module> modules = new Dictionary<string, Module>();
+
+    public void SetName(string? value) => name = value;    
+
+    public void SetEntry((string ModuleName, string FunctionName)? value) => entry = value.HasValue
+        ? HasFunction(value.Value.ModuleName, value.Value.FunctionName)
+            ? value
+            : throw new Exception($"Cannot set entry. Function {value.Value.ModuleName}.{value.Value.FunctionName} does not exist")
+        : null;
+
+    public void AddModule(Module module) => modules.Add(module.Name, module);
+
+    public bool HasModule(string name) => modules.ContainsKey(name);
+    public bool HasFunction(string moduleName, string functionName) => modules.TryGetValue(moduleName, out var module) && module.HasFunction(functionName);
+
+    public Program Build()
+    {
+        var name = this.name ?? throw new Exception("Name is not set");
+        var entry = this.entry ?? throw new Exception("Entry is not set");
+
+        return new Program(name, entry, modules.Values);
     }
 
     public static Program Deserialize(SExpression sexpr)
@@ -53,12 +77,14 @@ public class Program
                  .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var entryModule)
                  .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var entryFunction);
 
-        var program = new Program(name, (entryModule, entryFunction));
+        var builder = new ProgramBuilder();
+        builder.SetName(name);
 
         foreach (var item in remaining)
-            program.AddModule(Module.Deserialize(item));
+            builder.AddModule(Module.Deserialize(item));
 
-        return program;
+        builder.SetEntry((entryModule, entryFunction));
+        return builder.Build();
     }
 
 }

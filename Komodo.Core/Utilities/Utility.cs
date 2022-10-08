@@ -91,6 +91,16 @@ public static class Utility
         return enumerable;
     }
 
+    public static Dictionary<K, V> ToDictionary<K, V>(this IEnumerable<KeyValuePair<K, V>> enumerable) where K : notnull
+    {
+        var result = new Dictionary<K, V>();
+
+        foreach (var item in enumerable)
+            result.Add(item.Key, item.Value);
+
+        return result;
+    }
+
     public static (ReadOnlyCollection<TValue>, ReadOnlyDictionary<TKey, int>) ToCollectionWithMap<TItem, TKey, TValue>(this IEnumerable<TItem> enumerable, Func<TItem, TKey?> keySelector, Func<TItem, TValue> valueSelector) where TKey : notnull
     {
         var map = new Dictionary<TKey, int>();
@@ -119,4 +129,43 @@ public static class Utility
     }
 
     public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> enumerable) => enumerable.SelectMany(x => x);
+
+    public static int GetOrderDependentHashCode<T>(this IEnumerable<T> source)
+    {
+        unchecked
+        {
+            int hash = 19;
+
+            foreach (var value in source)
+                hash = hash * 31 + (value is null ? 617 : value.GetHashCode());
+
+            return hash;
+        }
+    }
+
+    /* From: https://stackoverflow.com/a/670068/19809812 */
+    public static int GetOrderIndependentHashCode<T>(this IEnumerable<T> source) where T : notnull
+    {
+        int hash = 0;
+        int curHash;
+        int bitOffset = 0;
+        var valueCounts = new Dictionary<T, int>(); // Stores number of occurences so far of each value.
+
+        foreach (T element in source)
+        {
+            curHash = EqualityComparer<T>.Default.GetHashCode(element);
+
+            if (valueCounts.TryGetValue(element, out bitOffset)) { valueCounts[element] = bitOffset + 1; }
+            else { valueCounts.Add(element, bitOffset); }
+
+            // The current hash code is shifted (with wrapping) one bit
+            // further left on each successive recurrence of a certain
+            // value to widen the distribution.
+            // 37 is an arbitrary low prime number that helps the
+            // algorithm to smooth out the distribution.
+            hash = unchecked(hash + ((curHash << bitOffset) | (curHash >> (32 - bitOffset))) * 37);
+        }
+
+        return hash;
+    }
 }

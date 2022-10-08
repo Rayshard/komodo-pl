@@ -34,7 +34,7 @@ public class Interpreter
         Program = program;
         Config = config;
 
-        foreach (var module in program.Modules)
+        foreach (var module in program.Modules.Values)
         {
             foreach (var item in module.Data.Values)
             {
@@ -423,9 +423,9 @@ public class Interpreter
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
     public InstructionPointer[] GetStackTrace() => callStack.Select(sf => sf.LastIP ?? sf.IP).ToArray();
 
-    public Function GetFunction(string module, string function) => Program.GetModule(module).GetFunction(function);
-    private Instruction GetInstruction(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
-    public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.GetModule(module).GetFunction(function).Labels[label].Target;
+    public Function GetFunction(string module, string function) => Program.Modules[module].GetFunction(function);
+    private Instruction GetInstruction(InstructionPointer ip) => Program.Modules[ip.Module].GetFunction(ip.Function).Instructions[(int)ip.Index];
+    public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.Modules[module].GetFunction(function).Labels[label].Target;
 
     public Value CreateDefault(DataType dataType) => dataType switch
     {

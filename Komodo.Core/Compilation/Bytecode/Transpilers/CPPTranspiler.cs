@@ -9,8 +9,8 @@ public class CPPTranspiler : Converter<string>
 
     public override string Convert(Program program)
     {
-        var forwardDeclarations = Utility.Stringify(program.Modules.Select(GetForwardDeclaration), Environment.NewLine + Environment.NewLine);
-        var modules = Utility.Stringify(program.Modules.Select(Convert), Environment.NewLine + Environment.NewLine);
+        var forwardDeclarations = Utility.Stringify(program.Modules.Values.Select(GetForwardDeclaration), Environment.NewLine + Environment.NewLine);
+        var modules = Utility.Stringify(program.Modules.Values.Select(Convert), Environment.NewLine + Environment.NewLine);
 
         return
 $@"

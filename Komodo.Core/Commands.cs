@@ -12,7 +12,7 @@ public static class Commands
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(source));
-            var program = Core.Compilation.Bytecode.Program.Deserialize(sexpr);
+            var program = Core.Compilation.Bytecode.ProgramBuilder.Deserialize(sexpr);
 
             switch (target)
             {
@@ -35,7 +35,7 @@ public static class Commands
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(source));
-            var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+            var program = Compilation.Bytecode.ProgramBuilder.Deserialize(sexpr);
             return RunIR(program, interpreterConfig);
         }
         catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }
@@ -64,7 +64,7 @@ public static class Commands
         try
         {
             var sexpr = SExpression.Parse(new TextSourceReader(source));
-            var program = Core.Compilation.Bytecode.Program.Deserialize(sexpr);
+            var program = Core.Compilation.Bytecode.ProgramBuilder.Deserialize(sexpr);
             var formatter = new Core.Compilation.Bytecode.Formatter();
 
             return formatter.Convert(program);

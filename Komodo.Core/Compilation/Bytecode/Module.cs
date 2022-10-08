@@ -49,6 +49,7 @@ public class Module
 
     public void AddFunction(Function function) => functions.Add(function.Name, function);
     public Function GetFunction(string name) => functions[name];
+    public bool HasFunction(string name) => functions.ContainsKey(name);
 
     public SExpression AsSExpression()
     {
