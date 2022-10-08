@@ -246,6 +246,7 @@ public class Interpreter
                     }
                 }
                 break;
+            case Instruction.Convert instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Value).ConvertTo(instr.Target)); break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
         }
     }

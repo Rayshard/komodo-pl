@@ -17,6 +17,8 @@ public enum Opcode
     Load,
     Store,
 
+    Convert,
+
     Add,
     Eq,
     Dec,
@@ -291,6 +293,24 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
+    public record Convert(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Convert)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, new Operand.DataType(Target), Destination };
+
+        new public static Convert Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(4)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Convert))
+                 .ExpectItem(1, Operand.DeserializeSource, out var value)
+                 .ExpectItem(2, DataType.Deserialize, out var target)
+                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+            return new Convert(value, target, destination);
+        }
+    }
+
+
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
         Opcode.Add => Binop.Deserialize(sexpr),
@@ -310,6 +330,8 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Allocate => Allocate.Deserialize(sexpr),
         Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
+
+        Opcode.Convert => Convert.Deserialize(sexpr),
       
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
