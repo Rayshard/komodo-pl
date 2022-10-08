@@ -291,8 +291,10 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand
+    public abstract record Variable(SExpression Symbol, VSROCollection<SExpression> IDList) : Operand
     {
+        public Variable(SExpression Symbol, params SExpression[] IDList) : this(Symbol, new VSROCollection<SExpression>(IDList)) { }
+
         public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
         //TODO: Make idValidator be Func<IEnumerable<SExpression>, TId>
@@ -393,7 +395,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
+    public record Array(Bytecode.DataType ElementType, VSROCollection<Source> Elements) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(
             Elements.Select(element => element.AsSExpression())
@@ -408,7 +410,7 @@ public abstract record Operand : IOperand
                  .ExpectItem(1, Bytecode.DataType.Deserialize, out var elementType)
                  .ExpectItems(DeserializeSource, out var elements, 2);
 
-            return new Array(elementType, elements);
+            return new Array(elementType, new VSROCollection<Source>(elements));
         }
     }
 

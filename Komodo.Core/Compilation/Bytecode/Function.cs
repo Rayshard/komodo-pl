@@ -1,8 +1,4 @@
 using Komodo.Core.Utilities;
-using System.Collections;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
@@ -65,19 +61,19 @@ public record Function(
 
         var paramsNodes = new List<SExpression>();
         paramsNodes.Add(new SExpression.UnquotedSymbol("params"));
-        paramsNodes.AddRange(Parameters.Select(param => new SExpression.UnquotedSymbol(param.ToString())));
+        paramsNodes.AddRange(Parameters.Select(param => param.AsSExpression()));
         nodes.Add(new SExpression.List(paramsNodes));
 
         var returnsNodes = new List<SExpression>();
         returnsNodes.Add(new SExpression.UnquotedSymbol("returns"));
-        returnsNodes.AddRange(Returns.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+        returnsNodes.AddRange(Returns.Select(ret => ret.AsSExpression()));
         nodes.Add(new SExpression.List(returnsNodes));
 
         if (Locals.Count != 0)
         {
             var localsNodes = new List<SExpression>();
             localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
-            localsNodes.AddRange(Locals.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+            localsNodes.AddRange(Locals.Select(local => local.AsSExpression()));
             nodes.Add(new SExpression.List(localsNodes));
         }
 

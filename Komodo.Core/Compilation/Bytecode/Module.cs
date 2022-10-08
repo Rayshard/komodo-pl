@@ -4,7 +4,7 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public record Data(string Name, Byte[] Bytes)
+public record Data(string Name, VSROCollection<Byte> Bytes)
 {
     public static Data Deserialize(SExpression sexpr)
     {
@@ -13,7 +13,7 @@ public record Data(string Name, Byte[] Bytes)
              .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
              .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
 
-        return new Data(name, bytes);
+        return new Data(name, new VSROCollection<byte>(bytes));
     }
 }
 

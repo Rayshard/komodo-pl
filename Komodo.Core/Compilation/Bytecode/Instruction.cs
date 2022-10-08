@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -159,12 +158,8 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Call : Instruction
+    public record Call(string Module, string Function, VSROCollection<Operand.Source> Args) : Instruction(Opcode.Call)
     {
-        public string Module { get; }
-        public string Function { get; }
-        public ReadOnlyCollection<Operand.Source> Args { get; }
-
         public override IEnumerable<IOperand> Operands
         {
             get
@@ -177,14 +172,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
             }
         }
 
-        public Call(string module, string function, IEnumerable<Operand.Source> args)
-            : base(Opcode.Call)
-        {
-            Module = module;
-            Function = function;
-            Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
-        }
-
         new public static Call Deserialize(SExpression sexpr)
         {
             sexpr.ExpectList()
@@ -194,7 +181,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                  .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var function)
                  .ExpectItems(Operand.DeserializeSource, out var args, 3);
 
-            return new Call(module, function, args);
+            return new Call(module, function, new VSROCollection<Operand.Source>(args));
         }
     }
 
@@ -233,16 +220,18 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Return(IEnumerable<Operand.Source> Sources) : Instruction(Opcode.Return)
+    public record Return(VSROCollection<Operand.Source> Sources) : Instruction(Opcode.Return)
     {
         public override IEnumerable<IOperand> Operands => Sources;
 
         new public static Return Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1, null);
-            list[0].ExpectEnum<Opcode>(Opcode.Return);
+            sexpr.ExpectList()
+                 .ExpectLength(1, null)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Return))
+                 .ExpectItems(Operand.DeserializeSource, out var sources, 1);
 
-            return new Return(list.Skip(1).Select(Operand.DeserializeSource));
+            return new Return(new VSROCollection<Operand.Source>(sources));
         }
     }
 

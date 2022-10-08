@@ -302,6 +302,8 @@ public record NamedDataType(DataType DataType, string Name)
 {
     public KeyValuePair<string, DataType> AsKeyValuePair() => KeyValuePair.Create<string, DataType>(Name, DataType);
 
+    public SExpression AsSExpression() => new SExpression.List(new[] { DataType.AsSExpression(), new SExpression.UnquotedSymbol(Name) });
+
     public static NamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
     {
         var list = sexpr.ExpectList().ExpectLength(2);
@@ -314,6 +316,8 @@ public record NamedDataType(DataType DataType, string Name)
 public record OptionallyNamedDataType(DataType DataType, string? Name = null)
 {
     public NamedDataType ToNamed() => Name is not null ? new NamedDataType(DataType, Name) : throw new InvalidOperationException("Name is null!");
+
+    public SExpression AsSExpression() => Name is null ? DataType.AsSExpression() : ToNamed().AsSExpression();
 
     public static OptionallyNamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
     {
