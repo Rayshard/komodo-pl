@@ -255,31 +255,30 @@ public abstract record DataType
         var type => throw new NotImplementedException(type.ToString())
     };
 
+    private static Func<SExpression, DataType>[] Deserializers => new Func<SExpression, DataType>[] {
+        I8.Deserialize,
+        UI8.Deserialize,
+        I16.Deserialize,
+        UI16.Deserialize,
+        I32.Deserialize,
+        UI32.Deserialize,
+        I64.Deserialize,
+        UI64.Deserialize,
+        F32.Deserialize,
+        F64.Deserialize,
+        Bool.Deserialize,
+        Array.Deserialize,
+        Type.Deserialize,
+        Reference.Deserialize,
+    };
+
     public static DataType Deserialize(SExpression sexpr)
     {
-        try { return I8.Deserialize(sexpr); }
-        catch { }
-
-        try { return UI8.Deserialize(sexpr); }
-        catch { }
-
-        try { return I64.Deserialize(sexpr); }
-        catch { }
-
-        try { return UI64.Deserialize(sexpr); }
-        catch { }
-
-        try { return Bool.Deserialize(sexpr); }
-        catch { }
-
-        try { return Array.Deserialize(sexpr); }
-        catch { }
-
-        try { return Type.Deserialize(sexpr); }
-        catch { }
-
-        try { return Reference.Deserialize(sexpr); }
-        catch { }
+        foreach (var deserializer in Deserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
 
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
     }
@@ -288,8 +287,14 @@ public abstract record DataType
     {
         "I8" => new I8(),
         "UI8" => new UI8(),
+        "I16" => new I16(),
+        "UI16" => new UI16(),
+        "I32" => new I32(),
+        "UI32" => new UI32(),
         "I64" => new I64(),
         "UI64" => new UI64(),
+        "F32" => new F32(),
+        "F64" => new F64(),
         "Bool" => new Bool(),
         "Type" => new Type(),
         var ms when ms.EndsWith("@") => new Reference(Demangle(ms.Substring(0, ms.Length - 1))),
