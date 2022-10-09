@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Text;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
@@ -422,7 +421,7 @@ public class Interpreter
 
             // Verify return values
             if (returnValues.Length != function.Returns.Count)
-                throw new Exception($"Expected {function.Returns.Count()} return values but got {returnValues.Length}.");
+                throw new Exception($"Expected {function.Returns.Count} return values but got {returnValues.Length}.");
 
             foreach (var (actual, expected, i) in returnValues.Select((value, i) => (value.DataType, function.Returns[i], i)))
             {

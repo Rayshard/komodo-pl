@@ -1,0 +1,17 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (imports
+            (function Write (params (I64 handle) ((Array UI8) data)))
+        )
+
+        (data
+            (myString "A€±デ🐉\n")
+        )
+
+        (function Main
+            (Call MyModule Write 0 (data MyModule myString))
+            (Exit 0)
+        )
+    )
+)

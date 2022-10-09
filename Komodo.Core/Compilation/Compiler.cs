@@ -35,10 +35,10 @@ public static class Compiler
         var typecheckFunction = (CST.Module input, Diagnostics? diagnostics) => TypeChecker.TypeCheck(input, typecheckEnvironment, diagnostics);
         var operatorOverloads = new Compilation.TypeSystem.TSOperator[]
         {
-            new Compilation.TypeSystem.TSOperator.BinaryAdd(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinarySubtract(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinaryMultipy(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
-            new Compilation.TypeSystem.TSOperator.BinaryDivide(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.Binary.Add(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.Binary.Subtract(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.Binary.Multiply(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
+            new Compilation.TypeSystem.TSOperator.Binary.Divide(new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64(), new Compilation.TypeSystem.TSInt64()),
         };
 
         foreach (var overload in operatorOverloads)

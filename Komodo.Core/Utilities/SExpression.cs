@@ -119,11 +119,11 @@ public abstract record SExpression(TextLocation? Location)
         public List(TextLocation? location = null) : this(new SExpression[0], location) { }
 
         public List ExpectLength(int length)
-            => Items.Count() == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count()}", this);
+            => Items.Count == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count}", this);
 
         public List ExpectLength(uint? min, uint? max, out uint length)
         {
-            length = (uint)Items.Count();
+            length = (uint)Items.Count;
 
             if (min.HasValue && max.HasValue && max < min) { throw new ArgumentException($"'min={min}' cannot be greater than 'max={max}'"); }
             else if (min.HasValue && length < min) { throw new FormatException($"Expected list of length at least {min}, but found list of length {length}", this); }
@@ -138,7 +138,7 @@ public abstract record SExpression(TextLocation? Location)
             SExpression item;
 
             try { item = Items.ElementAt(index); }
-            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count() - 1}]."); }
+            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count - 1}]."); }
 
             validator(item);
             return this;
@@ -149,7 +149,7 @@ public abstract record SExpression(TextLocation? Location)
             SExpression item;
 
             try { item = Items.ElementAt(index); }
-            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count() - 1}]."); }
+            catch (ArgumentOutOfRangeException) { throw new ArgumentException($"Index {index} is outside of list range [0, {Items.Count - 1}]."); }
 
             result = validator(item);
             return this;
