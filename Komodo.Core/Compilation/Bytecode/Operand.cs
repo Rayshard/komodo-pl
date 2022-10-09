@@ -291,8 +291,10 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
-    public abstract record Variable(SExpression Symbol, params SExpression[] IDList) : Operand
+    public abstract record Variable(SExpression Symbol, VSROCollection<SExpression> IDList) : Operand
     {
+        public Variable(SExpression Symbol, params SExpression[] IDList) : this(Symbol, IDList.ToVSROCollection()) { }
+
         public override SExpression AsSExpression() => new SExpression.List(IDList.Prepend(Symbol));
 
         //TODO: Make idValidator be Func<IEnumerable<SExpression>, TId>
@@ -393,7 +395,7 @@ public abstract record Operand : IOperand
         }
     }
 
-    public record Array(Bytecode.DataType ElementType, IList<Source> Elements) : Operand, Source
+    public record Array(Bytecode.DataType ElementType, VSROCollection<Source> Elements) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(
             Elements.Select(element => element.AsSExpression())
@@ -408,7 +410,7 @@ public abstract record Operand : IOperand
                  .ExpectItem(1, Bytecode.DataType.Deserialize, out var elementType)
                  .ExpectItems(DeserializeSource, out var elements, 2);
 
-            return new Array(elementType, elements);
+            return new Array(elementType, elements.ToVSROCollection());
         }
     }
 
@@ -468,6 +470,26 @@ public abstract record Operand : IOperand
         }
     }
 
+    public record Function(string ModuleName, string FunctionName) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
+            new SExpression.UnquotedSymbol("func"),
+            new SExpression.UnquotedSymbol(ModuleName),
+            new SExpression.UnquotedSymbol(FunctionName)
+        });
+
+        public static Function Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("func"))
+                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var moduleName)
+                 .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var functionName);
+
+            return new Function(moduleName, functionName);
+        }
+    }
+
     private static Func<SExpression, Source>[] SourceDeserializers => new Func<SExpression, Source>[] {
         Constant.Deserialize,
         Local.Deserialize,
@@ -478,6 +500,7 @@ public abstract record Operand : IOperand
         Data.Deserialize,
         Null.Deserialize,
         Typeof.Deserialize,
+        Function.Deserialize,
     };
 
     private static Func<SExpression, Destination>[] DestinationDeserializers => new Func<SExpression, Destination>[] {

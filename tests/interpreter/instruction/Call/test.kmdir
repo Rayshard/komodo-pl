@@ -6,6 +6,10 @@
             (Call MyModule TestSingleArgument 1)
             (Call MyModule TestMultipleArguments 2 3 4)
 
+            (Call (func MyModule TestNoArgument))
+            (Call (func MyModule TestSingleArgument) 1)
+            (Call (func MyModule TestMultipleArguments) 2 3 4)
+
             (Exit 0)
         )
         (function TestNoArgument

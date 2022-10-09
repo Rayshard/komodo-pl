@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
@@ -7,11 +6,12 @@ public enum Opcode
 {
     Move,
     Syscall,
-    Call,
     Return,
     Jump,
     Assert,
     Exit,
+
+    Call,
 
     Allocate,
     Load,
@@ -159,42 +159,64 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Call : Instruction
+    public abstract record Call(VSROCollection<Operand.Source> Args) : Instruction(Opcode.Call)
     {
-        public string Module { get; }
-        public string Function { get; }
-        public ReadOnlyCollection<Operand.Source> Args { get; }
-
-        public override IEnumerable<IOperand> Operands
+        public record Direct(string Module, string Function, VSROCollection<Operand.Source> Args) : Call(Args)
         {
-            get
+            public override IEnumerable<IOperand> Operands
             {
-                var operands = new List<IOperand>();
-                operands.Add(new Operand.Identifier(Module));
-                operands.Add(new Operand.Identifier(Function));
-                operands.AddRange(Args);
-                return operands;
+                get
+                {
+                    var operands = new List<IOperand>();
+                    operands.Add(new Operand.Identifier(Module));
+                    operands.Add(new Operand.Identifier(Function));
+                    operands.AddRange(Args);
+                    return operands;
+                }
+            }
+
+            new public static Direct Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(3, null)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Call))
+                     .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var module)
+                     .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var function)
+                     .ExpectItems(Operand.DeserializeSource, out var args, 3);
+
+                return new Direct(module, function, args.ToVSROCollection());
             }
         }
 
-        public Call(string module, string function, IEnumerable<Operand.Source> args)
-            : base(Opcode.Call)
+        public record Indirect(Operand.Source Source, VSROCollection<Operand.Source> Args) : Call(Args)
         {
-            Module = module;
-            Function = function;
-            Args = new ReadOnlyCollection<Operand.Source>(args.ToArray());
+            public override IEnumerable<IOperand> Operands
+            {
+                get
+                {
+                    var operands = new List<IOperand>();
+                    operands.Add(Source);
+                    operands.AddRange(Args);
+                    return operands;
+                }
+            }
+
+            new public static Indirect Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2, null)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Call))
+                     .ExpectItem(1, Operand.DeserializeSource, out var source)
+                     .ExpectItems(Operand.DeserializeSource, out var args, 2);
+
+                return new Indirect(source, args.ToVSROCollection());
+            }
         }
 
         new public static Call Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectList()
-                 .ExpectLength(3, null)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Call))
-                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var module)
-                 .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var function)
-                 .ExpectItems(Operand.DeserializeSource, out var args, 3);
-
-            return new Call(module, function, args);
+            try { return Direct.Deserialize(sexpr); }
+            catch { return Indirect.Deserialize(sexpr); }
         }
     }
 
@@ -222,10 +244,10 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
         new public static Jump Deserialize(SExpression sexpr)
         {
-           var list = sexpr.ExpectList()
-                           .ExpectLength(2, 3, out var listLength)
-                           .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Jump))
-                           .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var label);
+            var list = sexpr.ExpectList()
+                            .ExpectLength(2, 3, out var listLength)
+                            .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Jump))
+                            .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var label);
 
             var condition = listLength == 3 ? Operand.DeserializeSource(list[2]) : null;
 
@@ -233,16 +255,18 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Return(IEnumerable<Operand.Source> Sources) : Instruction(Opcode.Return)
+    public record Return(VSROCollection<Operand.Source> Sources) : Instruction(Opcode.Return)
     {
         public override IEnumerable<IOperand> Operands => Sources;
 
         new public static Return Deserialize(SExpression sexpr)
         {
-            var list = sexpr.ExpectList().ExpectLength(1, null);
-            list[0].ExpectEnum<Opcode>(Opcode.Return);
+            sexpr.ExpectList()
+                 .ExpectLength(1, null)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Return))
+                 .ExpectItems(Operand.DeserializeSource, out var sources, 1);
 
-            return new Return(list.Skip(1).Select(Operand.DeserializeSource));
+            return new Return(sources.ToVSROCollection());
         }
     }
 
@@ -311,7 +335,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Reinterpret)
+    public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Reinterpret)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] { Value, new Operand.DataType(Target), Destination };
 
@@ -333,7 +357,6 @@ public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destina
         Opcode.Add => Binop.Deserialize(sexpr),
         Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
-        Opcode.Call => Call.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Unop.Deserialize(sexpr),
         Opcode.Mul => Binop.Deserialize(sexpr),
@@ -343,14 +366,16 @@ public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destina
         Opcode.Exit => Exit.Deserialize(sexpr),
         Opcode.Move => Move.Deserialize(sexpr),
         Opcode.GetElement => Binop.Deserialize(sexpr),
-        
+
+        Opcode.Call => Call.Deserialize(sexpr),
+
         Opcode.Allocate => Allocate.Deserialize(sexpr),
         Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
 
         Opcode.Convert => Convert.Deserialize(sexpr),
         Opcode.Reinterpret => Reinterpret.Deserialize(sexpr),
-      
+
         var opcode => throw new NotImplementedException(opcode.ToString())
     };
 }

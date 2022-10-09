@@ -1,0 +1,13 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main
+            (locals
+                (Func () ())
+            )
+
+            (Dump (local 0))
+            (Exit 0)
+        )
+    )
+)

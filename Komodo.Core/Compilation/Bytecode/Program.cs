@@ -2,24 +2,12 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public class Program
+public record Program(string Name, (string Module, string Function) Entry, VSRODictionary<string, Module> Modules)
 {
-    public string Name { get; }
-    public (string Module, string Function) Entry { get; }
+    public IEnumerable<(string Module, Function Function)> Functions => Modules.Select(m => m.Value.Functions.Select(f => (m.Key, f.Value))).Flatten();
 
-    private Dictionary<string, Module> modules = new Dictionary<string, Module>();
-    public IEnumerable<Module> Modules => modules.Values;
-
-    public IEnumerable<(string Module, Function Function)> Functions => Modules.Select(m => m.Functions.Select(f => (m.Name, f))).SelectMany(f => f);
-
-    public Program(string name, (string Module, string Function) entry)
-    {
-        Name = name;
-        Entry = entry;
-    }
-
-    public void AddModule(Module module) => modules.Add(module.Name, module);
-    public Module GetModule(string name) => modules[name];
+    public bool HasModule(string name) => Modules.ContainsKey(name);
+    public bool HasFunction(string moduleName, string functionName) => Modules.TryGetValue(moduleName, out var module) && module.HasFunction(functionName);
 
     public SExpression AsSExpression()
     {
@@ -34,12 +22,21 @@ public class Program
             new SExpression.UnquotedSymbol(Entry.Function),
         });
 
-        nodes.AddRange(Modules.Select(module => module.AsSExpression()));
+        nodes.AddRange(Modules.Select(module => module.Value.AsSExpression()));
 
         return new SExpression.List(nodes);
     }
 
-    public static Program Deserialize(SExpression sexpr)
+    public static Program Deserialize(SExpression sexpr) => new ProgramBuilder(sexpr).Build();
+}
+
+public class ProgramBuilder
+{
+    private string? name;
+    private (string Module, string Function)? entry;
+    private Dictionary<string, Module> modules = new Dictionary<string, Module>();
+
+    public ProgramBuilder(SExpression sexpr)
     {
         var remaining = sexpr.ExpectList()
                              .ExpectLength(3, null)
@@ -48,17 +45,39 @@ public class Program
                              .ExpectItem(2, item => item.ExpectList().ExpectLength(3), out var entryNode)
                              .Skip(3);
 
+        SetName(name);
+
         // Deserialize entry
         entryNode.ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("entry"))
                  .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var entryModule)
                  .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var entryFunction);
 
-        var program = new Program(name, (entryModule, entryFunction));
+        // Deserialize modules
+        foreach (var module in remaining.Select(Module.Deserialize))
+            AddModule(module);
 
-        foreach (var item in remaining)
-            program.AddModule(Module.Deserialize(item));
-
-        return program;
+        SetEntry((entryModule, entryFunction));
     }
 
+    public void SetName(string? value) => name = value;
+
+    public void SetEntry((string ModuleName, string FunctionName)? value) => entry = value.HasValue
+        ? HasFunction(value.Value.ModuleName, value.Value.FunctionName)
+            ? value
+            : throw new Exception($"Cannot set entry. Function {value.Value.ModuleName}.{value.Value.FunctionName} does not exist")
+        : null;
+
+    public void AddModule(Module module) => modules.Add(module.Name, module);
+
+    public bool HasModule(string name) => modules.ContainsKey(name);
+    public bool HasFunction(string moduleName, string functionName) => modules.TryGetValue(moduleName, out var module) && module.HasFunction(functionName);
+
+    public Program Build()
+    {
+        var name = this.name ?? throw new Exception("Name is not set");
+        var entry = this.entry ?? throw new Exception("Entry is not set");
+        var modules = this.modules.ToVSRODictionary();
+
+        return new Program(name, entry, modules);
+    }
 }

@@ -230,7 +230,7 @@ public abstract record DataType
 
         public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
 
-        public override string AsMangledString() => $"Ref {ValueType.AsMangledString()}";
+        public override string AsMangledString() => $"{ValueType.AsMangledString()}@";
 
         new public static Reference Deserialize(SExpression sexpr)
         {
@@ -243,6 +243,33 @@ public abstract record DataType
         }
     }
 
+    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns) : Pointer
+    {
+        public override UInt64 ByteSize => ByteSizeOf<Function>();
+
+        public override SExpression AsSExpression() => new SExpression.List(new SExpression[] {
+            new SExpression.UnquotedSymbol("Func"),
+            new SExpression.List(Parameters.Select(p => p.AsSExpression())),
+            new SExpression.List(Returns.Select(r => r.AsSExpression())),
+        });
+
+        public override string AsMangledString() => $"({Parameters.Select(p => p.AsMangledString()).Stringify(", ")}) -> ({Returns.Select(p => p.AsMangledString()).Stringify(", ")})";
+
+        new public static Function Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(3)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("Func"))
+                 .ExpectItem(1, item => item.ExpectList(), out var paramsList)
+                 .ExpectItem(2, item => item.ExpectList(), out var returnsList);
+
+            paramsList.ExpectItems(DataType.Deserialize, out var parameters);
+            returnsList.ExpectItems(DataType.Deserialize, out var returns);
+
+            return new Function(parameters.ToVSROCollection(), returns.ToVSROCollection());
+        }
+    }
+
     public T As<T>() where T : DataType => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
 
     public static UInt64 ByteSizeOf<T>() where T : DataType => typeof(T) switch
@@ -251,35 +278,35 @@ public abstract record DataType
         var type when type == typeof(I16) || type == typeof(UI16) => 2,
         var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
         var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
-        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) => 8,
+        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) || type == typeof(Function) => 8,
         var type => throw new NotImplementedException(type.ToString())
+    };
+
+    private static Func<SExpression, DataType>[] Deserializers => new Func<SExpression, DataType>[] {
+        I8.Deserialize,
+        UI8.Deserialize,
+        I16.Deserialize,
+        UI16.Deserialize,
+        I32.Deserialize,
+        UI32.Deserialize,
+        I64.Deserialize,
+        UI64.Deserialize,
+        F32.Deserialize,
+        F64.Deserialize,
+        Bool.Deserialize,
+        Array.Deserialize,
+        Type.Deserialize,
+        Reference.Deserialize,
+        Function.Deserialize,
     };
 
     public static DataType Deserialize(SExpression sexpr)
     {
-        try { return I8.Deserialize(sexpr); }
-        catch { }
-
-        try { return UI8.Deserialize(sexpr); }
-        catch { }
-
-        try { return I64.Deserialize(sexpr); }
-        catch { }
-
-        try { return UI64.Deserialize(sexpr); }
-        catch { }
-
-        try { return Bool.Deserialize(sexpr); }
-        catch { }
-
-        try { return Array.Deserialize(sexpr); }
-        catch { }
-
-        try { return Type.Deserialize(sexpr); }
-        catch { }
-
-        try { return Reference.Deserialize(sexpr); }
-        catch { }
+        foreach (var deserializer in Deserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
 
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
     }
@@ -288,8 +315,14 @@ public abstract record DataType
     {
         "I8" => new I8(),
         "UI8" => new UI8(),
+        "I16" => new I16(),
+        "UI16" => new UI16(),
+        "I32" => new I32(),
+        "UI32" => new UI32(),
         "I64" => new I64(),
         "UI64" => new UI64(),
+        "F32" => new F32(),
+        "F64" => new F64(),
         "Bool" => new Bool(),
         "Type" => new Type(),
         var ms when ms.EndsWith("@") => new Reference(Demangle(ms.Substring(0, ms.Length - 1))),
@@ -301,6 +334,8 @@ public abstract record DataType
 public record NamedDataType(DataType DataType, string Name)
 {
     public KeyValuePair<string, DataType> AsKeyValuePair() => KeyValuePair.Create<string, DataType>(Name, DataType);
+
+    public SExpression AsSExpression() => new SExpression.List(new[] { DataType.AsSExpression(), new SExpression.UnquotedSymbol(Name) });
 
     public static NamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
     {
@@ -314,6 +349,8 @@ public record NamedDataType(DataType DataType, string Name)
 public record OptionallyNamedDataType(DataType DataType, string? Name = null)
 {
     public NamedDataType ToNamed() => Name is not null ? new NamedDataType(DataType, Name) : throw new InvalidOperationException("Name is null!");
+
+    public SExpression AsSExpression() => Name is null ? DataType.AsSExpression() : ToNamed().AsSExpression();
 
     public static OptionallyNamedDataType Deserialize(SExpression sexpr, Regex? nameRegex = null)
     {

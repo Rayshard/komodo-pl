@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text;
 using Komodo.Core.Compilation.Bytecode;
 using Komodo.Core.Utilities;
@@ -22,6 +23,7 @@ public class Interpreter
 
     private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
     private Dictionary<(string Module, string Name), Value.Array> data = new Dictionary<(string Module, string Name), Value.Array>();
+    private Dictionary<(string Module, string Name), Value.Function> functionTable = new Dictionary<(string Module, string Name), Value.Function>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
@@ -34,7 +36,7 @@ public class Interpreter
         Program = program;
         Config = config;
 
-        foreach (var module in program.Modules)
+        foreach (var module in program.Modules.Values)
         {
             foreach (var item in module.Data.Values)
             {
@@ -44,6 +46,14 @@ public class Interpreter
 
             foreach (var global in module.Globals.Values)
                 globals.Add((module.Name, global.Name), CreateDefault(global.DataType));
+
+            foreach (var function in module.Functions.Values)
+            {
+                var parameters = function.Parameters.Select(p => p.DataType).ToVSROCollection();
+                var address = memory.AllocateWrite(Mangle(module.Name, function.Name), true);
+
+                functionTable.Add((module.Name, function.Name), new Value.Function(parameters, function.Returns, address));
+            }
         }
     }
 
@@ -202,17 +212,18 @@ public class Interpreter
             case Instruction.Dump instr:
                 Config.StandardOutput.WriteLine(GetValue(stackFrame, instr.Source) switch
                 {
-                    Value.Array a => memory.ReadUInt64(a.LengthStart) switch
-                    {
-                        0 => "[]",
-                        var length => memory.Read(a.ElementsStart, a.ElementType, memory.ReadUInt64(a.LengthStart)).Stringify(", ", ("[", "]")),
-                    },
-                    Value.Type t => t.IsUnknown
-                        ? "unknown"
-                        : Encoding.UTF8.GetString(memory.Read(t.Address + 8, memory.ReadUInt64(t.Address))),
-                    Value.Reference r => r.IsSet
-                        ? $"ref {memory.Read(r.Address, r.ValueType)}"
-                        : $"ref ({r.DataType} null)",
+                    Value.Array value => value.Allocated
+                        ? memory.Read(value.ElementsStart, value.ElementType, memory.ReadUInt64(value.LengthStart)).Stringify(", ", ("[", "]"))
+                        : throw new Exception("Array is not allocated"), // This should never be the case because the default value for an array is an allocated array of size 0
+                    Value.Type value => value.Allocated
+                        ? Encoding.UTF8.GetString(memory.Read(value.Address + 8, memory.ReadUInt64(value.Address)))
+                        : "unknown",
+                    Value.Reference value => value.Allocated
+                        ? $"ref {memory.Read(value.Address, value.ValueType)}"
+                        : $"ref ({value.DataType} null)",
+                    Value.Function value => value.Allocated
+                        ? $"function {Demangle(memory.ReadString(value.Address))}"
+                        : $"unknown ({value.Parameters.Stringify(", ")}) -> ({value.Returns.Stringify(", ")})",
                     var value => value
                 }); break;
             case Instruction.Assert instr:
@@ -224,10 +235,19 @@ public class Interpreter
                         throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
                 }
                 break;
-            case Instruction.Call instr:
+            case Instruction.Call.Direct instr:
                 {
-                    var receivedArgs = instr.Args.Select(source => GetValue(stackFrame, source)).ToArray();
+                    var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
                     PushStackFrame((instr.Module, instr.Function), receivedArgs);
+                }
+                break;
+            case Instruction.Call.Indirect instr:
+                {
+                    var source = GetValue<Value.Function>(stackFrame, instr.Source);
+                    var (moduleName, functionName) = Demangle(memory.ReadString(source.Address));
+                    var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
+
+                    PushStackFrame((moduleName, functionName), receivedArgs);
                 }
                 break;
             case Instruction.Return instr:
@@ -295,7 +315,8 @@ public class Interpreter
                 memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)), false, true)
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
-            _ => throw new Exception($"Invalid source: {source}")
+            Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
+            _ => throw new Exception($"Invalid source: {source}"),
         };
 
         if (expectedDataType is not null && value.DataType != expectedDataType)
@@ -423,9 +444,9 @@ public class Interpreter
     public string StackToString() => String.Join('\n', stack.Reverse().Select(value => $"{value}").ToArray());
     public InstructionPointer[] GetStackTrace() => callStack.Select(sf => sf.LastIP ?? sf.IP).ToArray();
 
-    public Function GetFunction(string module, string function) => Program.GetModule(module).GetFunction(function);
-    private Instruction GetInstruction(InstructionPointer ip) => Program.GetModule(ip.Module).GetFunction(ip.Function).Instructions[(int)ip.Index];
-    public UInt64 GetFunctionLabelTarget(string module, string function, string label) => Program.GetModule(module).GetFunction(function).Labels[label].Target;
+    public Function GetFunction(string moduleName, string functionName) => Program.Modules[moduleName].Functions[functionName];
+    private Instruction GetInstruction(InstructionPointer ip) => Program.Modules[ip.Module].Functions[ip.Function].Instructions[(int)ip.Index];
+    public UInt64 GetFunctionLabelTarget(string moduleName, string functionName, string label) => Program.Modules[moduleName].Functions[functionName].Labels[label].Target;
 
     public Value CreateDefault(DataType dataType) => dataType switch
     {
@@ -440,6 +461,15 @@ public class Interpreter
         ),
         DataType.Type => new Value.Type(Address.NULL),
         DataType.Reference(var valueType) => new Value.Reference(valueType, Address.NULL),
+        DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
         _ => throw new NotImplementedException(dataType.ToString())
+    };
+
+    public string Mangle(string module, string function) => $"{module} {function}";
+
+    public (string Module, string Function) Demangle(string mangledString) => mangledString.Split(' ').Deconstruct() switch
+    {
+        (var module, (var function, null)) => (module, function),
+        var list => throw new Exception($"Invalid mangled string: {mangledString}")
     };
 }

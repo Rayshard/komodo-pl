@@ -36,6 +36,7 @@ public static class Commands
         {
             var sexpr = SExpression.Parse(new TextSourceReader(source));
             var program = Compilation.Bytecode.Program.Deserialize(sexpr);
+            
             return RunIR(program, interpreterConfig);
         }
         catch (SExpression.ParseException e) { Logger.Error($"{e.Location.ToTerminalLink(sources)} {e.Message}"); }

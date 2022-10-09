@@ -3,10 +3,11 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Interpretation;
 
-public abstract record Value(DataType DataType)
+public abstract record Value
 {
     public UInt64 ByteSize => DataType.ByteSize;
 
+    public abstract DataType DataType { get; }
     protected abstract SExpression ValueAsSExpression { get; }
 
     public abstract Byte[] AsBytes();
@@ -20,50 +21,57 @@ public abstract record Value(DataType DataType)
 
     public virtual Value ConvertTo(DataType dataType) => throw new Exception($"Invalid conversion from {DataType} to {dataType}");
 
-    public record I8(SByte Value) : Value(new DataType.I8())
+    public record I8(SByte Value) : Value
     {
+        public override DataType DataType => new DataType.I8();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => new Byte[] { (Byte)Value };
     }
 
-    public record UI8(Byte Value) : Value(new DataType.UI8())
+    public record UI8(Byte Value) : Value
     {
+        public override DataType DataType => new DataType.UI8();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => new Byte[] { Value };
     }
 
-    public record I16(Int16 Value) : Value(new DataType.I16())
+    public record I16(Int16 Value) : Value
     {
+        public override DataType DataType => new DataType.I16();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record UI16(UInt16 Value) : Value(new DataType.UI16())
+    public record UI16(UInt16 Value) : Value
     {
+        public override DataType DataType => new DataType.UI16();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record I32(Int32 Value) : Value(new DataType.I32())
+    public record I32(Int32 Value) : Value
     {
+        public override DataType DataType => new DataType.I32();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record UI32(UInt32 Value) : Value(new DataType.UI32())
+    public record UI32(UInt32 Value) : Value
     {
+        public override DataType DataType => new DataType.UI32();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record I64(Int64 Value) : Value(new DataType.I64())
+    public record I64(Int64 Value) : Value
     {
+        public override DataType DataType => new DataType.I64();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
@@ -85,29 +93,34 @@ public abstract record Value(DataType DataType)
         };
     }
 
-    public record UI64(UInt64 Value) : Value(new DataType.UI64())
+    public record UI64(UInt64 Value) : Value
     {
+        public override DataType DataType => new DataType.UI64();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record F32(Single Value) : Value(new DataType.F32())
+    public record F32(Single Value) : Value
     {
+        public override DataType DataType => new DataType.F32();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record F64(Double Value) : Value(new DataType.F64())
+    public record F64(Double Value) : Value
     {
+        public override DataType DataType => new DataType.F64();
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record Bool(Byte Value) : Value(new DataType.Bool())
+    public record Bool(Byte Value) : Value
     {
+        public override DataType DataType => new DataType.Bool();
+        
         public static Bool True => new Bool(1);
         public static Bool False => new Bool(0);
 
@@ -123,32 +136,36 @@ public abstract record Value(DataType DataType)
         private static Byte VerifyValue(Byte value) => value == 0 || value == 1 ? value : throw new Exception($"Internal value for Bool can only be 0 or 1 but found {value}");
     }
 
-    public record Array(DataType ElementType, Address Address) : Value(new DataType.Array(ElementType))
+    public abstract record Pointer(Address Address) : Value
     {
+        public bool Allocated => !Address.IsNull;
+
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+
+        public override Byte[] AsBytes() => Address.AsBytes();
+    }
+
+    public record Array(DataType ElementType, Address Address) : Pointer(Address)
+    {
+        public override DataType DataType => new DataType.Array(ElementType);
+        
         public Address LengthStart => Address;
         public Address ElementsStart => Address + DataType.ByteSizeOf<DataType.UI64>();
-
-        public override Byte[] AsBytes() => Address.AsBytes();
-
-        protected override SExpression ValueAsSExpression => Address.AsSExpression();
     }
 
-    public record Type(Address Address) : Value(new DataType.Type())
+    public record Type(Address Address) : Pointer(Address)
     {
-        public bool IsUnknown => Address.IsNull;
-
-        public override Byte[] AsBytes() => Address.AsBytes();
-
-        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+        public override DataType DataType => new DataType.Type();
     }
 
-    public record Reference(DataType ValueType, Address Address) : Value(new DataType.Reference(ValueType))
+    public record Reference(DataType ValueType, Address Address) : Pointer(Address)
     {
-        public bool IsSet => !Address.IsNull;
+        public override DataType DataType => new DataType.Reference(ValueType);
+    }
 
-        public override Byte[] AsBytes() => Address.AsBytes();
-
-        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns, Address Address) : Pointer(Address)
+    {
+        public override DataType DataType => new DataType.Function(Parameters, Returns);
     }
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
@@ -176,6 +193,7 @@ public abstract record Value(DataType DataType)
             DataType.Array(var elementType) => new Array(elementType, Address.FromBytes(byteArray)),
             DataType.Type => new Type(Address.FromBytes(byteArray)),
             DataType.Reference(var valueType) => new Reference(valueType, Address.FromBytes(byteArray)),
+            DataType.Function(var parameters, var returns) => new Function(parameters, returns, Address.FromBytes(byteArray)),
             _ => throw new NotImplementedException(dataType.ToString())
         };
     }

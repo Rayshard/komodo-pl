@@ -1,8 +1,4 @@
 using Komodo.Core.Utilities;
-using System.Collections;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Diagnostics.CodeAnalysis;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
@@ -27,51 +23,34 @@ public record Label(string Name, UInt64 Target) : FunctionBodyElement
     }
 }
 
-public class Function
+public record Function(
+    string Name,
+    VSROCollection<OptionallyNamedDataType> Parameters,
+    VSROCollection<OptionallyNamedDataType> Locals,
+    VSROCollection<DataType> Returns,
+    VSROCollection<Instruction> Instructions,
+    VSRODictionary<string, Label> Labels
+)
 {
-    public string Name { get; }
-
-    public ReadOnlyCollection<OptionallyNamedDataType> Parameters { get; }
-    public ReadOnlyDictionary<string, NamedDataType> NamedParameters { get; }
-
-    public ReadOnlyCollection<DataType> Returns { get; }
-
-    public ReadOnlyCollection<OptionallyNamedDataType> Locals { get; }
-    public ReadOnlyDictionary<string, NamedDataType> NamedLocals { get; }
-
-    private List<FunctionBodyElement> bodyElements = new List<FunctionBodyElement>();
-    public ReadOnlyCollection<FunctionBodyElement> BodyElements => new ReadOnlyCollection<FunctionBodyElement>(bodyElements);
-
-    public ReadOnlyDictionary<string, Label> Labels { get; private set; } = new ReadOnlyDictionary<string, Label>(new Dictionary<string, Label>());
-    public ReadOnlyCollection<Instruction> Instructions { get; private set; } = new ReadOnlyCollection<Instruction>(new Instruction[0]);
-
-    public Function(string name, IEnumerable<OptionallyNamedDataType> parameters, IEnumerable<DataType> returns, IEnumerable<OptionallyNamedDataType> locals)
+    public Dictionary<string, NamedDataType> NamedParameters => Parameters.Where(p => p.Name is not null).Select(p => p.ToNamed()).ToDictionary(p => p.Name);
+    public Dictionary<string, NamedDataType> NamedLocals => Locals.Where(l => l.Name is not null).Select(l => l.ToNamed()).ToDictionary(l => l.Name);
+    public IEnumerable<FunctionBodyElement> BodyElements
     {
-        Name = name;
-        Parameters = new ReadOnlyCollection<OptionallyNamedDataType>(parameters.ToArray());
-        Returns = new ReadOnlyCollection<DataType>(returns.ToArray());
-        Locals = new ReadOnlyCollection<OptionallyNamedDataType>(locals.ToArray());
-        NamedParameters = new ReadOnlyDictionary<string, NamedDataType>(
-            Parameters.Where(p => p.Name is not null).Select(p => p.ToNamed()).AssertAllDistinct(p => p.Name).ToDictionary(p => p.Name)
-        );
-        NamedLocals = new ReadOnlyDictionary<string, NamedDataType>(
-            Locals.Where(l => l.Name is not null).Select(l => l.ToNamed()).AssertAllDistinct(l => l.Name).ToDictionary(l => l.Name)
-        );
-    }
+        get
+        {
+            var bodyElements = new List<FunctionBodyElement>();
+            var instrIndexToLabelMap = Labels.Values.ToDictionary(l => l.Target);
 
-    public void AppendLabel(string name)
-    {
-        if (Labels.ContainsKey(name))
-            throw new Exception($"Label with name '{name}' already exists for function '{Name}'!");
+            foreach (var (i, instruction) in Instructions.WithIndices())
+            {
+                if (instrIndexToLabelMap.TryGetValue((UInt64)i, out var label))
+                    bodyElements.Add(label);
 
-        bodyElements.Add(new Label(name, (UInt64)Instructions.Count));
-        Labels = new ReadOnlyDictionary<string, Label>(bodyElements.Where(be => be is Label).Cast<Label>().ToDictionary(label => label.Name));
-    }
+                bodyElements.Add(instruction);
+            }
 
-    public void AppendInstruction(Instruction instruction)
-    {
-        bodyElements.Add(instruction);
-        Instructions = new ReadOnlyCollection<Instruction>(bodyElements.Where(be => be is Instruction).Cast<Instruction>().ToArray());
+            return bodyElements;
+        }
     }
 
     public SExpression AsSExpression()
@@ -82,78 +61,92 @@ public class Function
 
         var paramsNodes = new List<SExpression>();
         paramsNodes.Add(new SExpression.UnquotedSymbol("params"));
-        paramsNodes.AddRange(Parameters.Select(param => new SExpression.UnquotedSymbol(param.ToString())));
+        paramsNodes.AddRange(Parameters.Select(param => param.AsSExpression()));
         nodes.Add(new SExpression.List(paramsNodes));
 
         var returnsNodes = new List<SExpression>();
         returnsNodes.Add(new SExpression.UnquotedSymbol("returns"));
-        returnsNodes.AddRange(Returns.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+        returnsNodes.AddRange(Returns.Select(ret => ret.AsSExpression()));
         nodes.Add(new SExpression.List(returnsNodes));
 
         if (Locals.Count != 0)
         {
             var localsNodes = new List<SExpression>();
-
             localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
-            localsNodes.AddRange(Locals.Select(local => new SExpression.UnquotedSymbol(local.ToString())));
+            localsNodes.AddRange(Locals.Select(local => local.AsSExpression()));
             nodes.Add(new SExpression.List(localsNodes));
         }
 
-        nodes.AddRange(bodyElements.Select(be => be.AsSExpression()));
-
+        nodes.AddRange(BodyElements.Select(be => be.AsSExpression()));
         return new SExpression.List(nodes);
     }
 
-    public static Function Deserialize(SExpression sexpr)
+    public static Function Deserialize(SExpression sexpr) => new FunctionBuilder(sexpr).Build();
+}
+
+public class FunctionBuilder
+{
+    private string? name;
+
+    private List<OptionallyNamedDataType> parameters = new List<OptionallyNamedDataType>();
+    private Dictionary<string, int> namedParameters = new Dictionary<string, int>();
+
+    private List<OptionallyNamedDataType> locals = new List<OptionallyNamedDataType>();
+    private Dictionary<string, int> namedLocals = new Dictionary<string, int>();
+
+    private List<DataType> returns = new List<DataType>();
+
+    private List<Instruction> instructions = new List<Instruction>();
+    private Dictionary<string, Label> labels = new Dictionary<string, Label>();
+
+    public FunctionBuilder(SExpression sexpr)
     {
-        var remaining = sexpr.ExpectList().ExpectLength(3, null).AsEnumerable();
+        var remaining = sexpr.ExpectList()
+                             .ExpectLength(3, null)
+                             .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("function"))
+                             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
+                             .Skip(2);
 
-        remaining.First().ExpectUnquotedSymbol().ExpectValue("function");
-        remaining = remaining.Skip(1);
-
-        var name = remaining.First().ExpectUnquotedSymbol().Value;
-        remaining = remaining.Skip(1);
+        SetName(name);
 
         // Deserialize parameters
-        var parameters = new OptionallyNamedDataType[0];
-
         if (remaining.Count() > 0
             && remaining.First() is SExpression.List parametersNode
             && parametersNode.Count() >= 1
             && parametersNode[0] is SExpression.UnquotedSymbol parametersNodeStartSymbol
             && parametersNodeStartSymbol.Value == "params")
         {
-            parameters = parametersNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)).ToArray();
+            foreach (var parameter in parametersNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)))
+                AddParameter(parameter);
+
             remaining = remaining.Skip(1);
         }
 
         // Deserialize returns
-        var returns = new DataType[0];
-
         if (remaining.Count() > 0
             && remaining.First() is SExpression.List returnsNode
             && returnsNode.Count() >= 1
             && returnsNode[0] is SExpression.UnquotedSymbol returnsNodeStartSymbol
             && returnsNodeStartSymbol.Value == "returns")
         {
-            returns = returnsNode.Skip(1).Select(DataType.Deserialize).ToArray();
+            foreach (var ret in returnsNode.Skip(1).Select(DataType.Deserialize))
+                AddReturn(ret);
+
             remaining = remaining.Skip(1);
         }
 
         // Deserialize locals
-        var locals = new OptionallyNamedDataType[0];
-
         if (remaining.Count() > 0
             && remaining.First() is SExpression.List localsNode
             && localsNode.Count() >= 1
             && localsNode[0] is SExpression.UnquotedSymbol localsNodeStartSymbol
             && localsNodeStartSymbol.Value == "locals")
         {
-            locals = localsNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)).ToArray();
+            foreach (var local in localsNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)))
+                AddLocal(local);
+
             remaining = remaining.Skip(1);
         }
-
-        var function = new Function(name, parameters, returns, locals);
 
         foreach (var item in remaining)
         {
@@ -161,10 +154,52 @@ public class Function
             // the deserialization if it fails with a FormatException, but not
             // ignore if deserialization 'went well', but we were unable to append it 
             // to the function. Otherwise we deserialize the item as an instruction.
-            try { function.AppendLabel(Label.Deserialize(item)); }
-            catch (SExpression.FormatException) { function.AppendInstruction(Instruction.Deserialize(item)); }
+            try { AppendLabel(Label.Deserialize(item)); }
+            catch (SExpression.FormatException) { AppendInstruction(Instruction.Deserialize(item)); }
         }
+    }
 
-        return function;
+    public void SetName(string? value) => name = value;
+
+    public void AddParameter(OptionallyNamedDataType parameter)
+    {
+        if (parameter.Name is not null)
+            namedParameters.Add(parameter.Name, parameters.Count);
+
+        parameters.Add(parameter);
+    }
+
+    public bool HasParameter(string name) => namedParameters.ContainsKey(name);
+    public OptionallyNamedDataType GetParameter(int index) => parameters[index];
+    public NamedDataType GetParameter(string name) => parameters[namedParameters[name]].ToNamed();
+
+    public void AddLocal(OptionallyNamedDataType local)
+    {
+        if (local.Name is not null)
+            namedLocals.Add(local.Name, locals.Count);
+
+        locals.Add(local);
+    }
+
+    public bool HasLocal(string name) => namedLocals.ContainsKey(name);
+    public OptionallyNamedDataType GetLocal(int index) => locals[index];
+    public NamedDataType GetLocal(string name) => locals[namedLocals[name]].ToNamed();
+
+    public void AddReturn(DataType dataType) => returns.Add(dataType);
+    public DataType GetReturn(int index) => returns[index];
+
+    public void AppendLabel(string name) => labels.Add(name, new Label(name, (UInt64)instructions.Count));
+    public void AppendInstruction(Instruction instruction) => instructions.Add(instruction);
+
+    public Function Build()
+    {
+        var name = this.name ?? throw new Exception("Name is not set");
+        var parameters = this.parameters.ToVSROCollection();
+        var locals = this.locals.ToVSROCollection();
+        var returns = this.returns.ToVSROCollection();
+        var instructions = this.instructions.ToVSROCollection();
+        var labels = this.labels.ToVSRODictionary();
+
+        return new Function(name, parameters, locals, returns, instructions, labels);
     }
 }

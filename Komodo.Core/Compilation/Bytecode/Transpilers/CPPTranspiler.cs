@@ -9,8 +9,8 @@ public class CPPTranspiler : Converter<string>
 
     public override string Convert(Program program)
     {
-        var forwardDeclarations = Utility.Stringify(program.Modules.Select(GetForwardDeclaration), Environment.NewLine + Environment.NewLine);
-        var modules = Utility.Stringify(program.Modules.Select(Convert), Environment.NewLine + Environment.NewLine);
+        var forwardDeclarations = Utility.Stringify(program.Modules.Values.Select(GetForwardDeclaration), Environment.NewLine + Environment.NewLine);
+        var modules = Utility.Stringify(program.Modules.Values.Select(Convert), Environment.NewLine + Environment.NewLine);
 
         return
 $@"
@@ -34,7 +34,7 @@ namespace Program
 
     public string Convert(Module module)
     {
-        var functions = Utility.Stringify(module.Functions.Select(Convert), Environment.NewLine + Environment.NewLine);
+        var functions = Utility.Stringify(module.Functions.Values.Select(Convert), Environment.NewLine + Environment.NewLine);
 
         return
 $@"
@@ -47,7 +47,7 @@ namespace {module.Name}
 
     private string GetForwardDeclaration(Module module)
     {
-        var functions = Utility.Stringify(module.Functions.Select(GetForwardDeclaration), Environment.NewLine);
+        var functions = Utility.Stringify(module.Functions.Values.Select(GetForwardDeclaration), Environment.NewLine);
 
         return
 $@"
@@ -160,7 +160,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     public string Convert(Instruction.Syscall instruction) => $"interpreter.Syscall(\"{instruction.Name}\");";
     public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
 
-    public string Convert(Instruction.Call instruction)
+    public string Convert(Instruction.Call.Direct instruction)
     {
         var callArgsInitialization = Utility.Stringify(instruction.Args.Select((ca, i) => $"auto callArg{i} = {Convert(ca)};"), Environment.NewLine);
         var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").Prepend("interpreter");

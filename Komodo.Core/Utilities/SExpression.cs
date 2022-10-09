@@ -32,11 +32,7 @@ public abstract record SExpression(TextLocation? Location)
         private static string VerifyValue(string value)
             => Regex.IsMatch(value) ? value : throw new InvalidOperationException($"Invalid unquoted symbol value: {value}");
 
-        public override bool Matches(SExpression other) => other switch
-        {
-            UnquotedSymbol u => u.Value == Value,
-            _ => false
-        };
+        public override bool Matches(SExpression other) => other is UnquotedSymbol u && u.Value == Value;
 
         new public static UnquotedSymbol Parse(TextSourceReader stream)
         {
@@ -67,11 +63,7 @@ public abstract record SExpression(TextLocation? Location)
             return $"\"{result}\"";
         }
 
-        public override bool Matches(SExpression other) => other switch
-        {
-            QuotedSymbol q => q.Value == Value,
-            _ => false
-        };
+        public override bool Matches(SExpression other) => other is QuotedSymbol q && q.Value == Value;
 
         new public static QuotedSymbol Parse(TextSourceReader stream)
         {
@@ -121,9 +113,10 @@ public abstract record SExpression(TextLocation? Location)
         }
     }
 
-    public record List(IEnumerable<SExpression> Items, TextLocation? Location = null) : SExpression(Location), IEnumerable<SExpression>
+    public record List(VSROCollection<SExpression> Items, TextLocation? Location = null) : SExpression(Location), IEnumerable<SExpression>
     {
-        public List(TextLocation? location = null) : this(new SExpression[] { }, location) { }
+        public List(IEnumerable<SExpression> items, TextLocation? location = null) : this(items.ToVSROCollection(), location) { }
+        public List(TextLocation? location = null) : this(new SExpression[0], location) { }
 
         public List ExpectLength(int length)
             => Items.Count() == length ? this : throw new FormatException($"Expected list of length {length}, but found list of length {Items.Count()}", this);
@@ -183,11 +176,7 @@ public abstract record SExpression(TextLocation? Location)
 
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
 
-        public override bool Matches(SExpression other) => other switch
-        {
-            List l => l.Items.Count() == Items.Count() && l.Items.Zip(Items).All(pair => pair.First.Matches(pair.Second)),
-            _ => false
-        };
+        public override bool Matches(SExpression other) => other is List l && l.Items == Items;
 
         public IEnumerator<SExpression> GetEnumerator() => Items.GetEnumerator();
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
