@@ -194,11 +194,11 @@ public class FunctionBuilder
     public Function Build()
     {
         var name = this.name ?? throw new Exception("Name is not set");
-        var parameters = new VSROCollection<OptionallyNamedDataType>(this.parameters);
-        var locals = new VSROCollection<OptionallyNamedDataType>(this.locals);
-        var returns = new VSROCollection<DataType>(this.returns);
-        var instructions = new VSROCollection<Instruction>(this.instructions);
-        var labels = new VSRODictionary<string, Label>(this.labels.Values, label => label.Name);
+        var parameters = this.parameters.ToVSROCollection();
+        var locals = this.locals.ToVSROCollection();
+        var returns = this.returns.ToVSROCollection();
+        var instructions = this.instructions.ToVSROCollection();
+        var labels = this.labels.ToVSRODictionary();
 
         return new Function(name, parameters, locals, returns, instructions, labels);
     }

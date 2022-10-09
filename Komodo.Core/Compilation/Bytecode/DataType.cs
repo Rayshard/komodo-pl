@@ -266,7 +266,7 @@ public abstract record DataType
             paramsList.ExpectItems(DataType.Deserialize, out var parameters);
             returnsList.ExpectItems(DataType.Deserialize, out var returns);
 
-            return new Function(new VSROCollection<DataType>(parameters), new VSROCollection<DataType>(returns));
+            return new Function(parameters.ToVSROCollection(), returns.ToVSROCollection());
         }
     }
 

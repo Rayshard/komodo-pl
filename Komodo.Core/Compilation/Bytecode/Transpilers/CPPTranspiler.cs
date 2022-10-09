@@ -160,7 +160,7 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
     public string Convert(Instruction.Syscall instruction) => $"interpreter.Syscall(\"{instruction.Name}\");";
     public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
 
-    public string Convert(Instruction.Call instruction)
+    public string Convert(Instruction.Call.Direct instruction)
     {
         var callArgsInitialization = Utility.Stringify(instruction.Args.Select((ca, i) => $"auto callArg{i} = {Convert(ca)};"), Environment.NewLine);
         var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").Prepend("interpreter");

@@ -77,6 +77,8 @@ public static class Utility
     public static bool IsEmpty<T>(this ICollection<T> collection) => collection.Count == 0;
 
     public static IEnumerable<(int Index, T Value)> WithIndices<T>(this IEnumerable<T> enumerable) => enumerable.Select((value, i) => (i, value));
+    public static VSROCollection<T> ToVSROCollection<T>(this IEnumerable<T> enumerable) => new VSROCollection<T>(enumerable);
+    public static VSRODictionary<K, V> ToVSRODictionary<K, V>(this IEnumerable<KeyValuePair<K, V>> enumerable) where K : notnull => new VSRODictionary<K, V>(enumerable);
 
     public static IEnumerable<TItem> AssertAllDistinct<TItem, TKey>(this IEnumerable<TItem> enumerable, Func<TItem, TKey> keySelector)
     {
@@ -131,6 +133,12 @@ public static class Utility
     }
 
     public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> enumerable) => enumerable.SelectMany(x => x);
+
+    public static NonemptyList<T>? Deconstruct<T>(this IEnumerable<T> enumerable)
+    {
+        try { return new NonemptyList<T>(enumerable.Skip(1).Prepend(enumerable.First())); }
+        catch { return null; }
+    }
 
     public static int GetOrderDependentHashCode<T>(this IEnumerable<T> source)
     {

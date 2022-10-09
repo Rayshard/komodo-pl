@@ -13,7 +13,7 @@ public record Data(string Name, VSROCollection<Byte> Bytes)
              .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
              .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
 
-        return new Data(name, new VSROCollection<byte>(bytes));
+        return new Data(name, bytes.ToVSROCollection());
     }
 }
 
@@ -114,9 +114,9 @@ public class ModuleBuilder
     public Module Build()
     {
         var name = this.name ?? throw new Exception("Name is not set");
-        var data = new VSRODictionary<string, Data>(this.data.Values, data => data.Name);
-        var globals = new VSRODictionary<string, Global>(this.globals.Values, global => global.Name);
-        var functions = new VSRODictionary<string, Function>(this.functions.Values, function => function.Name);
+        var data = this.data.ToVSRODictionary();
+        var globals = this.globals.ToVSRODictionary();
+        var functions = this.functions.ToVSRODictionary();
 
         return new Module(name, data, globals, functions);
     }

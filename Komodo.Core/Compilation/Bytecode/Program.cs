@@ -76,7 +76,7 @@ public class ProgramBuilder
     {
         var name = this.name ?? throw new Exception("Name is not set");
         var entry = this.entry ?? throw new Exception("Entry is not set");
-        var modules = new VSRODictionary<string, Module>(this.modules.Values, module => module.Name);
+        var modules = this.modules.ToVSRODictionary();
 
         return new Program(name, entry, modules);
     }

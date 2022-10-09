@@ -2,12 +2,11 @@
     (entry MyModule Main)
     (module MyModule
         (function Main
-            (locals
-                (Func () ())
-            )
-
-            (Dump (local 0))
+            (Dump (func MyModule OtherFunction))
             (Exit 0)
+        )
+        (function OtherFunction
+            (Return)
         )
     )
 )

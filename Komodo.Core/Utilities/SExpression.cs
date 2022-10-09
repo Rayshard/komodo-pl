@@ -115,7 +115,7 @@ public abstract record SExpression(TextLocation? Location)
 
     public record List(VSROCollection<SExpression> Items, TextLocation? Location = null) : SExpression(Location), IEnumerable<SExpression>
     {
-        public List(IEnumerable<SExpression> items, TextLocation? location = null) : this(new VSROCollection<SExpression>(items), location) { }
+        public List(IEnumerable<SExpression> items, TextLocation? location = null) : this(items.ToVSROCollection(), location) { }
         public List(TextLocation? location = null) : this(new SExpression[0], location) { }
 
         public List ExpectLength(int length)
