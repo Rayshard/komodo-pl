@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Call MyModule TestNoArgument)
             (Call MyModule TestSingleArgument 1)
             (Call MyModule TestMultipleArguments 2 3 4)
@@ -12,15 +12,15 @@
 
             (Exit 0)
         )
-        (function TestNoArgument
+        (function TestNoArgument (params) (returns)
             (Dump 0)
             (Return)
         )
-        (function TestSingleArgument (params I64)
+        (function TestSingleArgument (params I64) (returns)
             (Dump (arg 0))
             (Return)
         )
-        (function TestMultipleArguments (params I64 I64 I64)
+        (function TestMultipleArguments (params I64 I64 I64) (returns)
             (Dump (arg 0))
             (Dump (arg 1))
             (Dump (arg 2))

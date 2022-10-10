@@ -1,12 +1,12 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Call MyModule TestArgs 123 456 true)
 
             (Exit 0)
         )
-        (function TestArgs (params I64 (I64 myArgI64) (Bool myArgBool))
+        (function TestArgs (params I64 (I64 myArgI64) (Bool myArgBool)) (returns)
             (Assert (arg 0) 123)
             (Assert (arg myArgI64) 456)
             (Assert (arg myArgBool) true)

@@ -174,6 +174,9 @@ public abstract record SExpression(TextLocation? Location)
         public List ExpectItems<T>(Func<SExpression, T> validator, out T[] result, int start = 0)
             => ExpectItems(items => items.Select(validator).ToArray(), out result, start);
 
+        public List ExpectItems(Action<SExpression> validator, int start = 0)
+            => ExpectItems(items => items.ForEach(validator), start);
+
         public override string ToString() => Utility.Stringify(Items, " ", ("(", ")"));
 
         public override bool Matches(SExpression other) => other is List l && l.Items == Items;

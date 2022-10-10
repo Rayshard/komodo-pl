@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Call MyModule I8Convert)
             (Call MyModule UI8Convert)
             (Call MyModule I16Convert)
@@ -16,25 +16,25 @@
 
             (Exit 0)
         )
-        (function I8Convert
+        (function I8Convert (params) (returns)
             (Return)
         )
-        (function UI8Convert
+        (function UI8Convert (params) (returns)
             (Return)
         )
-        (function I16Convert
+        (function I16Convert (params) (returns)
             (Return)
         )
-        (function UI16Convert
+        (function UI16Convert (params) (returns)
             (Return)
         )
-        (function I32Convert
+        (function I32Convert (params) (returns)
             (Return)
         )
-        (function UI32Convert
+        (function UI32Convert (params) (returns)
             (Return)
         )
-        (function I64Convert
+        (function I64Convert (params) (returns)
             (Convert (I64 123) I64 $stack)
             (Assert $stack (I64 123))
 
@@ -43,16 +43,16 @@
 
             (Return)
         )
-        (function UI64Convert
+        (function UI64Convert (params) (returns)
             (Return)
         )
-        (function F32Convert
+        (function F32Convert (params) (returns)
             (Return)
         )
-        (function F64Convert
+        (function F64Convert (params) (returns)
             (Return)
         )
-        (function BoolConvert
+        (function BoolConvert (params) (returns)
             (Return)
         )
     )

@@ -1,12 +1,13 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main (params) (returns)
-            (Dump (func MyModule OtherFunction))
-            (Exit 0)
+        (data
+            (myString "A€±デ🐉\n")
         )
-        (function OtherFunction (params) (returns)
-            (Return)
+
+        (function Main (params) (returns)
+            (Call (sysfunc Write) (UI64 0) (data MyModule myString))
+            (Exit 0)
         )
     )
 )

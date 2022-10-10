@@ -23,6 +23,7 @@ public class Interpreter
     private Dictionary<(string Module, string Name), Value> globals = new Dictionary<(string Module, string Name), Value>();
     private Dictionary<(string Module, string Name), Value.Array> data = new Dictionary<(string Module, string Name), Value.Array>();
     private Dictionary<(string Module, string Name), Value.Function> functionTable = new Dictionary<(string Module, string Name), Value.Function>();
+    private Dictionary<string, Sysfunc> sysfuncTable = new Dictionary<string, Sysfunc>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
@@ -34,6 +35,8 @@ public class Interpreter
         State = InterpreterState.NotStarted;
         Program = program;
         Config = config;
+
+        InitializeSysfuncTable();
 
         foreach (var module in program.Modules.Values)
         {
@@ -54,6 +57,23 @@ public class Interpreter
                 functionTable.Add((module.Name, function.Name), new Value.Function(parameters, function.Returns, address));
             }
         }
+    }
+
+    private void InitializeSysfuncTable()
+    {
+        sysfuncTable.Add("Write", new Sysfunc.Write(memory.AllocateWrite("Write", true), (handle, data) =>
+        {
+            var buffer = memory.Read<Value.UI8>(data.ElementsStart, data.ElementType, memory.ReadUInt64(data.LengthStart))
+                               .Select(value => value.Value)
+                               .ToArray();
+            var bufferAsString = Encoding.UTF8.GetString(buffer);
+
+            switch (handle.Value)
+            {
+                case 0: Config.StandardOutput.Write(bufferAsString); break;
+                default: throw new Exception($"Unknown handle: {handle}");
+            }
+        }));
     }
 
     public Int64 Run()
@@ -243,10 +263,9 @@ public class Interpreter
             case Instruction.Call.Indirect instr:
                 {
                     var source = GetValue<Value.Function>(stackFrame, instr.Source);
-                    var (moduleName, functionName) = Demangle(memory.ReadString(source.Address));
                     var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
 
-                    PushStackFrame((moduleName, functionName), receivedArgs);
+                    Call(source, receivedArgs);
                 }
                 break;
             case Instruction.Return instr:
@@ -315,6 +334,7 @@ public class Interpreter
             ),
             Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
             Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
+            Operand.Sysfunc operand => sysfuncTable[operand.Name],
             _ => throw new Exception($"Invalid source: {source}"),
         };
 
@@ -413,6 +433,30 @@ public class Interpreter
         callStack.Push(new StackFrame(start, stack.Count, arguments, locals));
     }
 
+    private void Call(Value.Function target, Value[] args)
+    {
+        var mangledString = memory.ReadString(target.Address);
+
+        if (sysfuncTable.TryGetValue(mangledString, out var sysfunc))
+        {
+            // Verify arguments
+            if (args.Length != sysfunc.Parameters.Count)
+                throw new Exception($"Target function required {sysfunc.Parameters.Count} arguments, but only {args.Length} were given!");
+
+            var arguments = new (Value, string?)[args.Length];
+
+            foreach (var (arg, param, index) in args.Select((a, i) => (a, sysfunc.Parameters[i], i)))
+            {
+                if (arg.DataType != param)
+                    throw new Exception($"Expeceted {param} for target function's parameter {index}, but got {arg.DataType}!");
+            }
+
+            // Push return values onto the stack in reverse order
+            sysfunc.Call(args).Reverse().ForEach(stack.Push);
+        }
+        else { PushStackFrame(Demangle(mangledString), args); }
+    }
+
     private void PopStackFrame(Value[] returnValues)
     {
         if (callStack.TryPop(out var frame))
@@ -444,8 +488,8 @@ public class Interpreter
     public InstructionPointer[] GetStackTrace() => callStack.Select(sf => sf.LastIP ?? sf.IP).ToArray();
 
     public Function GetFunction(string moduleName, string functionName) => Program.Modules[moduleName].Functions[functionName];
-    private Instruction GetInstruction(InstructionPointer ip) => Program.Modules[ip.Module].Functions[ip.Function].Instructions[(int)ip.Index];
-    public UInt64 GetFunctionLabelTarget(string moduleName, string functionName, string label) => Program.Modules[moduleName].Functions[functionName].Labels[label].Target;
+    private Instruction GetInstruction(InstructionPointer ip) => GetFunction(ip.Module, ip.Function).Instructions[(int)ip.Index];
+    public UInt64 GetFunctionLabelTarget(string moduleName, string functionName, string label) => GetFunction(moduleName, functionName).Labels[label].Target;
 
     public Value CreateDefault(DataType dataType) => dataType switch
     {

@@ -13,7 +13,11 @@ public abstract record DataType
     public sealed override string ToString() => AsSExpression().ToString();
 
     public abstract record Primitive : DataType;
-    public abstract record Pointer : DataType;
+    
+    public abstract record Pointer : DataType
+    {
+        public sealed override UInt64 ByteSize => ByteSizeOf<Pointer>();
+    }
 
     public record I8 : Primitive
     {
@@ -188,11 +192,9 @@ public abstract record DataType
             return new Bool();
         }
     }
-
+    
     public record Array(DataType ElementType) : Pointer
     {
-        public override UInt64 ByteSize => ByteSizeOf<Array>();
-
         public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("Array"),
             ElementType.AsSExpression()
@@ -212,8 +214,6 @@ public abstract record DataType
 
     public record Type : Pointer
     {
-        public override UInt64 ByteSize => ByteSizeOf<Type>();
-
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Type");
         public override string AsMangledString() => "Type";
 
@@ -226,8 +226,6 @@ public abstract record DataType
 
     public record Reference(DataType ValueType) : Pointer
     {
-        public override UInt64 ByteSize => ByteSizeOf<Reference>();
-
         public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
 
         public override string AsMangledString() => $"{ValueType.AsMangledString()}@";
@@ -245,8 +243,6 @@ public abstract record DataType
 
     public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns) : Pointer
     {
-        public override UInt64 ByteSize => ByteSizeOf<Function>();
-
         public override SExpression AsSExpression() => new SExpression.List(new SExpression[] {
             new SExpression.UnquotedSymbol("Func"),
             new SExpression.List(Parameters.Select(p => p.AsSExpression())),
@@ -278,7 +274,7 @@ public abstract record DataType
         var type when type == typeof(I16) || type == typeof(UI16) => 2,
         var type when type == typeof(I32) || type == typeof(UI32) || type == typeof(F32) => 4,
         var type when type == typeof(I64) || type == typeof(UI64) || type == typeof(F64) => 8,
-        var type when type == typeof(Array) || type == typeof(Type) || type == typeof(Reference) || type == typeof(Function) => 8,
+        var type when type == typeof(Pointer) || type.IsSubclassOf(typeof(Pointer)) => 8,
         var type => throw new NotImplementedException(type.ToString())
     };
 
@@ -329,6 +325,8 @@ public abstract record DataType
         var ms when ms.EndsWith("[]") => new Array(Demangle(ms.Substring(0, ms.Length - 2))),
         var ms => throw new Exception($"Unable to parse mangled datatype string: {ms}")
     };
+
+    public static T Create<T>() where T : DataType, new() => new T();
 }
 
 public record NamedDataType(DataType DataType, string Name)

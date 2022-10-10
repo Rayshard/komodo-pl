@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Call MyModule I8Reinterpret)
             (Call MyModule UI8Reinterpret)
             (Call MyModule I16Reinterpret)
@@ -16,25 +16,25 @@
 
             (Exit 0)
         )
-        (function I8Reinterpret
+        (function I8Reinterpret (params) (returns)
             (Return)
         )
-        (function UI8Reinterpret
+        (function UI8Reinterpret (params) (returns)
             (Return)
         )
-        (function I16Reinterpret
+        (function I16Reinterpret (params) (returns)
             (Return)
         )
-        (function UI16Reinterpret
+        (function UI16Reinterpret (params) (returns)
             (Return)
         )
-        (function I32Reinterpret
+        (function I32Reinterpret (params) (returns)
             (Return)
         )
-        (function UI32Reinterpret
+        (function UI32Reinterpret (params) (returns)
             (Return)
         )
-        (function I64Reinterpret
+        (function I64Reinterpret (params) (returns)
             (Reinterpret (I64 123) I64 $stack)
             (Assert $stack (I64 123))
 
@@ -43,16 +43,16 @@
 
             (Return)
         )
-        (function UI64Reinterpret
+        (function UI64Reinterpret (params) (returns)
             (Return)
         )
-        (function F32Reinterpret
+        (function F32Reinterpret (params) (returns)
             (Return)
         )
-        (function F64Reinterpret
+        (function F64Reinterpret (params) (returns)
             (Return)
         )
-        (function BoolReinterpret
+        (function BoolReinterpret (params) (returns)
             (Return)
         )
     )
