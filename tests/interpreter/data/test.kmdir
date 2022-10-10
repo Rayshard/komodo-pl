@@ -6,10 +6,7 @@
         )
 
         (function Main (params) (returns)
-            (Move (data MyModule myString) $stack)
-            (Move 0 $stack)
-            (Syscall Write)
-
+            (Call (sysfunc Write) (UI64 0) (data MyModule myString))
             (Exit 0)
         )
     )
