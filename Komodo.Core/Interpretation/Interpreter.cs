@@ -74,6 +74,10 @@ public class Interpreter
                 default: throw new Exception($"Unknown handle: {handle}");
             }
         }));
+
+        sysfuncTable.Add("GetTime", new Sysfunc.GetTime(memory.AllocateWrite("GetTime", true), () => (UInt64)DateTime.UtcNow.Ticks));
+
+        
     }
 
     public Int64 Run()
@@ -142,31 +146,6 @@ public class Interpreter
 
         switch (instruction)
         {
-            case Instruction.Syscall instr:
-                {
-                    switch (instr.Name)
-                    {
-                        case "GetTime": stack.Push(new Value.UI64((ulong)DateTime.UtcNow.Ticks)); break;
-                        case "Write":
-                            {
-                                var handle = PopStack<Value.I64>().Value;
-                                var array = PopStack<Value.Array>(new DataType.Array(new DataType.UI8()));
-                                var buffer = memory.Read<Value.UI8>(array.ElementsStart, array.ElementType, memory.ReadUInt64(array.LengthStart))
-                                                   .Select(value => value.Value)
-                                                   .ToArray();
-                                var bufferAsString = Encoding.UTF8.GetString(buffer);
-
-                                switch (handle)
-                                {
-                                    case 0: Config.StandardOutput.Write(bufferAsString); break;
-                                    default: throw new Exception($"Unknown handle: {handle}");
-                                }
-                            }
-                            break;
-                        default: throw new Exception($"Unknown Syscall: {instr.Name}");
-                    }
-                }
-                break;
             case Instruction.Exit instr:
                 {
                     exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
@@ -441,7 +420,7 @@ public class Interpreter
         {
             // Verify arguments
             if (args.Length != sysfunc.Parameters.Count)
-                throw new Exception($"Target function required {sysfunc.Parameters.Count} arguments, but only {args.Length} were given!");
+                throw new Exception($"Sysfunc {mangledString} requires {sysfunc.Parameters.Count} arguments, but only {args.Length} were given!");
 
             var arguments = new (Value, string?)[args.Length];
 

@@ -23,4 +23,13 @@ public abstract record Sysfunc(VSROCollection<DataType> Parameters, VSROCollecti
             return new Value[0];
         }
     } 
+
+    public record GetTime(Address Address, Func<UInt64> Callback) : Sysfunc(
+        new DataType[] {}.ToVSROCollection(),
+        new DataType[] { new DataType.UI64() }.ToVSROCollection(),
+        Address
+    )
+    {
+        public override Value[] Call(Value[] args) => new Value[] { new UI64(Callback()) };
+    } 
 }

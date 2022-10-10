@@ -5,7 +5,6 @@ namespace Komodo.Core.Compilation.Bytecode;
 public enum Opcode
 {
     Move,
-    Syscall,
     Return,
     Jump,
     Assert,
@@ -220,21 +219,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Syscall(string Name) : Instruction(Opcode.Syscall)
-    {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.Identifier(Name) };
-
-        new public static Syscall Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Syscall))
-                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
-
-            return new Syscall(name);
-        }
-    }
-
     public record Jump(string Label, Operand.Source? Condition) : Instruction(Opcode.Jump)
     {
         public override IEnumerable<IOperand> Operands
@@ -355,7 +339,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
         Opcode.Add => Binop.Deserialize(sexpr),
-        Opcode.Syscall => Syscall.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Eq => Binop.Deserialize(sexpr),
         Opcode.Dec => Unop.Deserialize(sexpr),

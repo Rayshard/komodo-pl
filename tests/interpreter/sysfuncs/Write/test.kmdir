@@ -7,6 +7,7 @@
 
         (function Main (params) (returns)
             (Call (sysfunc Write) (UI64 0) (data MyModule myString))
+            (Call (sysfunc GetTime))
             (Exit 0)
         )
     )
