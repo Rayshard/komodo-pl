@@ -325,8 +325,6 @@ public abstract record DataType
         var ms when ms.EndsWith("[]") => new Array(Demangle(ms.Substring(0, ms.Length - 2))),
         var ms => throw new Exception($"Unable to parse mangled datatype string: {ms}")
     };
-
-    public static T Create<T>() where T : DataType, new() => new T();
 }
 
 public record NamedDataType(DataType DataType, string Name)
