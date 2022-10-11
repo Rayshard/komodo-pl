@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (locals I64)
 
             (Dec I64 11 (local 0))

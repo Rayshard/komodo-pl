@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (locals)
             
             (Call MyModule TestMoveLocal)
@@ -11,7 +11,7 @@
 
             (Exit 0)
         )
-        (function TestMoveLocal
+        (function TestMoveLocal (params) (returns)
             (locals I64)
 
             (Move 55 (local 0))

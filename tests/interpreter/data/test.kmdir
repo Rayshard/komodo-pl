@@ -5,11 +5,8 @@
             (myString "A€±デ🐉\n")
         )
 
-        (function Main
-            (Move (data MyModule myString) $stack)
-            (Move 0 $stack)
-            (Syscall Write)
-
+        (function Main (params) (returns)
+            (Call (sysfunc Write) (UI64 0) (data MyModule myString))
             (Exit 0)
         )
     )

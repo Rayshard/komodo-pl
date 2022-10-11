@@ -490,6 +490,24 @@ public abstract record Operand : IOperand
         }
     }
 
+    public record Sysfunc(string Name) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
+            new SExpression.UnquotedSymbol("sysfunc"),
+            new SExpression.UnquotedSymbol(Name)
+        });
+
+        public static Sysfunc Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("sysfunc"))
+                 .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
+
+            return new Sysfunc(name);
+        }
+    }
+
     private static Func<SExpression, Source>[] SourceDeserializers => new Func<SExpression, Source>[] {
         Constant.Deserialize,
         Local.Deserialize,
@@ -501,6 +519,7 @@ public abstract record Operand : IOperand
         Null.Deserialize,
         Typeof.Deserialize,
         Function.Deserialize,
+        Sysfunc.Deserialize,
     };
 
     private static Func<SExpression, Destination>[] DestinationDeserializers => new Func<SExpression, Destination>[] {

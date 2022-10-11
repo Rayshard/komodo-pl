@@ -1,0 +1,14 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (data
+            (myString "A€±デ🐉\n")
+        )
+
+        (function Main (params) (returns)
+            (Call (sysfunc Write) (UI64 0) (data MyModule myString))
+            (Call (sysfunc GetTime))
+            (Exit 0)
+        )
+    )
+)

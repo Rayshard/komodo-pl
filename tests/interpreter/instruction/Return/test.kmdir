@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Move 123 $stack)
             (Call MyModule TestNoReturn)
             (Assert $stack 123)
@@ -20,13 +20,13 @@
 
             (Exit 0)
         )
-        (function TestNoReturn
+        (function TestNoReturn (params) (returns)
             (Return)
         )
-        (function TestSingleReturn (returns I64)
+        (function TestSingleReturn (params) (returns I64)
             (Return 789)
         )
-        (function TestMultipleReturn (returns I64 I64 I64)
+        (function TestMultipleReturn (params) (returns I64 I64 I64)
             (Return 10 11 12)
         )
     )

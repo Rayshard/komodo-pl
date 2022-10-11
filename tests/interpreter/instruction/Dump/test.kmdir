@@ -1,7 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (function Main
+        (function Main (params) (returns)
             (Dump 11)
             (Dump (array I64 1 2 3))
             (Exit 0)

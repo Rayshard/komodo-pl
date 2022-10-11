@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.TypeSystem;
@@ -76,7 +77,7 @@ public class Environment
         return true;
     }
 
-    public OperatorOverload? GetOperatorOverload(OperatorKind op, IEnumerable<TSType> args, TextLocation location, Diagnostics? diagnostics, bool checkParent)
+    public OperatorOverload? GetOperatorOverload(OperatorKind op, ReadOnlyCollection<TSType> args, TextLocation location, Diagnostics? diagnostics, bool checkParent)
     {
         foreach (var overload in operators[op])
         {

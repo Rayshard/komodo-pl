@@ -43,7 +43,7 @@ public static class TypeChecker
             var op => throw new NotImplementedException(op.ToString())
         };
 
-        var operatorOverload = environment.GetOperatorOverload(operatorKind, new TSType[] { left.TSType, right.TSType }, node.Op.Location, diagnostics, true);
+        var operatorOverload = environment.GetOperatorOverload(operatorKind, new TSType[] { left.TSType, right.TSType }.AsReadonly(), node.Op.Location, diagnostics, true);
         if(operatorOverload is null)
             return null;
 

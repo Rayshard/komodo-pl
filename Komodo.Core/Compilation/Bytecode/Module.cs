@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Text;
 using Komodo.Core.Utilities;
 
@@ -30,7 +29,12 @@ public record Global(string Name, DataType DataType)
     }
 }
 
-public record Module(string Name, VSRODictionary<string, Data> Data, VSRODictionary<string, Global> Globals, VSRODictionary<string, Function> Functions)
+public record Module(
+    string Name,
+    VSRODictionary<string, Data> Data,
+    VSRODictionary<string, Global> Globals,
+    VSRODictionary<string, Function> Functions
+)
 {
     public bool HasData(string name) => Data.ContainsKey(name);
     public bool HasGlobal(string name) => Globals.ContainsKey(name);
@@ -73,9 +77,7 @@ public class ModuleBuilder
             && globalsNode[0] is SExpression.UnquotedSymbol globalsNodeStartSymbol
             && globalsNodeStartSymbol.Value == "globals")
         {
-            foreach (var global in globalsNode.Skip(1).Select(Global.Deserialize))
-                AddGlobal(global);
-
+            globalsNode.Skip(1).Select(Global.Deserialize).ForEach(AddGlobal);
             remaining = remaining.Skip(1);
         }
 
@@ -86,15 +88,12 @@ public class ModuleBuilder
             && dataNode[0] is SExpression.UnquotedSymbol dataNodeStartSymbol
             && dataNodeStartSymbol.Value == "data")
         {
-            foreach (var data in dataNode.Skip(1).Select(Data.Deserialize))
-                AddData(data);
-
+            dataNode.Skip(1).Select(Data.Deserialize).ForEach(AddData);
             remaining = remaining.Skip(1);
         }
 
-        // Deserialize functions
-        foreach (var function in remaining.Select(Function.Deserialize))
-            AddFunction(function);
+        // Deserialize user defined functions
+        remaining.Select(Function.Deserialize).ForEach(AddFunction);
     }
 
     public void SetName(string? value) => name = value;

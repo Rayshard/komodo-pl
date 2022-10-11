@@ -26,14 +26,15 @@ public record Label(string Name, UInt64 Target) : FunctionBodyElement
 public record Function(
     string Name,
     VSROCollection<OptionallyNamedDataType> Parameters,
-    VSROCollection<OptionallyNamedDataType> Locals,
     VSROCollection<DataType> Returns,
+    VSROCollection<OptionallyNamedDataType> Locals,
     VSROCollection<Instruction> Instructions,
     VSRODictionary<string, Label> Labels
 )
 {
     public Dictionary<string, NamedDataType> NamedParameters => Parameters.Where(p => p.Name is not null).Select(p => p.ToNamed()).ToDictionary(p => p.Name);
     public Dictionary<string, NamedDataType> NamedLocals => Locals.Where(l => l.Name is not null).Select(l => l.ToNamed()).ToDictionary(l => l.Name);
+
     public IEnumerable<FunctionBodyElement> BodyElements
     {
         get
@@ -102,38 +103,21 @@ public class FunctionBuilder
     public FunctionBuilder(SExpression sexpr)
     {
         var remaining = sexpr.ExpectList()
-                             .ExpectLength(3, null)
+                             .ExpectLength(4, null)
                              .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("function"))
-                             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name)
-                             .Skip(2);
+                             .ExpectItem(1, item => SetName(item.ExpectUnquotedSymbol().Value))
+                             .ExpectItem(2, item => item.ExpectList()
+                                                        .ExpectLength(1, null)
+                                                        .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("params")),
+                                            out var paramsList)
+                             .ExpectItem(3, item => item.ExpectList()
+                                                        .ExpectLength(1, null)
+                                                        .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("returns")),
+                                            out var returnsList)
+                             .Skip(4);
 
-        SetName(name);
-
-        // Deserialize parameters
-        if (remaining.Count() > 0
-            && remaining.First() is SExpression.List parametersNode
-            && parametersNode.Count() >= 1
-            && parametersNode[0] is SExpression.UnquotedSymbol parametersNodeStartSymbol
-            && parametersNodeStartSymbol.Value == "params")
-        {
-            foreach (var parameter in parametersNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)))
-                AddParameter(parameter);
-
-            remaining = remaining.Skip(1);
-        }
-
-        // Deserialize returns
-        if (remaining.Count() > 0
-            && remaining.First() is SExpression.List returnsNode
-            && returnsNode.Count() >= 1
-            && returnsNode[0] is SExpression.UnquotedSymbol returnsNodeStartSymbol
-            && returnsNodeStartSymbol.Value == "returns")
-        {
-            foreach (var ret in returnsNode.Skip(1).Select(DataType.Deserialize))
-                AddReturn(ret);
-
-            remaining = remaining.Skip(1);
-        }
+        paramsList.ExpectItems(item => AddParameter(OptionallyNamedDataType.Deserialize(item)), 1);
+        returnsList.ExpectItems(item => AddReturn(DataType.Deserialize(item)), 1);
 
         // Deserialize locals
         if (remaining.Count() > 0
@@ -200,6 +184,6 @@ public class FunctionBuilder
         var instructions = this.instructions.ToVSROCollection();
         var labels = this.labels.ToVSRODictionary();
 
-        return new Function(name, parameters, locals, returns, instructions, labels);
+        return new Function(name, parameters, returns, locals, instructions, labels);
     }
 }

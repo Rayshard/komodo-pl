@@ -5,7 +5,7 @@
             (I64 myGlobal)
         )
 
-        (function Main
+        (function Main (params) (returns)
             (Assert (global MyModule myGlobal) 0)
 
             (Move 1 (global MyModule myGlobal))

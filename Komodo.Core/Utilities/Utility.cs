@@ -133,6 +133,14 @@ public static class Utility
     }
 
     public static IEnumerable<T> Flatten<T>(this IEnumerable<IEnumerable<T>> enumerable) => enumerable.SelectMany(x => x);
+    public static ReadOnlyCollection<T> AsReadonly<T>(this IList<T> list) => new ReadOnlyCollection<T>(list);
+
+    public static void ForEach<T>(this IEnumerable<T> enumerable, Action<T> function)
+    {
+        foreach (var item in enumerable)
+            function(item);
+    }
+
 
     public static NonemptyList<T>? Deconstruct<T>(this IEnumerable<T> enumerable)
     {
