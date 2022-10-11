@@ -233,6 +233,12 @@ public class Interpreter
                         throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
                 }
                 break;
+                case Instruction.GetLength instr:
+                {
+                    var source = GetValue<Value.Array>(stackFrame, instr.Source);
+                    SetValue(stackFrame, instr.Destination, new Value.UI64(memory.ReadUInt64(source.LengthStart)));
+                }
+                break;
             case Instruction.Call.Direct instr:
                 {
                     var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
