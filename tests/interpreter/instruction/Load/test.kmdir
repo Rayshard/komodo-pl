@@ -7,13 +7,8 @@
             )
 
             (Allocate I64 (local 0))
-
             (Load (local 0) $stack)
             (Assert (pop I64) 0)
-
-            (Store 123 (local 0))
-            (Load (local 0) $stack)
-            (Assert (pop I64) 123)
 
             (Exit 0)
         )

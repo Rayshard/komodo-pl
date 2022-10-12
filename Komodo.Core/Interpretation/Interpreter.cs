@@ -200,6 +200,7 @@ public class Interpreter
                     {
                         (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
                         (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
+                        (Opcode.IsNull, Value.Reference reference) => new Value.Bool(!reference.Allocated),
                         var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
                     };
 
