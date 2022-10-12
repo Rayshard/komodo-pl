@@ -19,11 +19,11 @@
 
             (Move 9 $stack)
             (Move 7 $stack)
-            (Dump (array I64 $stack 8 $stack))
+            (Dump (array I64 (pop I64) 8 (pop I64)))
 
             (Move (array I64 10) (local 0))
             (GetElement I64 (UI64 0) (local 0) $stack)
-            (Dump $stack)
+            (Dump (pop I64))
 
             (Exit 0)
         )

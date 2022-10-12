@@ -3,16 +3,16 @@
     (module MyModule
         (function Main (params) (returns)
             (Add I64 11 22 $stack)
-            (Assert $stack 33)
+            (Assert (pop I64) 33)
 
             (Mul I64 11 22 $stack)
-            (Assert $stack 242)
+            (Assert (pop I64) 242)
 
             (Eq I64 11 22 $stack)
-            (Assert $stack false)
+            (Assert (pop Bool) false)
 
             (Eq I64 11 11 $stack)
-            (Assert $stack true)
+            (Assert (pop Bool) true)
 
             (Exit 0)
         )

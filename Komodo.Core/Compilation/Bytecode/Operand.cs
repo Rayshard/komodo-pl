@@ -384,7 +384,7 @@ public abstract record Operand : IOperand
             );
     }
 
-    public record Stack : Operand, Source, Destination
+    public record Stack : Operand, Destination
     {
         public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("$stack");
 
@@ -394,6 +394,25 @@ public abstract record Operand : IOperand
             return new Stack();
         }
     }
+
+    public record Pop(Bytecode.DataType Expected) : Operand, Source
+    {
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
+            new SExpression.UnquotedSymbol("pop"),
+            Expected.AsSExpression()
+        });
+
+        public static Pop Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("pop"))
+                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var expected);
+
+            return new Pop(expected);
+        }
+    }
+
 
     public record Array(Bytecode.DataType ElementType, VSROCollection<Source> Elements) : Operand, Source
     {
@@ -513,13 +532,13 @@ public abstract record Operand : IOperand
         Local.Deserialize,
         Arg.Deserialize,
         Global.Deserialize,
-        Stack.Deserialize,
         Array.Deserialize,
         Data.Deserialize,
         Null.Deserialize,
         Typeof.Deserialize,
         Function.Deserialize,
         Sysfunc.Deserialize,
+        Pop.Deserialize
     };
 
     private static Func<SExpression, Destination>[] DestinationDeserializers => new Func<SExpression, Destination>[] {

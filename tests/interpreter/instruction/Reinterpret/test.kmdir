@@ -36,10 +36,10 @@
         )
         (function I64Reinterpret (params) (returns)
             (Reinterpret (I64 123) I64 $stack)
-            (Assert $stack (I64 123))
+            (Assert (pop I64) (I64 123))
 
             (Reinterpret (I64 -123) UI64 $stack)
-            (Assert $stack (UI64 18446744073709551493))
+            (Assert (pop UI64) (UI64 18446744073709551493))
 
             (Return)
         )

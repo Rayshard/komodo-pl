@@ -3,14 +3,14 @@
     (module System
         (function GetTime (params) (returns UI64)
             (Syscall GetTime)
-            (Return $stack)
+            (Return (pop UI64))
         )
     )
 
     (module MyModule
         (function Main (params) (returns)
-            (Call System GetTime ~ $stack)
-            (Dump $stack)
+            (Call System GetTime () ($stack))
+            (Dump (pop UI64))
             (Exit 0)
         )
     )

@@ -310,7 +310,7 @@ public class Interpreter
             Operand.Global(var module, var name) => globals[(module, name)],
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
-            Operand.Stack => PopStack(),
+            Operand.Pop p => PopStack(p.Expected),
             Operand.Null(var valueType) => new Value.Reference(valueType, Address.NULL),
             Operand.Data(var module, var name) => data[(module, name)],
             Operand.Array(var elementType, var elements) => new Value.Array(

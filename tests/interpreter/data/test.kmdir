@@ -7,10 +7,10 @@
 
         (function Main (params) (returns)
             (GetLength (data MyModule myData) $stack)
-            (Assert $stack (UI64 9))
+            (Assert (pop UI64) (UI64 9))
 
             (GetElement UI8 (UI64 2) (data MyModule myData) $stack)
-            (Assert $stack (UI8 99))
+            (Assert (pop UI8) (UI8 99))
 
             (Exit 0)
         )
