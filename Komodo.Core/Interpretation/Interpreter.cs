@@ -76,8 +76,6 @@ public class Interpreter
         }));
 
         sysfuncTable.Add("GetTime", new Sysfunc.GetTime(memory.AllocateWrite("GetTime", true), () => (UInt64)DateTime.UtcNow.Ticks));
-
-        
     }
 
     public Int64 Run()
@@ -198,10 +196,11 @@ public class Interpreter
                 {
                     var source = GetValue(stackFrame, instr.Source);
 
-                    Value result = (instr.Opcode, source, instr.DataType) switch
+                    Value result = (instr.Opcode, source) switch
                     {
-                        (Opcode.Dec, Value.I64(var op), DataType.I64) => new Value.I64(op - 1),
-                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
+                        (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
+                        var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
                     };
 
                     SetValue(stackFrame, instr.Destination, result);
@@ -231,12 +230,6 @@ public class Interpreter
 
                     if (value1 != value2)
                         throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
-                }
-                break;
-                case Instruction.GetLength instr:
-                {
-                    var source = GetValue<Value.Array>(stackFrame, instr.Source);
-                    SetValue(stackFrame, instr.Destination, new Value.UI64(memory.ReadUInt64(source.LengthStart)));
                 }
                 break;
             case Instruction.Call.Direct instr:

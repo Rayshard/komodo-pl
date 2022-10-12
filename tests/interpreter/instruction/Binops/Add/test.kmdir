@@ -2,10 +2,8 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (locals I64)
-
-            (Dec I64 11 (local 0))
-            (Assert (local 0) 10)
+            (Add 11 22 $stack)
+            (Assert (pop I64) 33)
 
             (Exit 0)
         )

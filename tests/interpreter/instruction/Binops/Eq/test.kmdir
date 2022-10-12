@@ -2,16 +2,10 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Add I64 11 22 $stack)
-            (Assert (pop I64) 33)
-
-            (Mul I64 11 22 $stack)
-            (Assert (pop I64) 242)
-
-            (Eq I64 11 22 $stack)
+            (Eq 11 22 $stack)
             (Assert (pop Bool) false)
 
-            (Eq I64 11 11 $stack)
+            (Eq 11 11 $stack)
             (Assert (pop Bool) true)
 
             (Exit 0)

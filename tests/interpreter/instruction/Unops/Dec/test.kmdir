@@ -1,0 +1,13 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (locals I64)
+
+            (Dec 11 (local 0))
+            (Assert (local 0) 10)
+
+            (Exit 0)
+        )
+    )
+)
