@@ -35,8 +35,14 @@
             (Return)
         )
         (function I64Convert (params) (returns)
-            (Convert (I64 123) I64 $stack)
-            (Assert (pop I64) (I64 123))
+            (Convert (I64 100) I8 $stack)
+            (Assert (pop I8) (I64 100))
+
+            (Convert (I64 128) I8 $stack)
+            (Assert (pop I8) (I64 -128))
+
+            (Convert (I64 -1) I8 $stack)
+            (Assert (pop I8) (I64 -1))
 
             (Convert (I64 123) UI64 $stack)
             (Assert (pop UI64) (UI64 123))
