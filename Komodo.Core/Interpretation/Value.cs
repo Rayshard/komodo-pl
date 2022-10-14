@@ -137,11 +137,6 @@ public abstract record Value
         public Address ElementsStart => Address + DataType.ByteSizeOf<DataType.UI64>();
     }
 
-    public record Type(Address Address) : Pointer(Address)
-    {
-        public override DataType DataType => new DataType.Type();
-    }
-
     public record Reference(DataType ValueType, Address Address) : Pointer(Address)
     {
         public override DataType DataType => new DataType.Reference(ValueType);
@@ -175,7 +170,6 @@ public abstract record Value
             DataType.F64 => new F64(BitConverter.ToDouble(byteArray)),
             DataType.Bool => new Bool((Byte)byteArray[0]),
             DataType.Array(var elementType) => new Array(elementType, Address.FromBytes(byteArray)),
-            DataType.Type => new Type(Address.FromBytes(byteArray)),
             DataType.Reference(var valueType) => new Reference(valueType, Address.FromBytes(byteArray)),
             DataType.Function(var parameters, var returns) => new Function(parameters, returns, Address.FromBytes(byteArray)),
             _ => throw new NotImplementedException(dataType.ToString())

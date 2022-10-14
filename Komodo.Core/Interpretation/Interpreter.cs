@@ -217,9 +217,6 @@ public class Interpreter
                     Value.Array value => value.Allocated
                         ? memory.Read(value.ElementsStart, value.ElementType, memory.ReadUInt64(value.LengthStart)).Stringify(", ", ("[", "]"))
                         : throw new Exception("Array is not allocated"), // This should never be the case because the default value for an array is an allocated array of size 0
-                    Value.Type value => value.Allocated
-                        ? Encoding.UTF8.GetString(memory.Read(value.Address + 8, memory.ReadUInt64(value.Address)))
-                        : "unknown",
                     Value.Reference value => value.Allocated
                         ? $"ref {memory.Read(value.Address, value.ValueType)}"
                         : $"ref ({value.DataType} null)",
@@ -394,7 +391,6 @@ public class Interpreter
                 elementType,
                 memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)), false, true)
             ),
-            Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
             Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
             Operand.Sysfunc operand => sysfuncTable[operand.Name],
             _ => throw new Exception($"Invalid source: {source}"),
@@ -564,7 +560,6 @@ public class Interpreter
             elementType,
             memory.AllocateWrite(new Value[0], prefixWithNumValues: true)
         ),
-        DataType.Type => new Value.Type(Address.NULL),
         DataType.Reference(var valueType) => new Value.Reference(valueType, Address.NULL),
         DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
         _ => throw new NotImplementedException(dataType.ToString())

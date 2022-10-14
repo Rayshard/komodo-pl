@@ -214,18 +214,6 @@ public abstract record DataType
         }
     }
 
-    public record Type : Pointer
-    {
-        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("Type");
-        public override string AsMangledString() => "Type";
-
-        new public static Type Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectUnquotedSymbol().ExpectValue("Type");
-            return new Type();
-        }
-    }
-
     public record Reference(DataType ValueType) : Pointer
     {
         public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
@@ -288,7 +276,6 @@ public abstract record DataType
         F32.Deserialize, F64.Deserialize,
         Bool.Deserialize,
         Array.Deserialize,
-        Type.Deserialize,
         Reference.Deserialize,
         Function.Deserialize,
     };
@@ -353,25 +340,6 @@ public abstract record DataType
 
         throw new SExpression.FormatException($"Invalid unsigned integer data type: {sexpr}", sexpr);
     }
-
-    public static DataType Demangle(string mangledString) => mangledString switch
-    {
-        "I8" => new I8(),
-        "UI8" => new UI8(),
-        "I16" => new I16(),
-        "UI16" => new UI16(),
-        "I32" => new I32(),
-        "UI32" => new UI32(),
-        "I64" => new I64(),
-        "UI64" => new UI64(),
-        "F32" => new F32(),
-        "F64" => new F64(),
-        "Bool" => new Bool(),
-        "Type" => new Type(),
-        var ms when ms.EndsWith("@") => new Reference(Demangle(ms.Substring(0, ms.Length - 1))),
-        var ms when ms.EndsWith("[]") => new Array(Demangle(ms.Substring(0, ms.Length - 2))),
-        var ms => throw new Exception($"Unable to parse mangled datatype string: {ms}")
-    };
 }
 
 public record NamedDataType(DataType DataType, string Name)
