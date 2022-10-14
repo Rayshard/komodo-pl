@@ -7,10 +7,37 @@ public record Data(string Name, VSROCollection<Byte> Bytes)
 {
     public static Data Deserialize(SExpression sexpr)
     {
-        sexpr.ExpectList()
-             .ExpectLength(2)
-             .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
-             .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
+        var list = sexpr.ExpectList()
+                        .ExpectLength(2, null)
+                        .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name);
+
+        IEnumerable<Byte> bytes;
+
+        if(list[1] is SExpression.QuotedSymbol qs) { bytes = Encoding.UTF8.GetBytes(qs.Value);}
+        else
+        {
+            list.ExpectLength(3, null)
+                .ExpectItem(1, DataType.DeserializePrimitive, out var dataType);
+
+            Func<SExpression, IEnumerable<Byte>> deserializer = dataType switch
+            {
+                DataType.Primitive.I8 => sexpr => sexpr.ExpectInt8().GetBytes(),
+                DataType.Primitive.UI8 => sexpr => sexpr.ExpectUInt8().GetBytes(),
+                DataType.Primitive.I16 => sexpr => sexpr.ExpectInt16().GetBytes(),
+                DataType.Primitive.UI16 => sexpr => sexpr.ExpectUInt16().GetBytes(),
+                DataType.Primitive.I32 => sexpr => sexpr.ExpectInt32().GetBytes(),
+                DataType.Primitive.UI32 => sexpr => sexpr.ExpectUInt32().GetBytes(),
+                DataType.Primitive.I64 => sexpr => sexpr.ExpectInt64().GetBytes(),
+                DataType.Primitive.UI64 => sexpr => sexpr.ExpectUInt64().GetBytes(),
+                DataType.Primitive.F32 => sexpr => sexpr.ExpectFloat().GetBytes(),
+                DataType.Primitive.F64 => sexpr => sexpr.ExpectDouble().GetBytes(),
+                DataType.Primitive.Bool => sexpr => sexpr.ExpectBool().GetBytes(),
+                var dt => throw new NotImplementedException(dt.ToString())
+            };
+
+            list.ExpectItems(deserializer, out var elements, 2);
+            bytes = elements.Flatten();            
+        }
 
         return new Data(name, bytes.ToVSROCollection());
     }

@@ -183,6 +183,10 @@ public class Interpreter
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
+                        (Opcode.LShift, Value.UI16(var op1), Value.UI8(var op2)) => new Value.UI16(op2 >= 16 ? (UInt16)0 : (UInt16)(op1 << op2)),
+                        (Opcode.LShift, Value.I16(var op1), Value.UI8(var op2)) => new Value.I16(op2 >= 16 ? (Int16)0 : (Int16)(op1 << op2)),
+                        (Opcode.BOR, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
+                        (Opcode.BOR, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a) => index < memory.ReadUInt64(a.LengthStart)
                             ? memory.Read(a.ElementsStart + index * a.ElementType.ByteSize, a.ElementType)
                             : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(a.LengthStart)}"),
@@ -264,10 +268,9 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Convert instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Value).ConvertTo(instr.Target)); break;
             case Instruction.Reinterpret instr:
                 {
-                    var value = GetValue(stackFrame, instr.Value);
+                    var value = GetValue(stackFrame, instr.Source);
 
                     if (value.DataType is DataType.Pointer)
                         throw new InterpreterException("Pointer types cannot be reinterpreted!");
@@ -277,6 +280,47 @@ public class Interpreter
                         : Value.Create(instr.Target, value.AsBytes());
 
                     SetValue(stackFrame, instr.Destination, reinterpretedValue);
+                }
+                break;
+            case Instruction.ZeroExtend instr:
+                {
+                    var value = GetValue(stackFrame, instr.Source);
+
+                    Value result = (value, instr.Target) switch
+                    {
+                        (Value.I8(var op1), DataType.I16) => new Value.I16((Int16)((Int16)op1 & 0xFF)),
+                        (Value.I8(var op1), DataType.UI16) => new Value.UI16((UInt16)((UInt16)op1 & 0xFF)),
+                        (Value.I8(var op1), DataType.I32) => new Value.I32((Int32)((Int32)op1 & 0xFF)),
+                        (Value.I8(var op1), DataType.UI32) => new Value.UI32((UInt32)((UInt32)op1 & 0xFF)),
+                        (Value.I8(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFF)),
+                        (Value.I8(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFF)),
+
+                        (Value.UI8(var op1), DataType.I16) => new Value.I16((Int16)((Int16)op1 & 0xFF)),
+                        (Value.UI8(var op1), DataType.UI16) => new Value.UI16((UInt16)((UInt16)op1 & 0xFF)),
+                        (Value.UI8(var op1), DataType.I32) => new Value.I32((Int32)((Int32)op1 & 0xFF)),
+                        (Value.UI8(var op1), DataType.UI32) => new Value.UI32((UInt32)((UInt32)op1 & 0xFF)),
+                        (Value.UI8(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFF)),
+                        (Value.UI8(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFF)),
+
+                        (Value.I16(var op1), DataType.I32) => new Value.I32((Int32)((Int32)op1 & 0xFFFF)),
+                        (Value.I16(var op1), DataType.UI32) => new Value.UI32((UInt32)((UInt32)op1 & 0xFFFF)),
+                        (Value.I16(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFFFF)),
+                        (Value.I16(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFFFF)),
+
+                        (Value.UI16(var op1), DataType.I32) => new Value.I32((Int32)((Int32)op1 & 0xFFFF)),
+                        (Value.UI16(var op1), DataType.UI32) => new Value.UI32((UInt32)((UInt32)op1 & 0xFFFF)),
+                        (Value.UI16(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFFFF)),
+                        (Value.UI16(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFFFF)),
+
+                        (Value.I32(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFFFFFFFF)),
+                        (Value.I32(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFFFFFFFF)),
+
+                        (Value.UI32(var op1), DataType.I64) => new Value.I64((Int64)((Int64)op1 & 0xFFFFFFFF)),
+                        (Value.UI32(var op1), DataType.UI64) => new Value.UI64((UInt64)((UInt64)op1 & 0xFFFFFFFF)),
+                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
+                    };
+
+                    SetValue(stackFrame, instr.Destination, result);
                 }
                 break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");

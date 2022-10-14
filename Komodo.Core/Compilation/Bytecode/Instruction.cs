@@ -17,13 +17,16 @@ public enum Opcode
     Load,
     Store,
 
-    Convert,
-    Reinterpret,
-
     Add,
     Eq,
     Dec,
     Mul,
+    LShift,
+    BOR,
+
+    Reinterpret,
+    ZeroExtend,
+    SignExtend,
 
     Dump,
 
@@ -148,6 +151,26 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
             {
                 Deserialize(sexpr, Opcode.GetElement, out var source1, out var source2, out var destination);
                 return new GetElement(source1, source2, destination);
+            }
+        }
+
+        public record LShift(Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination)
+            : Binop(Opcode.LShift, Source1, Source2, Destination)
+        {
+            new public static LShift Deserialize(SExpression sexpr)
+            {
+                Deserialize(sexpr, Opcode.LShift, out var source1, out var source2, out var destination);
+                return new LShift(source1, source2, destination);
+            }
+        }
+
+        public record BOR(Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination)
+            : Binop(Opcode.BOR, Source1, Source2, Destination)
+        {
+            new public static BOR Deserialize(SExpression sexpr)
+            {
+                Deserialize(sexpr, Opcode.BOR, out var source1, out var source2, out var destination);
+                return new BOR(source1, source2, destination);
             }
         }
     }
@@ -360,37 +383,54 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Convert(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Convert)
+    public record Reinterpret(Operand.Source Source, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Reinterpret)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, new Operand.DataType(Target), Destination };
-
-        new public static Convert Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(4)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Convert))
-                 .ExpectItem(1, Operand.DeserializeSource, out var value)
-                 .ExpectItem(2, DataType.Deserialize, out var target)
-                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
-
-            return new Convert(value, target, destination);
-        }
-    }
-
-    public record Reinterpret(Operand.Source Value, DataType Target, Operand.Destination Destination) : Instruction(Opcode.Reinterpret)
-    {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, new Operand.DataType(Target), Destination };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, new Operand.DataType(Target), Destination };
 
         new public static Reinterpret Deserialize(SExpression sexpr)
         {
             sexpr.ExpectList()
                  .ExpectLength(4)
                  .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Reinterpret))
-                 .ExpectItem(1, Operand.DeserializeSource, out var value)
+                 .ExpectItem(1, Operand.DeserializeSource, out var source)
                  .ExpectItem(2, DataType.Deserialize, out var target)
                  .ExpectItem(3, Operand.DeserializeDestination, out var destination);
 
-            return new Reinterpret(value, target, destination);
+            return new Reinterpret(source, target, destination);
+        }
+    }
+
+    public record ZeroExtend(Operand.Source Source, DataType Target, Operand.Destination Destination) : Instruction(Opcode.ZeroExtend)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, new Operand.DataType(Target), Destination };
+
+        new public static ZeroExtend Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(4)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.ZeroExtend))
+                 .ExpectItem(1, Operand.DeserializeSource, out var source)
+                 .ExpectItem(2, DataType.Deserialize, out var target)
+                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+            return new ZeroExtend(source, target, destination);
+        }
+    }
+
+    public record SignExtend(Operand.Source Source, DataType Target, Operand.Destination Destination) : Instruction(Opcode.SignExtend)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, new Operand.DataType(Target), Destination };
+
+        new public static SignExtend Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(4)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.SignExtend))
+                 .ExpectItem(1, Operand.DeserializeSource, out var source)
+                 .ExpectItem(2, DataType.Deserialize, out var target)
+                 .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+            return new SignExtend(source, target, destination);
         }
     }
 
@@ -402,6 +442,8 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Eq => Binop.Eq.Deserialize(sexpr),
         Opcode.Mul => Binop.Mul.Deserialize(sexpr),
+        Opcode.LShift => Binop.LShift.Deserialize(sexpr),
+        Opcode.BOR => Binop.BOR.Deserialize(sexpr),
         Opcode.Dec => Unop.Dec.Deserialize(sexpr),
 
         Opcode.Jump => Jump.Deserialize(sexpr),
@@ -417,8 +459,9 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Load => Load.Deserialize(sexpr),
         Opcode.Store => Store.Deserialize(sexpr),
 
-        Opcode.Convert => Convert.Deserialize(sexpr),
         Opcode.Reinterpret => Reinterpret.Deserialize(sexpr),
+        Opcode.ZeroExtend => ZeroExtend.Deserialize(sexpr),
+        Opcode.SignExtend => SignExtend.Deserialize(sexpr),
 
         Opcode.Assert => Assert.Deserialize(sexpr),
         Opcode.Exit => Exit.Deserialize(sexpr),

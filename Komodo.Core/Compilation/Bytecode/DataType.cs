@@ -13,13 +13,15 @@ public abstract record DataType
     public sealed override string ToString() => AsSExpression().ToString();
 
     public abstract record Primitive : DataType;
-    
+    public abstract record SignedInteger : Primitive;
+    public abstract record UnsignedInteger : Primitive;
+
     public abstract record Pointer : DataType
     {
         public sealed override UInt64 ByteSize => ByteSizeOf<Pointer>();
     }
 
-    public record I8 : Primitive
+    public record I8 : SignedInteger
     {
         private static string Symbol => "I8";
 
@@ -35,7 +37,7 @@ public abstract record DataType
         }
     }
 
-    public record UI8 : Primitive
+    public record UI8 : UnsignedInteger
     {
         private static string Symbol => "UI8";
 
@@ -51,7 +53,7 @@ public abstract record DataType
         }
     }
 
-    public record I16 : Primitive
+    public record I16 : SignedInteger
     {
         private static string Symbol => "I16";
 
@@ -67,7 +69,7 @@ public abstract record DataType
         }
     }
 
-    public record UI16 : Primitive
+    public record UI16 : UnsignedInteger
     {
         private static string Symbol => "UI16";
 
@@ -83,7 +85,7 @@ public abstract record DataType
         }
     }
 
-    public record I32 : Primitive
+    public record I32 : SignedInteger
     {
         private static string Symbol => "I32";
 
@@ -99,7 +101,7 @@ public abstract record DataType
         }
     }
 
-    public record UI32 : Primitive
+    public record UI32 : UnsignedInteger
     {
         private static string Symbol => "UI32";
 
@@ -115,7 +117,7 @@ public abstract record DataType
         }
     }
 
-    public record I64 : Primitive
+    public record I64 : SignedInteger
     {
         private static string Symbol => "I64";
 
@@ -131,7 +133,7 @@ public abstract record DataType
         }
     }
 
-    public record UI64 : Primitive
+    public record UI64 : UnsignedInteger
     {
         private static string Symbol => "UI64";
 
@@ -192,7 +194,7 @@ public abstract record DataType
             return new Bool();
         }
     }
-    
+
     public record Array(DataType ElementType) : Pointer
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
@@ -279,21 +281,33 @@ public abstract record DataType
     };
 
     private static Func<SExpression, DataType>[] Deserializers => new Func<SExpression, DataType>[] {
-        I8.Deserialize,
-        UI8.Deserialize,
-        I16.Deserialize,
-        UI16.Deserialize,
-        I32.Deserialize,
-        UI32.Deserialize,
-        I64.Deserialize,
-        UI64.Deserialize,
-        F32.Deserialize,
-        F64.Deserialize,
+        I8.Deserialize, UI8.Deserialize,
+        I16.Deserialize, UI16.Deserialize,
+        I32.Deserialize, UI32.Deserialize,
+        I64.Deserialize, UI64.Deserialize,
+        F32.Deserialize, F64.Deserialize,
         Bool.Deserialize,
         Array.Deserialize,
         Type.Deserialize,
         Reference.Deserialize,
         Function.Deserialize,
+    };
+
+    private static Func<SExpression, Primitive>[] PrimitiveDeserializers => new Func<SExpression, Primitive>[] {
+        I8.Deserialize, UI8.Deserialize,
+        I16.Deserialize, UI16.Deserialize,
+        I32.Deserialize, UI32.Deserialize,
+        I64.Deserialize, UI64.Deserialize,
+        F32.Deserialize, F64.Deserialize,
+        Bool.Deserialize,
+    };
+
+    private static Func<SExpression, SignedInteger>[] SignedIntegerDeserializers => new Func<SExpression, SignedInteger>[] {
+        I8.Deserialize, I16.Deserialize, I32.Deserialize, I64.Deserialize,
+    };
+
+    private static Func<SExpression, UnsignedInteger>[] UnsignedIntegerDeserializers => new Func<SExpression, UnsignedInteger>[] {
+        UI8.Deserialize, UI16.Deserialize, UI32.Deserialize, UI64.Deserialize,
     };
 
     public static DataType Deserialize(SExpression sexpr)
@@ -305,6 +319,39 @@ public abstract record DataType
         }
 
         throw new SExpression.FormatException($"Invalid data type: {sexpr}", sexpr);
+    }
+
+    public static Primitive DeserializePrimitive(SExpression sexpr)
+    {
+        foreach (var deserializer in PrimitiveDeserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
+
+        throw new SExpression.FormatException($"Invalid primitive data type: {sexpr}", sexpr);
+    }
+
+    public static SignedInteger DeserializeSignedInteger(SExpression sexpr)
+    {
+        foreach (var deserializer in SignedIntegerDeserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
+
+        throw new SExpression.FormatException($"Invalid signed integer data type: {sexpr}", sexpr);
+    }
+
+    public static UnsignedInteger DeserializeUnsignedInteger(SExpression sexpr)
+    {
+        foreach (var deserializer in UnsignedIntegerDeserializers)
+        {
+            try { return deserializer(sexpr); }
+            catch { }
+        }
+
+        throw new SExpression.FormatException($"Invalid unsigned integer data type: {sexpr}", sexpr);
     }
 
     public static DataType Demangle(string mangledString) => mangledString switch
