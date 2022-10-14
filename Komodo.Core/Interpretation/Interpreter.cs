@@ -265,6 +265,148 @@ public class Interpreter
                     }
                 }
                 break;
+            case Instruction.Convert instr:
+                {
+                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    {
+                        (Value.I8(var value), DataType.I8) => new Value.I8(value),
+                        (Value.I8(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I8(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I8(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I8(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I8(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I8(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I8(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI8(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI8(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI8(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI8(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI8(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI8(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI8(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI8(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I16(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I16(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I16(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I16(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I16(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I16(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I16(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I16(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I16(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI16(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI16(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI16(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI16(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI16(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI16(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI16(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI16(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI16(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.F32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.F32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.F32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.F32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.F32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.F32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.F32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.F32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.F32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.F32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.F32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.F64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.F64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.F64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.F64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.F64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.F64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.F64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.F64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.F64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.F64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.F64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.Bool(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.Bool(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.Bool(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.Bool(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.Bool(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.Bool(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.Bool(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.Bool(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.Bool(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.Bool(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.Bool(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
+                    };
+
+                    SetValue(stackFrame, instr.Destination, result);
+                }
+                break;
             case Instruction.Reinterpret instr:
                 {
                     var value = GetValue(stackFrame, instr.Source);
@@ -312,46 +454,6 @@ public class Interpreter
 
                         (Value.UI32(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFFFFFFFF)),
                         (Value.UI32(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFFFFFFFF)),
-                        
-                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
-                    };
-
-                    SetValue(stackFrame, instr.Destination, result);
-                }
-                break;
-            case Instruction.SignExtend instr:
-                {
-                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
-                    {
-                        (Value.I8(var value), DataType.I16) => new Value.I16((Int16)value),
-                        (Value.I8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
-                        (Value.I8(var value), DataType.I32) => new Value.I32((Int32)value),
-                        (Value.I8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
-                        (Value.I8(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.I8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
-
-                        (Value.UI8(var value), DataType.I16) => new Value.I16((Int16)value),
-                        (Value.UI8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
-                        (Value.UI8(var value), DataType.I32) => new Value.I32((Int32)value),
-                        (Value.UI8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
-                        (Value.UI8(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.UI8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
-
-                        (Value.I16(var value), DataType.I32) => new Value.I32((Int32)value),
-                        (Value.I16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
-                        (Value.I16(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.I16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
-
-                        (Value.UI16(var value), DataType.I32) => new Value.I32((Int32)value),
-                        (Value.UI16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
-                        (Value.UI16(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.UI16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
-
-                        (Value.I32(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.I32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
-
-                        (Value.UI32(var value), DataType.I64) => new Value.I64((Int64)value),
-                        (Value.UI32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
 
                         var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
                     };
