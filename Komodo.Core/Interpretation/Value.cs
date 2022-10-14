@@ -35,22 +35,6 @@ public abstract record Value
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => new Byte[] { Value };
-
-        public override Value ConvertTo(DataType dataType) => dataType switch
-        {
-            DataType.I8 => new I8((SByte)Value),
-            DataType.UI8 => new UI8((Byte)Value),
-            DataType.I16 => new I16((Int16)Value),
-            DataType.UI16 => new UI16((UInt16)Value),
-            DataType.I32 => new I32((Int32)Value),
-            DataType.UI32 => new UI32((UInt32)Value),
-            DataType.I64 => new I64((Int64)Value),
-            DataType.UI64 => new UI64((UInt64)Value),
-            DataType.F32 => new F32((float)Value),
-            DataType.F64 => new F64((double)Value),
-            DataType.Bool => new Bool(Value != 0),
-            _ => base.ConvertTo(dataType)
-        };
     }
 
     public record I16(Int16 Value) : Value
@@ -91,22 +75,6 @@ public abstract record Value
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
-
-        public override Value ConvertTo(DataType dataType) => dataType switch
-        {
-            DataType.I8 => new I8((SByte)Value),
-            DataType.UI8 => new UI8((Byte)Value),
-            DataType.I16 => new I16((Int16)Value),
-            DataType.UI16 => new UI16((UInt16)Value),
-            DataType.I32 => new I32((Int32)Value),
-            DataType.UI32 => new UI32((UInt32)Value),
-            DataType.I64 => new I64((Int64)Value),
-            DataType.UI64 => new UI64((UInt64)Value),
-            DataType.F32 => new F32((float)Value),
-            DataType.F64 => new F64((double)Value),
-            DataType.Bool => new Bool(Value != 0),
-            _ => base.ConvertTo(dataType)
-        };
     }
 
     public record UI64(UInt64 Value) : Value
