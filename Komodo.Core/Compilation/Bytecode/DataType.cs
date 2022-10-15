@@ -16,11 +16,6 @@ public abstract record DataType
     public abstract record SignedInteger : Primitive;
     public abstract record UnsignedInteger : Primitive;
 
-    public abstract record Pointer : DataType
-    {
-        public sealed override UInt64 ByteSize => ByteSizeOf<Pointer>();
-    }
-
     public record I8 : SignedInteger
     {
         private static string Symbol => "I8";
@@ -195,7 +190,22 @@ public abstract record DataType
         }
     }
 
-    public record Array(DataType ElementType) : Pointer
+    public record Pointer(bool IsReadonly) : DataType
+    {
+        public sealed override UInt64 ByteSize => ByteSizeOf<Pointer>();
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(IsReadonly ? "ROPtr" : "RWPtr");
+        public override string AsMangledString() => IsReadonly ? "roptr" : "rwptr";
+
+        public bool IsReadWrite => !IsReadonly;
+
+        new public static Pointer Deserialize(SExpression sexpr)
+        {
+            var isReadonly = sexpr.ExpectUnquotedSymbol().ExpectValue("ROPtr", "RWPtr").Value == "ROPtr";
+            return new Pointer(isReadonly);
+        }
+    }
+
+    public record Array(DataType ElementType) : Pointer(true)
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
             new SExpression.UnquotedSymbol("Array"),
@@ -214,7 +224,7 @@ public abstract record DataType
         }
     }
 
-    public record Reference(DataType ValueType) : Pointer
+    public record Reference(DataType ValueType) : Pointer(true)
     {
         public override SExpression AsSExpression() => new SExpression.List(new[] { new SExpression.UnquotedSymbol("Ref"), ValueType.AsSExpression() });
 
@@ -231,7 +241,7 @@ public abstract record DataType
         }
     }
 
-    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns) : Pointer
+    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns) : Pointer(true)
     {
         public override SExpression AsSExpression() => new SExpression.List(new SExpression[] {
             new SExpression.UnquotedSymbol("Func"),
@@ -275,9 +285,7 @@ public abstract record DataType
         I64.Deserialize, UI64.Deserialize,
         F32.Deserialize, F64.Deserialize,
         Bool.Deserialize,
-        Array.Deserialize,
-        Reference.Deserialize,
-        Function.Deserialize,
+        Pointer.Deserialize, Reference.Deserialize, Array.Deserialize, Function.Deserialize,
     };
 
     private static Func<SExpression, Primitive>[] PrimitiveDeserializers => new Func<SExpression, Primitive>[] {

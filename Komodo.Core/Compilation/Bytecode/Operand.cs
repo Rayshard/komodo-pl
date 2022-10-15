@@ -413,7 +413,6 @@ public abstract record Operand : IOperand
         }
     }
 
-
     public record Array(Bytecode.DataType ElementType, VSROCollection<Source> Elements) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(
@@ -453,39 +452,21 @@ public abstract record Operand : IOperand
             );
     }
 
-    public record Typeof(Bytecode.DataType Type) : Operand, Source
+    public record Sizeof(Bytecode.DataType Type) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
-            new SExpression.UnquotedSymbol("typeof"),
+            new SExpression.UnquotedSymbol("sizeof"),
             Type.AsSExpression()
         });
 
-        public static Typeof Deserialize(SExpression sexpr)
+        public static Sizeof Deserialize(SExpression sexpr)
         {
             sexpr.ExpectList()
                  .ExpectLength(2)
-                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("typeof"))
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("sizeof"))
                  .ExpectItem(1, Bytecode.DataType.Deserialize, out var type);
 
-            return new Typeof(type);
-        }
-    }
-
-    public record Null(Bytecode.DataType ValueType) : Operand, Source
-    {
-        public override SExpression AsSExpression() => new SExpression.List(new[]{
-            new SExpression.UnquotedSymbol("null"),
-            ValueType.AsSExpression()
-        });
-
-        public static Null Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("null"))
-                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var valueType);
-
-            return new Null(valueType);
+            return new Sizeof(type);
         }
     }
 
@@ -534,8 +515,7 @@ public abstract record Operand : IOperand
         Global.Deserialize,
         Array.Deserialize,
         Data.Deserialize,
-        Null.Deserialize,
-        Typeof.Deserialize,
+        Sizeof.Deserialize,
         Function.Deserialize,
         Sysfunc.Deserialize,
         Pop.Deserialize

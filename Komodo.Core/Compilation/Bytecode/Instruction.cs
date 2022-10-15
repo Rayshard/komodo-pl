@@ -30,6 +30,8 @@ public enum Opcode
 
     Dump,
 
+    Duplicate,
+
     // Array specific instructions
     GetElement,
     GetLength,
@@ -91,6 +93,20 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                  .ExpectItem(1, Operand.DeserializeSource, out var code);
 
             return new Exit(code);
+        }
+    }
+
+    public record Duplicate() : Instruction(Opcode.Duplicate)
+    {
+        public override IEnumerable<IOperand> Operands => new IOperand[0];
+
+        new public static Duplicate Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(1)
+                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Duplicate));
+
+            return new Duplicate();
         }
     }
 
@@ -296,7 +312,12 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         new public static Call Deserialize(SExpression sexpr)
         {
             try { return Direct.Deserialize(sexpr); }
-            catch { return Indirect.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            try { return Indirect.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            throw new SExpression.FormatException($"Invalid Call instruction: {sexpr}", sexpr);
         }
     }
 
@@ -335,41 +356,102 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Allocate(DataType DataType, Operand.Destination Destination) : Instruction(Opcode.Allocate)
+    public abstract record Allocate(Operand.Destination Destination) : Instruction(Opcode.Allocate)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Destination };
+        public record FromDataType(DataType DataType, Operand.Destination Destination) : Allocate(Destination)
+        {
+            public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Destination };
+
+            new public static FromDataType Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(3)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
+                     .ExpectItem(1, DataType.Deserialize, out var dataType)
+                     .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+
+                return new FromDataType(dataType, destination);
+            }
+        }
+
+        public record FromAmount(Operand.Source Source, Operand.Destination Destination) : Allocate(Destination)
+        {
+            public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
+
+            new public static FromAmount Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(3)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
+                     .ExpectItem(1, Operand.DeserializeSource, out var source)
+                     .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+
+                return new FromAmount(source, destination);
+            }
+        }
 
         new public static Allocate Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectList()
-                 .ExpectLength(3)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
-                 .ExpectItem(1, DataType.Deserialize, out var dataType)
-                 .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+            try { return FromDataType.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
 
-            return new Allocate(dataType, destination);
+            try { return FromAmount.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            throw new SExpression.FormatException($"Invalid Allocate instruction: {sexpr}", sexpr);
         }
     }
 
-    public record Load(Operand.Source Reference, Operand.Destination Destination) : Instruction(Opcode.Load)
+    public abstract record Load(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Load)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Reference, Destination };
+        public record FromReference(Operand.Source Source, Operand.Destination Destination) : Load(Source, Destination)
+        {
+            public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
+
+            new public static FromReference Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(3)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Load))
+                     .ExpectItem(1, Operand.DeserializeSource, out var source)
+                     .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+
+                return new FromReference(source, destination);
+            }
+        }
+
+        public record FromPointer(DataType DataType, Operand.Source Source, Operand.Destination Destination) : Load(Source, Destination)
+        {
+            public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Source, Destination };
+
+            new public static FromPointer Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(4)
+                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Load))
+                     .ExpectItem(1, DataType.Deserialize, out var dataType)
+                     .ExpectItem(2, Operand.DeserializeSource, out var source)
+                     .ExpectItem(3, Operand.DeserializeDestination, out var destination);
+
+                return new FromPointer(dataType, source, destination);
+            }
+        }
 
         new public static Load Deserialize(SExpression sexpr)
         {
-            sexpr.ExpectList()
-                 .ExpectLength(3)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Load))
-                 .ExpectItem(1, Operand.DeserializeSource, out var reference)
-                 .ExpectItem(2, Operand.DeserializeDestination, out var destination);
+            try { return FromReference.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
 
-            return new Load(reference, destination);
+            try { return FromPointer.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            throw new SExpression.FormatException($"Invalid Load instruction: {sexpr}", sexpr);
         }
     }
 
-    public record Store(Operand.Source Value, Operand.Source Reference) : Instruction(Opcode.Store)
+    public record Store(Operand.Source Value, Operand.Source Destination) : Instruction(Opcode.Store)
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, Reference };
+        public override IEnumerable<IOperand> Operands => new IOperand[] { Value, Destination };
 
         new public static Store Deserialize(SExpression sexpr)
         {
@@ -377,9 +459,9 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
                  .ExpectLength(3)
                  .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Store))
                  .ExpectItem(1, Operand.DeserializeSource, out var value)
-                 .ExpectItem(2, Operand.DeserializeSource, out var reference);
+                 .ExpectItem(2, Operand.DeserializeSource, out var destination);
 
-            return new Store(value, reference);
+            return new Store(value, destination);
         }
     }
 
@@ -464,7 +546,10 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.ZeroExtend => ZeroExtend.Deserialize(sexpr),
 
         Opcode.Assert => Assert.Deserialize(sexpr),
+
         Opcode.Exit => Exit.Deserialize(sexpr),
+
+        Opcode.Duplicate => Duplicate.Deserialize(sexpr),
 
         var opcode => throw new NotImplementedException(opcode.ToString())
     };

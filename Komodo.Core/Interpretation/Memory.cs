@@ -156,6 +156,7 @@ public class Memory
     }
 
     public Value Read(Value.Reference reference) => Read(reference.Address, reference.ValueType);
+    public Value Read(Value.Pointer pointer, DataType dataType) => Read(pointer.Address, dataType);
     public T Read<T>(Address start, DataType dataType) where T : Value => Read(start, dataType).As<T>();
     public T Read<T>(Value.Reference reference) where T : Value => Read<T>(reference);
 

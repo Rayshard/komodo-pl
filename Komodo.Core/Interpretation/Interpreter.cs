@@ -150,16 +150,32 @@ public class Interpreter
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
-            case Instruction.Allocate instr:
+            case Instruction.Duplicate instr: stack.Push(PeekStack()); break;
+            case Instruction.Allocate.FromDataType instr:
                 {
                     var address = memory.AllocateWrite(CreateDefault(instr.DataType));
                     SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
                 }
                 break;
-            case Instruction.Load instr:
+            case Instruction.Allocate.FromAmount instr:
                 {
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference);
+                    var amount = GetValue<Value.UI64>(stackFrame, instr.Source, new DataType.UI64()).Value;
+                    var address = memory.Allocate(amount);
+                    SetValue(stackFrame, instr.Destination, new Value.Pointer(address, new DataType.Pointer(false)));
+                }
+                break;
+            case Instruction.Load.FromReference instr:
+                {
+                    var reference = GetValue<Value.Reference>(stackFrame, instr.Source);
                     var value = memory.Read(reference);
+
+                    SetValue(stackFrame, instr.Destination, value);
+                }
+                break;
+            case Instruction.Load.FromPointer instr:
+                {
+                    var pointer = GetValue<Value.Pointer>(stackFrame, instr.Source);
+                    var value = memory.Read(pointer, instr.DataType);
 
                     SetValue(stackFrame, instr.Destination, value);
                 }
@@ -167,9 +183,16 @@ public class Interpreter
             case Instruction.Store instr:
                 {
                     var value = GetValue(stackFrame, instr.Value);
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference, new DataType.Reference(value.DataType));
+                    var destination = GetValue(stackFrame, instr.Destination);
 
-                    memory.Write(reference.Address, value);
+                    var address = destination switch
+                    {
+                        Value.Reference reference => reference.Address,
+                        Value.Pointer pointer when !pointer.IsReadonly => pointer.Address,
+                        _ => throw new InterpreterException($"Invalid destination operand. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
+                    };
+
+                    memory.Write(address, value);
                 }
                 break;
             case Instruction.Move instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Source)); break;
@@ -205,6 +228,7 @@ public class Interpreter
                         (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
                         (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
                         (Opcode.IsNull, Value.Reference reference) => new Value.Bool(!reference.Allocated),
+                        (Opcode.IsNull, Value.Pointer pointer) => new Value.Bool(pointer.IsNull),
                         var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
                     };
 
@@ -401,7 +425,19 @@ public class Interpreter
                         (Value.Bool(var value), DataType.F64) => new Value.F64((Double)value),
                         (Value.Bool(var value), DataType.Bool) => new Value.Bool(value != 0),
 
-                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
+                        (Value.Pointer value, DataType.Pointer target) when (value.IsReadonly && value.IsReadonly) || value.IsReadWrite
+                            => new Value.Pointer(value.Address, target),
+
+                        (Value.Reference value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.Address, target),
+
+                        (Value.Array value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.ElementsStart, target),
+
+                        (Value.Function value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.Address, target),
+
+                        (var value, var target) => throw new InterpreterException($"Cannot apply operation to {value.DataType} and {target}.")
                     };
 
                     SetValue(stackFrame, instr.Destination, result);
@@ -411,8 +447,8 @@ public class Interpreter
                 {
                     var value = GetValue(stackFrame, instr.Source);
 
-                    if (value.DataType is DataType.Pointer)
-                        throw new InterpreterException("Pointer types cannot be reinterpreted!");
+                    if (value.DataType is not DataType.Primitive)
+                        throw new InterpreterException("Non-primitive types cannot be reinterpreted!");
 
                     var reinterpretedValue = value.DataType.ByteSize != instr.Target.ByteSize
                         ? throw new Exception($"Cannot interpret {value.DataType} which has size {value.DataType.ByteSize} as {instr.Target} which has size {instr.Target.ByteSize}")
@@ -487,7 +523,6 @@ public class Interpreter
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
             Operand.Pop p => PopStack(p.Expected),
-            Operand.Null(var valueType) => new Value.Reference(valueType, Address.NULL),
             Operand.Data(var module, var name) => data[(module, name)],
             Operand.Array(var elementType, var elements) => new Value.Array(
                 elementType,
@@ -495,6 +530,7 @@ public class Interpreter
             ),
             Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
             Operand.Sysfunc operand => sysfuncTable[operand.Name],
+            Operand.Sizeof operand => new Value.UI64(operand.Type.ByteSize),
             _ => throw new Exception($"Invalid source: {source}"),
         };
 
@@ -567,6 +603,27 @@ public class Interpreter
 
         stack.Push(stackTop);
         throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
+    }
+
+    private Value PeekStack(DataType? dt = null)
+    {
+        if (!stack.TryPeek(out var stackTop))
+            throw new InvalidOperationException("Cannot peek value from stack. The stack is empty.");
+
+        if (dt is not null && stackTop.DataType != dt)
+            throw new InvalidCastException($"Peeked '{dt}' from top of stack but expected '{stackTop.DataType}'");
+
+        return stackTop;
+    }
+
+    private T PeekStack<T>(DataType? dt = null) where T : Value
+    {
+        var stackTop = PeekStack(dt);
+
+        if (stackTop is T converted)
+            return converted;
+
+        throw new InvalidCastException($"Peeked '{typeof(T)}' from top of stack, but expected '{stackTop.GetType()}'");
     }
 
     private void PushStackFrame((string Module, string Function) Target, Value[] args)
@@ -664,6 +721,7 @@ public class Interpreter
         ),
         DataType.Reference(var valueType) => new Value.Reference(valueType, Address.NULL),
         DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
+        DataType.Pointer type => new Value.Pointer(Address.NULL, type),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 
