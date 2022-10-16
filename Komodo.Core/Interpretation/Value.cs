@@ -209,6 +209,7 @@ public abstract record Value
         Operand.Constant.F64(var value) => new Value.F64(value),
         Operand.Constant.True => new Value.Bool(true),
         Operand.Constant.False => new Value.Bool(false),
+        Operand.Constant.Null => new Value.Pointer(Address.NULL, new DataType.Pointer(true)),
         _ => throw new NotImplementedException(constant.ToString())
     };
 }

@@ -169,6 +169,7 @@ public class Interpreter
                     stackFrame.SetLocal(instr.Name, value);
                 }
                 break;
+            case Instruction.GetArg instr: stack.Push(stackFrame.GetArgument(instr.Name)); break;
             case Instruction.Exit instr:
                 {
                     exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
@@ -179,14 +180,15 @@ public class Interpreter
             case Instruction.Allocate.FromDataType instr:
                 {
                     var address = memory.AllocateWrite(CreateDefault(instr.DataType));
-                    SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
+                    stack.Push(new Value.Reference(instr.DataType, address));
                 }
                 break;
             case Instruction.Allocate.FromAmount instr:
                 {
-                    var amount = GetValue<Value.UI64>(stackFrame, instr.Source, new DataType.UI64()).Value;
+
+                    var amount = PopStack<Value.UI64>(new DataType.UI64()).Value;
                     var address = memory.Allocate(amount);
-                    SetValue(stackFrame, instr.Destination, new Value.Pointer(address, new DataType.Pointer(false)));
+                    stack.Push(new Value.Pointer(address, new DataType.Pointer(false)));
                 }
                 break;
             case Instruction.Load.FromReference instr:
@@ -756,6 +758,22 @@ public class Interpreter
         (Value.F32(var value1), Value.F32(var value2), Comparison.EQ) => value1 == value2,
         (Value.F64(var value1), Value.F64(var value2), Comparison.EQ) => value1 == value2,
         (Value.Bool(var value1), Value.Bool(var value2), Comparison.EQ) => value1 == value2,
+        (Value.Pointer pointer, Value.Reference reference, Comparison.EQ) => pointer.Address == reference.Address,
+
+
+        (Value.I8(var value1), Value.I8(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI8(var value1), Value.UI8(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I16(var value1), Value.I16(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI16(var value1), Value.UI16(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I32(var value1), Value.I32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI32(var value1), Value.UI32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I64(var value1), Value.I64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI64(var value1), Value.UI64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.F32(var value1), Value.F32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.F64(var value1), Value.F64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.Bool(var value1), Value.Bool(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.Pointer pointer, Value.Reference reference, Comparison.NEQ) => pointer.Address != reference.Address,
+
         _ => throw new NotImplementedException($"Connot compare {v1.DataType} to {v2.DataType} with {comparison}")
     };
 

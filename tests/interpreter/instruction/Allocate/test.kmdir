@@ -2,16 +2,9 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (locals
-                (Ref I64)
-            )
-
-            (IsNull (local 0) $stack)
-            (Assert (pop Bool) true)
-
-            (Allocate I64 (local 0))
-            (IsNull (local 0) $stack)
-            (Assert (pop Bool) false)
+            (Allocate I64)
+            (PushConstant null)
+            (Assert NEQ)
 
             (Exit 0)
         )

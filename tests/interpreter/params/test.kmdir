@@ -1,0 +1,21 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (Call MyModule TestArgs 123 true)
+
+            (Exit 0)
+        )
+        (function TestArgs (params (I64 myArgI64) (Bool myArgBool)) (returns)
+            (GetArg myArgI64)
+            (PushConstant 123)
+            (Assert EQ)
+
+            (GetArg myArgBool)
+            (PushConstant true)
+            (Assert EQ)
+
+            (Return)
+        )
+    )
+)

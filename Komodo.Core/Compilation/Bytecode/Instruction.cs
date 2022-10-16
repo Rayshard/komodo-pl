@@ -9,6 +9,7 @@ public enum Opcode
     SetGlobal,
     GetLocal,
     SetLocal,
+    GetArg,
     Assert,
 
     Return,
@@ -42,7 +43,7 @@ public enum Opcode
     GetLength,
 }
 
-public enum Comparison { EQ };
+public enum Comparison { EQ, NEQ };
 
 public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 {
@@ -166,6 +167,18 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         );
     }
 
+    public record GetArg(string Name) : Instruction(Opcode.GetArg)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Identifier(Name) };
+
+        new public static GetArg Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.GetArg,
+            Operand.Identifier.Deserialize,
+            name => new GetArg(name.Value)
+        );
+    }
+
     public record Return() : Instruction(Opcode.Return)
     {
         new public static Return Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Return, delegate { return new Return(); });
@@ -181,6 +194,41 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
             Operand.Enumeration<Comparison>.Deserialize,
             comparison => new Assert(comparison.Value)
         );
+    }
+
+    public abstract record Allocate() : Instruction(Opcode.Allocate)
+    {
+        public record FromDataType(DataType DataType) : Allocate
+        {
+            public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType) };
+
+            new public static FromDataType Deserialize(SExpression sexpr) => Deserialize(
+                sexpr,
+                Opcode.Allocate,
+                DataType.Deserialize,
+                dataType => new FromDataType(dataType)
+            );
+        }
+
+        public record FromAmount : Allocate
+        {
+            new public static FromAmount Deserialize(SExpression sexpr) => Deserialize(
+                sexpr,
+                Opcode.Allocate,
+                delegate { return new FromAmount(); }
+            );
+        }
+
+        new public static Allocate Deserialize(SExpression sexpr)
+        {
+            try { return FromDataType.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            try { return FromAmount.Deserialize(sexpr); }
+            catch (SExpression.FormatException) { }
+
+            throw new SExpression.FormatException($"Invalid Allocate instruction: {sexpr}", sexpr);
+        }
     }
 
 
@@ -430,52 +478,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public abstract record Allocate(Operand.Destination Destination) : Instruction(Opcode.Allocate)
-    {
-        public record FromDataType(DataType DataType, Operand.Destination Destination) : Allocate(Destination)
-        {
-            public override IEnumerable<IOperand> Operands => new IOperand[] { new Operand.DataType(DataType), Destination };
-
-            new public static FromDataType Deserialize(SExpression sexpr)
-            {
-                sexpr.ExpectList()
-                     .ExpectLength(3)
-                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
-                     .ExpectItem(1, DataType.Deserialize, out var dataType)
-                     .ExpectItem(2, Operand.DeserializeDestination, out var destination);
-
-                return new FromDataType(dataType, destination);
-            }
-        }
-
-        public record FromAmount(Operand.Source Source, Operand.Destination Destination) : Allocate(Destination)
-        {
-            public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
-
-            new public static FromAmount Deserialize(SExpression sexpr)
-            {
-                sexpr.ExpectList()
-                     .ExpectLength(3)
-                     .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Allocate))
-                     .ExpectItem(1, Operand.DeserializeSource, out var source)
-                     .ExpectItem(2, Operand.DeserializeDestination, out var destination);
-
-                return new FromAmount(source, destination);
-            }
-        }
-
-        new public static Allocate Deserialize(SExpression sexpr)
-        {
-            try { return FromDataType.Deserialize(sexpr); }
-            catch (SExpression.FormatException) { }
-
-            try { return FromAmount.Deserialize(sexpr); }
-            catch (SExpression.FormatException) { }
-
-            throw new SExpression.FormatException($"Invalid Allocate instruction: {sexpr}", sexpr);
-        }
-    }
-
     public abstract record Load(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Load)
     {
         public record FromReference(Operand.Source Source, Operand.Destination Destination) : Load(Source, Destination)
@@ -597,6 +599,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.SetGlobal => SetGlobal.Deserialize(sexpr),
         Opcode.GetLocal => GetLocal.Deserialize(sexpr),
         Opcode.SetLocal => SetLocal.Deserialize(sexpr),
+        Opcode.GetArg => GetArg.Deserialize(sexpr),
         Opcode.Return => Return.Deserialize(sexpr),
 
 

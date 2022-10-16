@@ -250,6 +250,19 @@ public abstract record Operand : IOperand
             }
         }
 
+        public record Null : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.Pointer(true);
+
+            public override SExpression AsSExpression() => new SExpression.UnquotedSymbol("null");
+
+            new public static Null Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectUnquotedSymbol().ExpectValue("null");
+                return new Null();
+            }
+        }
+
         private static Func<SExpression, Constant>[] Deserializers => new Func<SExpression, Constant>[] {
             I8.Deserialize,
             UI8.Deserialize,
@@ -263,6 +276,7 @@ public abstract record Operand : IOperand
             F64.Deserialize,
             True.Deserialize,
             False.Deserialize,
+            Null.Deserialize,
         };
 
         public static Constant Deserialize(SExpression sexpr)
