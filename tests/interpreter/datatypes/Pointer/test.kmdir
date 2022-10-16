@@ -1,0 +1,60 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (Call MyModule TestRWPtr)
+            (Call MyModule TestROPtr)
+
+            (Exit 0)
+        )
+        (function TestRWPtr (params) (returns)
+            (locals
+                (RWPtr myPtr)
+                (RWPtr myOtherPtr)
+            )
+
+            (IsNull (local 0) $stack)
+            (Assert (pop Bool) true)
+
+            (Allocate (sizeof I64) (local 0))
+            (IsNull (local 0) $stack)
+            (Assert (pop Bool) false)
+
+            (Load I64 (local 0) $stack)
+            (Assert (pop I64) 0)
+
+            (Store 123 (local 0))
+            (Load I64 (local 0) $stack)
+            (Assert (pop I64) 123)
+
+            (Store (F32 12.5) (local 0))
+            (Load F32 (local 0) $stack)
+            (Assert (pop F32) (F32 12.5))
+
+            (Move (local 0) (local 1))
+            (Store (I8 -1) (local 1))
+            (Load UI8 (local 0) $stack)
+            (Assert (pop UI8) (UI8 255))
+
+            (Return)
+        )
+        (function TestROPtr (params) (returns)
+            (locals
+                (ROPtr myPtr)
+            )
+
+            (IsNull (local 0) $stack)
+            (Assert (pop Bool) true)
+
+            (Allocate (sizeof I64) $stack)
+            (Convert (pop RWPtr) ROPtr (local 0))
+            (IsNull (local 0) $stack)
+            (Assert (pop Bool) false)
+
+            (Load I64 (local 0) $stack)
+            (Assert (pop I64) 0)
+
+            (Return)
+        )
+    )
+)

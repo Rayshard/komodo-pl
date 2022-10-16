@@ -1,9 +1,7 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (globals
-            (I64 myGlobal)
-        )
+        (global I64 myGlobal)
 
         (function Main (params) (returns)
             (Assert (global MyModule myGlobal) 0)

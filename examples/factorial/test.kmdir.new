@@ -6,7 +6,7 @@ program {
         function Main () -> ()
         {
             Call MyModule Factorial (20);
-            Dump $stack;
+            Dump (pop I64);
 
             Exit 0;
         }
@@ -22,7 +22,7 @@ program {
         
             Dec I64 (arg number) (local numberMinus1);
             Call MyModule Factorial (local numberMinus1);
-            Mul I64 (arg number) $stack (local result);
+            Mul I64 (arg number) (pop I64) (local result);
             Return (local result);
 
           label retOneOnZero:

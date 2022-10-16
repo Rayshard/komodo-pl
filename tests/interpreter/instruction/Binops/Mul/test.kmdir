@@ -1,0 +1,11 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (Mul 11 22 $stack)
+            (Assert (pop I64) 242)
+
+            (Exit 0)
+        )
+    )
+)

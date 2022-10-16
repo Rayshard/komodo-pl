@@ -1,0 +1,8 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (Exit 0)
+        )
+    )
+)

@@ -76,8 +76,6 @@ public class Interpreter
         }));
 
         sysfuncTable.Add("GetTime", new Sysfunc.GetTime(memory.AllocateWrite("GetTime", true), () => (UInt64)DateTime.UtcNow.Ticks));
-
-        
     }
 
     public Int64 Run()
@@ -152,16 +150,32 @@ public class Interpreter
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
-            case Instruction.Allocate instr:
+            case Instruction.Duplicate instr: stack.Push(PeekStack()); break;
+            case Instruction.Allocate.FromDataType instr:
                 {
                     var address = memory.AllocateWrite(CreateDefault(instr.DataType));
                     SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
                 }
                 break;
-            case Instruction.Load instr:
+            case Instruction.Allocate.FromAmount instr:
                 {
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference);
+                    var amount = GetValue<Value.UI64>(stackFrame, instr.Source, new DataType.UI64()).Value;
+                    var address = memory.Allocate(amount);
+                    SetValue(stackFrame, instr.Destination, new Value.Pointer(address, new DataType.Pointer(false)));
+                }
+                break;
+            case Instruction.Load.FromReference instr:
+                {
+                    var reference = GetValue<Value.Reference>(stackFrame, instr.Source);
                     var value = memory.Read(reference);
+
+                    SetValue(stackFrame, instr.Destination, value);
+                }
+                break;
+            case Instruction.Load.FromPointer instr:
+                {
+                    var pointer = GetValue<Value.Pointer>(stackFrame, instr.Source);
+                    var value = memory.Read(pointer, instr.DataType);
 
                     SetValue(stackFrame, instr.Destination, value);
                 }
@@ -169,9 +183,16 @@ public class Interpreter
             case Instruction.Store instr:
                 {
                     var value = GetValue(stackFrame, instr.Value);
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Reference, new DataType.Reference(value.DataType));
+                    var destination = GetValue(stackFrame, instr.Destination);
 
-                    memory.Write(reference.Address, value);
+                    var address = destination switch
+                    {
+                        Value.Reference reference => reference.Address,
+                        Value.Pointer pointer when !pointer.IsReadonly => pointer.Address,
+                        _ => throw new InterpreterException($"Invalid destination operand. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
+                    };
+
+                    memory.Write(address, value);
                 }
                 break;
             case Instruction.Move instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Source)); break;
@@ -185,6 +206,10 @@ public class Interpreter
                         (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
                         (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
                         (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
+                        (Opcode.LShift, Value.UI16(var op1), Value.UI8(var op2)) => new Value.UI16(op2 >= 16 ? (UInt16)0 : (UInt16)(op1 << op2)),
+                        (Opcode.LShift, Value.I16(var op1), Value.UI8(var op2)) => new Value.I16(op2 >= 16 ? (Int16)0 : (Int16)(op1 << op2)),
+                        (Opcode.BOR, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
+                        (Opcode.BOR, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
                         (Opcode.GetElement, Value.UI64(var index), Value.Array a) => index < memory.ReadUInt64(a.LengthStart)
                             ? memory.Read(a.ElementsStart + index * a.ElementType.ByteSize, a.ElementType)
                             : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(a.LengthStart)}"),
@@ -198,10 +223,13 @@ public class Interpreter
                 {
                     var source = GetValue(stackFrame, instr.Source);
 
-                    Value result = (instr.Opcode, source, instr.DataType) switch
+                    Value result = (instr.Opcode, source) switch
                     {
-                        (Opcode.Dec, Value.I64(var op), DataType.I64) => new Value.I64(op - 1),
-                        var operands => throw new Exception($"Cannot apply operation to {operands}.")
+                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
+                        (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
+                        (Opcode.IsNull, Value.Reference reference) => new Value.Bool(!reference.Allocated),
+                        (Opcode.IsNull, Value.Pointer pointer) => new Value.Bool(pointer.IsNull),
+                        var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
                     };
 
                     SetValue(stackFrame, instr.Destination, result);
@@ -213,9 +241,6 @@ public class Interpreter
                     Value.Array value => value.Allocated
                         ? memory.Read(value.ElementsStart, value.ElementType, memory.ReadUInt64(value.LengthStart)).Stringify(", ", ("[", "]"))
                         : throw new Exception("Array is not allocated"), // This should never be the case because the default value for an array is an allocated array of size 0
-                    Value.Type value => value.Allocated
-                        ? Encoding.UTF8.GetString(memory.Read(value.Address + 8, memory.ReadUInt64(value.Address)))
-                        : "unknown",
                     Value.Reference value => value.Allocated
                         ? $"ref {memory.Read(value.Address, value.ValueType)}"
                         : $"ref ({value.DataType} null)",
@@ -264,19 +289,212 @@ public class Interpreter
                     }
                 }
                 break;
-            case Instruction.Convert instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Value).ConvertTo(instr.Target)); break;
+            case Instruction.Convert instr:
+                {
+                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    {
+                        (Value.I8(var value), DataType.I8) => new Value.I8(value),
+                        (Value.I8(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I8(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I8(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I8(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I8(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I8(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I8(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI8(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI8(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI8(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI8(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI8(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI8(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI8(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI8(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI8(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI8(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI8(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I16(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I16(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I16(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I16(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I16(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I16(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I16(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I16(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I16(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI16(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI16(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI16(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI16(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI16(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI16(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI16(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI16(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI16(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI16(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI16(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.I64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.I64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.I64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.I64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.I64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.I64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.I64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.I64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.I64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.I64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.I64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.UI64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.UI64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.UI64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.UI64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.UI64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.UI64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.UI64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.UI64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.UI64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.UI64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.UI64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.F32(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.F32(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.F32(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.F32(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.F32(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.F32(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.F32(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.F32(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.F32(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.F32(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.F32(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.F64(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.F64(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.F64(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.F64(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.F64(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.F64(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.F64(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.F64(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.F64(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.F64(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.F64(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.Bool(var value), DataType.I8) => new Value.I8((SByte)value),
+                        (Value.Bool(var value), DataType.UI8) => new Value.UI8((Byte)value),
+                        (Value.Bool(var value), DataType.I16) => new Value.I16((Int16)value),
+                        (Value.Bool(var value), DataType.UI16) => new Value.UI16((UInt16)value),
+                        (Value.Bool(var value), DataType.I32) => new Value.I32((Int32)value),
+                        (Value.Bool(var value), DataType.UI32) => new Value.UI32((UInt32)value),
+                        (Value.Bool(var value), DataType.I64) => new Value.I64((Int64)value),
+                        (Value.Bool(var value), DataType.UI64) => new Value.UI64((UInt64)value),
+                        (Value.Bool(var value), DataType.F32) => new Value.F32((Single)value),
+                        (Value.Bool(var value), DataType.F64) => new Value.F64((Double)value),
+                        (Value.Bool(var value), DataType.Bool) => new Value.Bool(value != 0),
+
+                        (Value.Pointer value, DataType.Pointer target) when (value.IsReadonly && value.IsReadonly) || value.IsReadWrite
+                            => new Value.Pointer(value.Address, target),
+
+                        (Value.Reference value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.Address, target),
+
+                        (Value.Array value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.ElementsStart, target),
+
+                        (Value.Function value, DataType.Pointer target) when target.IsReadonly
+                            => new Value.Pointer(value.Address, target),
+
+                        (var value, var target) => throw new InterpreterException($"Cannot apply operation to {value.DataType} and {target}.")
+                    };
+
+                    SetValue(stackFrame, instr.Destination, result);
+                }
+                break;
             case Instruction.Reinterpret instr:
                 {
-                    var value = GetValue(stackFrame, instr.Value);
+                    var value = GetValue(stackFrame, instr.Source);
 
-                    if (value.DataType is DataType.Pointer)
-                        throw new InterpreterException("Pointer types cannot be reinterpreted!");
+                    if (value.DataType is not DataType.Primitive)
+                        throw new InterpreterException("Non-primitive types cannot be reinterpreted!");
 
                     var reinterpretedValue = value.DataType.ByteSize != instr.Target.ByteSize
                         ? throw new Exception($"Cannot interpret {value.DataType} which has size {value.DataType.ByteSize} as {instr.Target} which has size {instr.Target.ByteSize}")
                         : Value.Create(instr.Target, value.AsBytes());
 
                     SetValue(stackFrame, instr.Destination, reinterpretedValue);
+                }
+                break;
+            case Instruction.ZeroExtend instr:
+                {
+                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    {
+                        (Value.I8(var value), DataType.I16) => new Value.I16((Int16)((Int16)value & 0xFF)),
+                        (Value.I8(var value), DataType.UI16) => new Value.UI16((UInt16)((UInt16)value & 0xFF)),
+                        (Value.I8(var value), DataType.I32) => new Value.I32((Int32)((Int32)value & 0xFF)),
+                        (Value.I8(var value), DataType.UI32) => new Value.UI32((UInt32)((UInt32)value & 0xFF)),
+                        (Value.I8(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFF)),
+                        (Value.I8(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFF)),
+
+                        (Value.UI8(var value), DataType.I16) => new Value.I16((Int16)((Int16)value & 0xFF)),
+                        (Value.UI8(var value), DataType.UI16) => new Value.UI16((UInt16)((UInt16)value & 0xFF)),
+                        (Value.UI8(var value), DataType.I32) => new Value.I32((Int32)((Int32)value & 0xFF)),
+                        (Value.UI8(var value), DataType.UI32) => new Value.UI32((UInt32)((UInt32)value & 0xFF)),
+                        (Value.UI8(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFF)),
+                        (Value.UI8(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFF)),
+
+                        (Value.I16(var value), DataType.I32) => new Value.I32((Int32)((Int32)value & 0xFFFF)),
+                        (Value.I16(var value), DataType.UI32) => new Value.UI32((UInt32)((UInt32)value & 0xFFFF)),
+                        (Value.I16(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFFFF)),
+                        (Value.I16(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFFFF)),
+
+                        (Value.UI16(var value), DataType.I32) => new Value.I32((Int32)((Int32)value & 0xFFFF)),
+                        (Value.UI16(var value), DataType.UI32) => new Value.UI32((UInt32)((UInt32)value & 0xFFFF)),
+                        (Value.UI16(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFFFF)),
+                        (Value.UI16(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFFFF)),
+
+                        (Value.I32(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFFFFFFFF)),
+                        (Value.I32(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFFFFFFFF)),
+
+                        (Value.UI32(var value), DataType.I64) => new Value.I64((Int64)((Int64)value & 0xFFFFFFFF)),
+                        (Value.UI32(var value), DataType.UI64) => new Value.UI64((UInt64)((UInt64)value & 0xFFFFFFFF)),
+
+                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
+                    };
+
+                    SetValue(stackFrame, instr.Destination, result);
                 }
                 break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
@@ -304,16 +522,15 @@ public class Interpreter
             Operand.Global(var module, var name) => globals[(module, name)],
             Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
             Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
-            Operand.Stack => PopStack(),
-            Operand.Null(var valueType) => new Value.Reference(valueType, Address.NULL),
+            Operand.Pop p => PopStack(p.Expected),
             Operand.Data(var module, var name) => data[(module, name)],
             Operand.Array(var elementType, var elements) => new Value.Array(
                 elementType,
                 memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)), false, true)
             ),
-            Operand.Typeof operand => new Value.Type(memory.AllocateWrite(operand.Type.AsMangledString(), true)),
             Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
             Operand.Sysfunc operand => sysfuncTable[operand.Name],
+            Operand.Sizeof operand => new Value.UI64(operand.Type.ByteSize),
             _ => throw new Exception($"Invalid source: {source}"),
         };
 
@@ -386,6 +603,27 @@ public class Interpreter
 
         stack.Push(stackTop);
         throw new InvalidCastException($"Unable to pop '{typeof(T)}' off stack. Found '{stackTop.GetType()}'");
+    }
+
+    private Value PeekStack(DataType? dt = null)
+    {
+        if (!stack.TryPeek(out var stackTop))
+            throw new InvalidOperationException("Cannot peek value from stack. The stack is empty.");
+
+        if (dt is not null && stackTop.DataType != dt)
+            throw new InvalidCastException($"Peeked '{dt}' from top of stack but expected '{stackTop.DataType}'");
+
+        return stackTop;
+    }
+
+    private T PeekStack<T>(DataType? dt = null) where T : Value
+    {
+        var stackTop = PeekStack(dt);
+
+        if (stackTop is T converted)
+            return converted;
+
+        throw new InvalidCastException($"Peeked '{typeof(T)}' from top of stack, but expected '{stackTop.GetType()}'");
     }
 
     private void PushStackFrame((string Module, string Function) Target, Value[] args)
@@ -481,9 +719,9 @@ public class Interpreter
             elementType,
             memory.AllocateWrite(new Value[0], prefixWithNumValues: true)
         ),
-        DataType.Type => new Value.Type(Address.NULL),
         DataType.Reference(var valueType) => new Value.Reference(valueType, Address.NULL),
         DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
+        DataType.Pointer type => new Value.Pointer(Address.NULL, type),
         _ => throw new NotImplementedException(dataType.ToString())
     };
 

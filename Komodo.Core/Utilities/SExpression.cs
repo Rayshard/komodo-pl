@@ -5,6 +5,8 @@ namespace Komodo.Core.Utilities;
 
 public abstract record SExpression(TextLocation? Location)
 {
+    public abstract bool Matches(SExpression other);
+
     public record UnquotedSymbol : SExpression
     {
         public static readonly Regex Regex = new Regex("^[^\\s\"\\(\\),]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -218,13 +220,22 @@ public abstract record SExpression(TextLocation? Location)
         }
     }
 
-    public static UnquotedSymbol UInt64(UInt64 value) => new UnquotedSymbol(value.ToString());
-
     public class ParseException : Exception
     {
         public TextLocation Location { get; }
 
         public ParseException(string message, TextLocation location) : base(message) => Location = location;
+    }
+
+    public class FormatException : Exception
+    {
+        public SExpression Node { get; }
+
+        public TextLocation? Location => Node.Location;
+
+        public FormatException(string message, SExpression node) : base(message) => Node = node;
+
+        public static FormatException Expected(object expected, object actual, SExpression node) => new FormatException($"Expected {expected}, but found {actual}", node);
     }
 
     public static SExpression Parse(TextSourceReader stream)
@@ -239,221 +250,211 @@ public abstract record SExpression(TextLocation? Location)
         };
     }
 
-    #region Formatting
-    public class FormatException : Exception
+    public static UnquotedSymbol UInt64(UInt64 value) => new UnquotedSymbol(value.ToString());
+}
+
+public static class SExpressionExtensions
+{
+    public static T Expect<T>(this SExpression sexpr, Func<SExpression, T> deserializer) => deserializer(sexpr);
+
+    public static SExpression Expect(this SExpression sexpr, SExpression template) => sexpr.Matches(template) ? sexpr : throw SExpression.FormatException.Expected(template, sexpr, sexpr);
+
+    public static SExpression.UnquotedSymbol ExpectUnquotedSymbol(this SExpression sexpr)
+        => sexpr as SExpression.UnquotedSymbol ?? throw SExpression.FormatException.Expected("unquoted symbol", sexpr.GetType(), sexpr);
+
+    public static SExpression.QuotedSymbol ExpectQuotedSymbol(this SExpression sexpr)
+        => sexpr as SExpression.QuotedSymbol ?? throw SExpression.FormatException.Expected($"quoted symbol", sexpr.GetType(), sexpr);
+
+    public static SExpression.List ExpectList(this SExpression sexpr)
+        => sexpr as SExpression.List ?? throw SExpression.FormatException.Expected("list", sexpr.GetType(), sexpr);
+
+    public static T ExpectEnum<T>(this SExpression sexpr, T? expected = null) where T : struct, Enum
     {
-        public SExpression Node { get; }
-
-        public TextLocation? Location => Node.Location;
-
-        public FormatException(string message, SExpression node) : base(message) => Node = node;
-
-        public static FormatException Expected(object expected, object actual, SExpression node) => new FormatException($"Expected {expected}, but found {actual}", node);
-    }
-
-    public abstract bool Matches(SExpression other);
-
-    public T Expect<T>(Func<SExpression, T> deserializer) => deserializer(this);
-
-    public SExpression Expect(SExpression template) => Matches(template) ? this : throw FormatException.Expected(template, this, this);
-
-    public UnquotedSymbol ExpectUnquotedSymbol()
-        => this as UnquotedSymbol ?? throw FormatException.Expected("unquoted symbol", this.GetType(), this);
-
-    public QuotedSymbol ExpectQuotedSymbol()
-        => this as QuotedSymbol ?? throw FormatException.Expected($"quoted symbol", this.GetType(), this);
-
-    public List ExpectList()
-        => this as List ?? throw FormatException.Expected("list", this.GetType(), this);
-
-    public T ExpectEnum<T>(T? expected = null) where T : struct, Enum
-    {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (Enum.TryParse<T>(value, false, out var result))
         {
             if (expected is not null && !result.Equals(expected))
-                throw FormatException.Expected(expected, result, this);
+                throw SExpression.FormatException.Expected(expected, result, sexpr);
 
             return result;
         }
 
-        if (expected is not null) { throw FormatException.Expected(expected, result, this); }
-        else { throw FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, this); }
+        if (expected is not null) { throw SExpression.FormatException.Expected(expected, result, sexpr); }
+        else { throw SExpression.FormatException.Expected($"one of {Utility.Stringify<T>(", ")}", value, sexpr); }
     }
 
-    public SByte ExpectInt8()
+    public static SByte ExpectInt8(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (SByte.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 8-bit signed integer", this);
+        throw new SExpression.FormatException($"'{value}' is not a 8-bit signed integer", sexpr);
     }
 
-    public Byte ExpectUInt8()
+    public static Byte ExpectUInt8(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (Byte.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 8-bit unsigned integer", this);
+        throw new SExpression.FormatException($"'{value}' is not a 8-bit unsigned integer", sexpr);
     }
 
-    public Int16 ExpectInt16()
+    public static Int16 ExpectInt16(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (Int16.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an 16-bit signed integer", this);
+        throw new SExpression.FormatException($"'{value}' is not an 16-bit signed integer", sexpr);
     }
 
-    public UInt16 ExpectUInt16()
+    public static UInt16 ExpectUInt16(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (System.UInt16.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 16-bit unsigned integer", this);
+        throw new SExpression.FormatException($"'{value}' is not a 16-bit unsigned integer", sexpr);
     }
-    
-    public Int32 ExpectInt32()
+
+    public static Int32 ExpectInt32(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (Int32.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an 32-bit signed integer", this);
+        throw new SExpression.FormatException($"'{value}' is not an 32-bit signed integer", sexpr);
     }
 
-    public UInt32 ExpectUInt32()
+    public static UInt32 ExpectUInt32(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (System.UInt32.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 32-bit unsigned integer", this);
+        throw new SExpression.FormatException($"'{value}' is not a 32-bit unsigned integer", sexpr);
     }
-    
-    public Int64 ExpectInt64()
+
+    public static Int64 ExpectInt64(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (Int64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not an 64-bit signed integer", this);
+        throw new SExpression.FormatException($"'{value}' is not an 64-bit signed integer", sexpr);
     }
 
-    public UInt64 ExpectUInt64()
+    public static UInt64 ExpectUInt64(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (System.UInt64.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 64-bit unsigned integer", this);
+        throw new SExpression.FormatException($"'{value}' is not a 64-bit unsigned integer", sexpr);
     }
 
-    public Single ExpectFloat()
+    public static Single ExpectFloat(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (System.Single.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 32-bit floating-point", this);
+        throw new SExpression.FormatException($"'{value}' is not a 32-bit floating-point", sexpr);
     }
 
-    public Double ExpectDouble()
+    public static Double ExpectDouble(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (System.Double.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a 64-bit floating-point", this);
+        throw new SExpression.FormatException($"'{value}' is not a 64-bit floating-point", sexpr);
     }
 
-    public bool ExpectBool()
+    public static bool ExpectBool(this SExpression sexpr)
     {
-        var value = ExpectUnquotedSymbol().Value;
+        var value = sexpr.ExpectUnquotedSymbol().Value;
 
         if (bool.TryParse(value, out var result))
             return result;
 
-        throw new FormatException($"'{value}' is not a bool", this);
+        throw new SExpression.FormatException($"'{value}' is not a bool", sexpr);
     }
 
-    public bool IsList() => this is List;
-    public bool IsQuotedSymbol() => this is QuotedSymbol;
-    public bool IsUnquotedSymbol() => this is UnquotedSymbol;
+    public static bool IsList(this SExpression sexpr) => sexpr is SExpression.List;
+    public static bool IsQuotedSymbol(this SExpression sexpr) => sexpr is SExpression.QuotedSymbol;
+    public static bool IsUnquotedSymbol(this SExpression sexpr) => sexpr is SExpression.UnquotedSymbol;
 
-    public bool IsInt8()
+    public static bool IsInt8(this SExpression sexpr)
     {
         try
         {
-            ExpectInt8();
+            sexpr.ExpectInt8();
             return true;
         }
         catch { return false; }
     }
 
-    public bool IsUInt8()
+    public static bool IsUInt8(this SExpression sexpr)
     {
         try
         {
-            ExpectUInt8();
+            sexpr.ExpectUInt8();
             return true;
         }
         catch { return false; }
     }
 
-    public bool IsInt64()
+    public static bool IsInt64(this SExpression sexpr)
     {
         try
         {
-            ExpectInt64();
+            sexpr.ExpectInt64();
             return true;
         }
         catch { return false; }
     }
 
-    public bool IsUInt64()
+    public static bool IsUInt64(this SExpression sexpr)
     {
         try
         {
-            ExpectUInt64();
+            sexpr.ExpectUInt64();
             return true;
         }
         catch { return false; }
     }
 
-    public bool IsBool()
+    public static bool IsBool(this SExpression sexpr)
     {
         try
         {
-            ExpectBool();
+            sexpr.ExpectBool();
             return true;
         }
         catch { return false; }
     }
 
-    public bool IsEnum<T>(T value) where T : struct, Enum
+    public static bool IsEnum<T>(this SExpression sexpr, T value) where T : struct, Enum
     {
         try
         {
-            ExpectEnum<T>();
+            sexpr.ExpectEnum<T>();
             return true;
         }
         catch { return false; }
     }
-    #endregion
 }

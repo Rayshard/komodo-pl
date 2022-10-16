@@ -2,10 +2,10 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (locals I64)
-
-            (Dec I64 11 (local 0))
-            (Assert (local 0) 10)
+            (Move 123 $stack)
+            (Duplicate)
+            (Assert (pop I64) 123)
+            (Assert (pop I64) 123)
 
             (Exit 0)
         )

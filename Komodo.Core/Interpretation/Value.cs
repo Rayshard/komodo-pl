@@ -75,22 +75,6 @@ public abstract record Value
         protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(Value.ToString());
 
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
-
-        public override Value ConvertTo(DataType dataType) => dataType switch
-        {
-            DataType.I8 => new I8((SByte)Value),
-            DataType.UI8 => new UI8((Byte)Value),
-            DataType.I16 => new I16((Int16)Value),
-            DataType.UI16 => new UI16((UInt16)Value),
-            DataType.I32 => new I32((Int32)Value),
-            DataType.UI32 => new UI32((UInt32)Value),
-            DataType.I64 => new I64((Int64)Value),
-            DataType.UI64 => new UI64((UInt64)Value),
-            DataType.F32 => new F32((float)Value),
-            DataType.F64 => new F64((double)Value),
-            DataType.Bool => new Bool(Value != 0),
-            _ => base.ConvertTo(dataType)
-        };
     }
 
     public record UI64(UInt64 Value) : Value
@@ -136,36 +120,49 @@ public abstract record Value
         private static Byte VerifyValue(Byte value) => value == 0 || value == 1 ? value : throw new Exception($"Internal value for Bool can only be 0 or 1 but found {value}");
     }
 
-    public abstract record Pointer(Address Address) : Value
+    public record Pointer(Address Address, DataType.Pointer PointerType) : Value
     {
-        public bool Allocated => !Address.IsNull;
+        public override DataType DataType => PointerType;
+
+        public bool IsReadonly => PointerType.IsReadonly;
+        public bool IsReadWrite => PointerType.IsReadWrite;
+        public bool IsNull => Address.IsNull;
 
         protected override SExpression ValueAsSExpression => Address.AsSExpression();
 
         public override Byte[] AsBytes() => Address.AsBytes();
     }
 
-    public record Array(DataType ElementType, Address Address) : Pointer(Address)
+    public record Array(DataType ElementType, Address Address) : Value
     {
         public override DataType DataType => new DataType.Array(ElementType);
-        
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+
+        public bool Allocated => !Address.IsNull;
         public Address LengthStart => Address;
         public Address ElementsStart => Address + DataType.ByteSizeOf<DataType.UI64>();
+        
+        public override Byte[] AsBytes() => Address.AsBytes();
     }
 
-    public record Type(Address Address) : Pointer(Address)
-    {
-        public override DataType DataType => new DataType.Type();
-    }
-
-    public record Reference(DataType ValueType, Address Address) : Pointer(Address)
+    public record Reference(DataType ValueType, Address Address) : Value
     {
         public override DataType DataType => new DataType.Reference(ValueType);
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+
+        public bool Allocated => !Address.IsNull;
+
+        public override Byte[] AsBytes() => Address.AsBytes();
     }
 
-    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns, Address Address) : Pointer(Address)
+    public record Function(VSROCollection<DataType> Parameters, VSROCollection<DataType> Returns, Address Address) : Value
     {
         public override DataType DataType => new DataType.Function(Parameters, Returns);
+        protected override SExpression ValueAsSExpression => Address.AsSExpression();
+
+        public bool Allocated => !Address.IsNull;
+
+        public override Byte[] AsBytes() => Address.AsBytes();
     }
 
     public T As<T>() where T : Value => this as T ?? throw new Exception($"Value is not a {typeof(T)}.");
@@ -191,9 +188,9 @@ public abstract record Value
             DataType.F64 => new F64(BitConverter.ToDouble(byteArray)),
             DataType.Bool => new Bool((Byte)byteArray[0]),
             DataType.Array(var elementType) => new Array(elementType, Address.FromBytes(byteArray)),
-            DataType.Type => new Type(Address.FromBytes(byteArray)),
             DataType.Reference(var valueType) => new Reference(valueType, Address.FromBytes(byteArray)),
             DataType.Function(var parameters, var returns) => new Function(parameters, returns, Address.FromBytes(byteArray)),
+            DataType.Pointer type => new Pointer(Address.FromBytes(byteArray), type),
             _ => throw new NotImplementedException(dataType.ToString())
         };
     }

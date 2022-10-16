@@ -3,16 +3,45 @@ using Komodo.Core.Utilities;
 
 namespace Komodo.Core.Compilation.Bytecode;
 
-public record Data(string Name, VSROCollection<Byte> Bytes)
+public record Data(string Name, VSROCollection<Byte> Bytes, bool IsReadonly)
 {
     public static Data Deserialize(SExpression sexpr)
     {
-        sexpr.ExpectList()
-             .ExpectLength(2)
-             .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var name)
-             .ExpectItem(1, item => Encoding.UTF8.GetBytes(item.ExpectQuotedSymbol().Value), out var bytes);
+        var list = sexpr.ExpectList()
+                        .ExpectLength(4, null)
+                        .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("data"))
+                        .ExpectItem(1, item => item.ExpectUnquotedSymbol().ExpectValue("RO", "RW").Value == "RO", out var isReadonly)
+                        .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var name);
 
-        return new Data(name, bytes.ToVSROCollection());
+        IEnumerable<Byte> bytes;
+
+        if (list[3] is SExpression.QuotedSymbol qs) { bytes = Encoding.UTF8.GetBytes(qs.Value); }
+        else
+        {
+            list.ExpectLength(5, null)
+                .ExpectItem(3, DataType.DeserializePrimitive, out var dataType);
+
+            Func<SExpression, IEnumerable<Byte>> deserializer = dataType switch
+            {
+                DataType.Primitive.I8 => sexpr => sexpr.ExpectInt8().GetBytes(),
+                DataType.Primitive.UI8 => sexpr => sexpr.ExpectUInt8().GetBytes(),
+                DataType.Primitive.I16 => sexpr => sexpr.ExpectInt16().GetBytes(),
+                DataType.Primitive.UI16 => sexpr => sexpr.ExpectUInt16().GetBytes(),
+                DataType.Primitive.I32 => sexpr => sexpr.ExpectInt32().GetBytes(),
+                DataType.Primitive.UI32 => sexpr => sexpr.ExpectUInt32().GetBytes(),
+                DataType.Primitive.I64 => sexpr => sexpr.ExpectInt64().GetBytes(),
+                DataType.Primitive.UI64 => sexpr => sexpr.ExpectUInt64().GetBytes(),
+                DataType.Primitive.F32 => sexpr => sexpr.ExpectFloat().GetBytes(),
+                DataType.Primitive.F64 => sexpr => sexpr.ExpectDouble().GetBytes(),
+                DataType.Primitive.Bool => sexpr => sexpr.ExpectBool().GetBytes(),
+                var dt => throw new NotImplementedException(dt.ToString())
+            };
+
+            list.ExpectItems(deserializer, out var elements, 4);
+            bytes = elements.Flatten();
+        }
+
+        return new Data(name, bytes.ToVSROCollection(), isReadonly);
     }
 }
 
@@ -21,9 +50,10 @@ public record Global(string Name, DataType DataType)
     public static Global Deserialize(SExpression sexpr)
     {
         sexpr.ExpectList()
-             .ExpectLength(2)
-             .ExpectItem(0, DataType.Deserialize, out var dataType)
-             .ExpectItem(1, item => item.ExpectUnquotedSymbol().Value, out var name);
+             .ExpectLength(3)
+             .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("global"))
+             .ExpectItem(1, DataType.Deserialize, out var dataType)
+             .ExpectItem(2, item => item.ExpectUnquotedSymbol().Value, out var name);
 
         return new Global(name, dataType);
     }
@@ -70,30 +100,20 @@ public class ModuleBuilder
 
         SetName(name);
 
-        // Deserialize globals
-        if (remaining.Count() > 0
-            && remaining.First() is SExpression.List globalsNode
-            && globalsNode.Count() >= 1
-            && globalsNode[0] is SExpression.UnquotedSymbol globalsNodeStartSymbol
-            && globalsNodeStartSymbol.Value == "globals")
+        foreach (var item in remaining)
         {
-            globalsNode.Skip(1).Select(Global.Deserialize).ForEach(AddGlobal);
-            remaining = remaining.Skip(1);
-        }
+            item.ExpectList()
+                .ExpectLength(1, null)
+                .ExpectItem(0, item => item.ExpectUnquotedSymbol().Value, out var label);
 
-        // Deserialize data
-        if (remaining.Count() > 0
-            && remaining.First() is SExpression.List dataNode
-            && dataNode.Count() >= 1
-            && dataNode[0] is SExpression.UnquotedSymbol dataNodeStartSymbol
-            && dataNodeStartSymbol.Value == "data")
-        {
-            dataNode.Skip(1).Select(Data.Deserialize).ForEach(AddData);
-            remaining = remaining.Skip(1);
+            switch (label)
+            {
+                case "data": AddData(Data.Deserialize(item)); break;
+                case "global": AddGlobal(Global.Deserialize(item)); break;
+                case "function": AddFunction(Function.Deserialize(item)); break;
+                default: throw new SExpression.FormatException($"Invalid element: {item}", item);
+            }
         }
-
-        // Deserialize user defined functions
-        remaining.Select(Function.Deserialize).ForEach(AddFunction);
     }
 
     public void SetName(string? value) => name = value;

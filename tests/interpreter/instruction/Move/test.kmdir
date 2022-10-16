@@ -7,7 +7,7 @@
             (Call MyModule TestMoveLocal)
 
             (Move 15 $stack)
-            (Assert $stack 15)
+            (Assert (pop I64) 15)
 
             (Exit 0)
         )

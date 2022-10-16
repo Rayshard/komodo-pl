@@ -186,4 +186,16 @@ public static class Utility
 
         return hash;
     }
+
+    public static Byte[] GetBytes(this SByte value) => new Byte[] { (Byte)value };
+    public static Byte[] GetBytes(this Byte value) => new Byte[] { (Byte)value };
+    public static Byte[] GetBytes(this Int16 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this UInt16 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this Int32 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this UInt32 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this Int64 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this UInt64 value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this Single value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this Double value) => BitConverter.GetBytes(value);
+    public static Byte[] GetBytes(this Boolean value) => BitConverter.GetBytes(value);
 }

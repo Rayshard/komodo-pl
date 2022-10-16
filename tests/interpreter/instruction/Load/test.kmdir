@@ -3,12 +3,12 @@
     (module MyModule
         (function Main (params) (returns)
             (locals
-                Type
+                (Ref I64)
             )
 
-            (Dump (local 0))
-            (Dump (typeof I64))
-            (Dump (typeof (Array I64)))
+            (Allocate I64 (local 0))
+            (Load (local 0) $stack)
+            (Assert (pop I64) 0)
 
             (Exit 0)
         )
