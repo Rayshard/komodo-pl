@@ -202,6 +202,5 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         ? $"goto {instruction.Label};"
         : $"if ({Convert(instruction.Condition)})\n    goto {instruction.Label};";
 
-    public string Convert(Instruction.Return instruction)
-        => Utility.Stringify(instruction.Sources.Select((s, i) => $"returns[{i}] = {Convert(s)};").Append("return;"), Environment.NewLine);
+    public string Convert(Instruction.Return instruction) => throw new NotImplementedException();
 }

@@ -2,7 +2,7 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Move 123 $stack)
+            (PushConstant 123)
             (Duplicate)
             (Assert (pop I64) 123)
             (Assert (pop I64) 123)

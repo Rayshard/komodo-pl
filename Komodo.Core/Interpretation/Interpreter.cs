@@ -145,15 +145,28 @@ public class Interpreter
         switch (instruction)
         {
             case Instruction.PushConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
+            case Instruction.GetGlobal instr: stack.Push(globals[(instr.ModuleName, instr.GlobalName)]); break;
             case Instruction.SetGlobal instr:
                 {
                     var value = stack.Pop();
-                    var expectedDataType = globals[(instr.ModuleName.Value, instr.GlobalName.Value)].DataType;
+                    var expectedDataType = globals[(instr.ModuleName, instr.GlobalName)].DataType;
 
                     if (value.DataType != expectedDataType)
                         throw new Exception($"Global has data type: {expectedDataType}, but popped {value.DataType} from the stack.");
 
-                    globals[(instr.ModuleName.Value, instr.GlobalName.Value)] = value;
+                    globals[(instr.ModuleName, instr.GlobalName)] = value;
+                }
+                break;
+            case Instruction.GetLocal instr: stack.Push(stackFrame.GetLocal(instr.Name)); break;
+            case Instruction.SetLocal instr:
+                {
+                    var value = stack.Pop();
+                    var expectedDataType = stackFrame.GetLocal(instr.Name).DataType;
+
+                    if (value.DataType != expectedDataType)
+                        throw new Exception($"Local {instr.Name} has data type: {expectedDataType}, but popped {value.DataType} from the stack.");
+
+                    stackFrame.SetLocal(instr.Name, value);
                 }
                 break;
             case Instruction.Exit instr:
@@ -262,11 +275,11 @@ public class Interpreter
                 }); break;
             case Instruction.Assert instr:
                 {
-                    var value1 = GetValue(stackFrame, instr.Source1);
-                    var value2 = GetValue(stackFrame, instr.Source2);
+                    var value1 = stack.Pop();
+                    var value2 = stack.Pop();
 
-                    if (value1 != value2)
-                        throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
+                    if (!Compare(value1, value2, instr.Comparison))
+                        throw new InterpreterException($"Assertion Failed: {value1} {instr.Comparison} {value2}");
                 }
                 break;
             case Instruction.Call.Direct instr:
@@ -283,12 +296,7 @@ public class Interpreter
                     Call(source, receivedArgs);
                 }
                 break;
-            case Instruction.Return instr:
-                {
-                    var values = instr.Sources.Select(source => GetValue(stackFrame, source)).ToArray();
-                    PopStackFrame(values);
-                }
-                break;
+            case Instruction.Return instr: PopStackFrame(); break;
             case Instruction.Jump instr:
                 {
                     var condition = instr.Condition is null || GetValue<Value.Bool>(stackFrame, instr.Condition, new DataType.Bool()).IsTrue;
@@ -685,29 +693,28 @@ public class Interpreter
         else { PushStackFrame(Demangle(mangledString), args); }
     }
 
-    private void PopStackFrame(Value[] returnValues)
+    private void PopStackFrame()
     {
         if (callStack.TryPop(out var frame))
         {
             var function = GetFunction(frame.IP.Module, frame.IP.Function);
 
-            // Verify return values
-            if (returnValues.Length != function.Returns.Count)
-                throw new Exception($"Expected {function.Returns.Count} return values but got {returnValues.Length}.");
+            // Verify that the correct number of returns are on the frame's stack
+            var expectedNumReturns = function.Returns.Count;
+            var frameStackSize = stack.Count - frame.FramePointer;
 
-            foreach (var (actual, expected, i) in returnValues.Select((value, i) => (value.DataType, function.Returns[i], i)))
+            if (frameStackSize != expectedNumReturns)
+                throw new Exception($"Expected {expectedNumReturns} items on the stack, but found {frameStackSize}!");
+
+            // Verify the items on the stack are the correct data type in the order of the return types
+            for (int i = 0; i < expectedNumReturns; i++)
             {
+                var expected = function.Returns[i];
+                var actual = stack.ElementAt(i).DataType;
+
                 if (actual != expected)
-                    throw new Exception($"Expeceted {expected} for function return {i}, but got {actual}!");
+                    throw new Exception($"Expected {expected} for return {i}, but got {actual}!");
             }
-
-            // Erase current stack from stack
-            while (stack.Count > frame.FramePointer)
-                stack.Pop();
-
-            // Push return values onto the stack in reverse order
-            foreach (var value in returnValues.Reverse())
-                stack.Push(value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }
@@ -734,6 +741,22 @@ public class Interpreter
         DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
         DataType.Pointer type => new Value.Pointer(Address.NULL, type),
         _ => throw new NotImplementedException(dataType.ToString())
+    };
+
+    public bool Compare(Value v1, Value v2, Comparison comparison) => (v1, v2, comparison) switch
+    {
+        (Value.I8(var value1), Value.I8(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI8(var value1), Value.UI8(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I16(var value1), Value.I16(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI16(var value1), Value.UI16(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I32(var value1), Value.I32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI32(var value1), Value.UI32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I64(var value1), Value.I64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI64(var value1), Value.UI64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.F32(var value1), Value.F32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.F64(var value1), Value.F64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.Bool(var value1), Value.Bool(var value2), Comparison.EQ) => value1 == value2,
+        _ => throw new NotImplementedException($"Connot compare {v1.DataType} to {v2.DataType} with {comparison}")
     };
 
     public string Mangle(string module, string function) => $"{module} {function}";

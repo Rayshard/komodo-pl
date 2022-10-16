@@ -5,11 +5,14 @@ namespace Komodo.Core.Compilation.Bytecode;
 public enum Opcode
 {
     PushConstant,
+    GetGlobal,
     SetGlobal,
+    GetLocal,
+    SetLocal,
+    Assert,
 
     Return,
     Jump,
-    Assert,
     Exit,
 
     Call,
@@ -39,9 +42,11 @@ public enum Opcode
     GetLength,
 }
 
+public enum Comparison { EQ };
+
 public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 {
-    public abstract IEnumerable<IOperand> Operands { get; }
+    public virtual IEnumerable<IOperand> Operands => new IOperand[0];
 
     public virtual SExpression AsSExpression()
     {
@@ -92,6 +97,11 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         return constructor(operand1, operand2);
     }
 
+    public record Duplicate() : Instruction(Opcode.Duplicate)
+    {
+        new public static Duplicate Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Duplicate, delegate { return new Duplicate(); });
+    }
+
     public record PushConstant(Operand.Constant Constant) : Instruction(Opcode.PushConstant)
     {
         public override IEnumerable<IOperand> Operands => new[] { Constant };
@@ -100,34 +110,79 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
             => Deserialize(sexpr, Opcode.PushConstant, Operand.Constant.Deserialize, constant => new PushConstant(constant));
     }
 
-    public record SetGlobal(Operand.Identifier ModuleName, Operand.Identifier GlobalName) : Instruction(Opcode.SetGlobal)
+    public record GetGlobal(string ModuleName, string GlobalName) : Instruction(Opcode.GetGlobal)
     {
-        public override IEnumerable<IOperand> Operands => new[] { ModuleName, GlobalName };
+        public override IEnumerable<IOperand> Operands => new[] {
+            new Operand.Identifier(ModuleName),
+            new Operand.Identifier(GlobalName)
+        };
+
+        new public static GetGlobal Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.GetGlobal,
+            Operand.Identifier.Deserialize,
+            Operand.Identifier.Deserialize,
+            (moduleName, globalName) => new GetGlobal(moduleName.Value, globalName.Value)
+        );
+    }
+
+    public record SetGlobal(string ModuleName, string GlobalName) : Instruction(Opcode.SetGlobal)
+    {
+        public override IEnumerable<IOperand> Operands => new[] {
+            new Operand.Identifier(ModuleName),
+            new Operand.Identifier(GlobalName)
+        };
 
         new public static SetGlobal Deserialize(SExpression sexpr) => Deserialize(
             sexpr,
             Opcode.SetGlobal,
             Operand.Identifier.Deserialize,
             Operand.Identifier.Deserialize,
-            (moduleName, globalName) => new SetGlobal(moduleName, globalName)
+            (moduleName, globalName) => new SetGlobal(moduleName.Value, globalName.Value)
         );
     }
 
-    public record Assert(Operand.Source Source1, Operand.Source Source2) : Instruction(Opcode.Assert)
+    public record GetLocal(string Name) : Instruction(Opcode.GetLocal)
     {
-        public override IEnumerable<IOperand> Operands => new[] { Source1, Source2 };
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Identifier(Name) };
 
-        new public static Assert Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.Assert);
-
-            return new Assert(
-                Operand.DeserializeSource(list[1]),
-                Operand.DeserializeSource(list[2])
-            );
-        }
+        new public static GetLocal Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.GetLocal,
+            Operand.Identifier.Deserialize,
+            name => new GetLocal(name.Value)
+        );
     }
+
+    public record SetLocal(string Name) : Instruction(Opcode.SetLocal)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Identifier(Name) };
+
+        new public static SetLocal Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.SetLocal,
+            Operand.Identifier.Deserialize,
+            name => new SetLocal(name.Value)
+        );
+    }
+
+    public record Return() : Instruction(Opcode.Return)
+    {
+        new public static Return Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Return, delegate { return new Return(); });
+    }
+
+    public record Assert(Comparison Comparison) : Instruction(Opcode.Assert)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { new Operand.Enumeration<Comparison>(Comparison) };
+
+        new public static Assert Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.Assert,
+            Operand.Enumeration<Comparison>.Deserialize,
+            comparison => new Assert(comparison.Value)
+        );
+    }
+
 
     public record Exit(Operand.Source Code) : Instruction(Opcode.Exit)
     {
@@ -142,13 +197,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
             return new Exit(code);
         }
-    }
-
-    public record Duplicate() : Instruction(Opcode.Duplicate)
-    {
-        public override IEnumerable<IOperand> Operands => new IOperand[0];
-
-        new public static Duplicate Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Duplicate, delegate { return new Duplicate(); });
     }
 
     public abstract record Binop(Opcode Opcode, Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination) : Instruction(Opcode)
@@ -382,21 +430,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         }
     }
 
-    public record Return(VSROCollection<Operand.Source> Sources) : Instruction(Opcode.Return)
-    {
-        public override IEnumerable<IOperand> Operands => Sources;
-
-        new public static Return Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(1, null)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Return))
-                 .ExpectItems(Operand.DeserializeSource, out var sources, 1);
-
-            return new Return(sources.ToVSROCollection());
-        }
-    }
-
     public abstract record Allocate(Operand.Destination Destination) : Instruction(Opcode.Allocate)
     {
         public record FromDataType(DataType DataType, Operand.Destination Destination) : Allocate(Destination)
@@ -560,9 +593,13 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
         Opcode.PushConstant => PushConstant.Deserialize(sexpr),
+        Opcode.GetGlobal => GetGlobal.Deserialize(sexpr),
         Opcode.SetGlobal => SetGlobal.Deserialize(sexpr),
+        Opcode.GetLocal => GetLocal.Deserialize(sexpr),
+        Opcode.SetLocal => SetLocal.Deserialize(sexpr),
+        Opcode.Return => Return.Deserialize(sexpr),
 
-        
+
         Opcode.Add => Binop.Add.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Eq => Binop.Eq.Deserialize(sexpr),
@@ -572,7 +609,6 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.Dec => Unop.Dec.Deserialize(sexpr),
 
         Opcode.Jump => Jump.Deserialize(sexpr),
-        Opcode.Return => Return.Deserialize(sexpr),
 
         Opcode.GetElement => Binop.GetElement.Deserialize(sexpr),
         Opcode.GetLength => Unop.GetLength.Deserialize(sexpr),

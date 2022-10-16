@@ -291,6 +291,14 @@ public abstract record Operand : IOperand
         public static Identifier Deserialize(SExpression sexpr) => new Identifier(sexpr.ExpectUnquotedSymbol().Value);
     }
 
+    public record Enumeration<T>(T Value) : Operand where T : struct, Enum
+    {
+        public override SExpression AsSExpression() => new SExpression.UnquotedSymbol(Value.ToString());
+
+        public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.ExpectEnum<T>());
+    }
+
+
     public abstract record Variable(SExpression Symbol, VSROCollection<SExpression> IDList) : Operand
     {
         public Variable(SExpression Symbol, params SExpression[] IDList) : this(Symbol, IDList.ToVSROCollection()) { }

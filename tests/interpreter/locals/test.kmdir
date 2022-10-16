@@ -3,21 +3,19 @@
     (module MyModule
         (function Main (params) (returns)
             (locals
-                I64
-                (I64 myLocalI64)
-                (Bool myLocalBool)
+                (I64 localI64)
             )
 
-            (Assert (local 0) 0)
-            (Assert (local myLocalI64) 0)
-            (Assert (local myLocalBool) false)
+            (GetLocal localI64)
+            (PushConstant 0)
+            (Assert EQ)
 
-            (Move 1 (local 0))
-            (Assert (local 0) 1)
-            (Move 2 (local 1))
-            (Assert (local myLocalI64) 2)
-            (Move true (local 2))
-            (Assert (local myLocalBool) true)
+            (PushConstant 1)
+            (SetLocal localI64)
+
+            (GetLocal localI64)
+            (PushConstant 1)
+            (Assert EQ)
 
             (Exit 0)
         )
