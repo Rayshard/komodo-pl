@@ -2,8 +2,6 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Assert true false)
-
             (Exit 0)
         )
     )

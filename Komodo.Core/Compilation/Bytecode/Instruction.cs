@@ -49,6 +49,15 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         return new SExpression.List(nodes);
     }
 
+    private static T Deserialize<T>(SExpression sexpr, Opcode opcode, Func<T> constructor)
+    {
+        sexpr.ExpectList()
+             .ExpectLength(1)
+             .ExpectItem(0, item => item.ExpectEnum<Opcode>(opcode));
+
+        return constructor();
+    }
+
     public record Move(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Move)
     {
         public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
@@ -100,14 +109,7 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
     {
         public override IEnumerable<IOperand> Operands => new IOperand[0];
 
-        new public static Duplicate Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(1)
-                 .ExpectItem(0, item => item.ExpectEnum<Opcode>(Opcode.Duplicate));
-
-            return new Duplicate();
-        }
+        new public static Duplicate Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Duplicate, delegate { return new Duplicate(); });
     }
 
     public abstract record Binop(Opcode Opcode, Operand.Source Source1, Operand.Source Source2, Operand.Destination Destination) : Instruction(Opcode)
