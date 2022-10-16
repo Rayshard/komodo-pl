@@ -4,7 +4,9 @@ namespace Komodo.Core.Compilation.Bytecode;
 
 public enum Opcode
 {
-    Move,
+    PushConstant,
+    SetGlobal,
+
     Return,
     Jump,
     Assert,
@@ -58,20 +60,57 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         return constructor();
     }
 
-    public record Move(Operand.Source Source, Operand.Destination Destination) : Instruction(Opcode.Move)
+    private static T Deserialize<T, TOperand>(
+        SExpression sexpr,
+        Opcode opcode,
+        Func<SExpression, TOperand> operandDeserializer,
+        Func<TOperand, T> constructor
+    )
     {
-        public override IEnumerable<IOperand> Operands => new IOperand[] { Source, Destination };
+        sexpr.ExpectList()
+             .ExpectLength(2)
+             .ExpectItem(0, item => item.ExpectEnum<Opcode>(opcode))
+             .ExpectItem(1, operandDeserializer, out var operand);
 
-        new public static Move Deserialize(SExpression sexpr)
-        {
-            var list = sexpr.ExpectList().ExpectLength(3);
-            list[0].ExpectEnum<Opcode>(Opcode.Move);
+        return constructor(operand);
+    }
 
-            return new Move(
-                Operand.DeserializeSource(list[1]),
-                Operand.DeserializeDestination(list[2])
-            );
-        }
+    private static T Deserialize<T, TOperand1, TOperand2>(
+        SExpression sexpr,
+        Opcode opcode,
+        Func<SExpression, TOperand1> operand1Deserializer,
+        Func<SExpression, TOperand2> operand2Deserializer,
+        Func<TOperand1, TOperand2, T> constructor
+    )
+    {
+        sexpr.ExpectList()
+             .ExpectLength(3)
+             .ExpectItem(0, item => item.ExpectEnum<Opcode>(opcode))
+             .ExpectItem(1, operand1Deserializer, out var operand1)
+             .ExpectItem(2, operand2Deserializer, out var operand2);
+
+        return constructor(operand1, operand2);
+    }
+
+    public record PushConstant(Operand.Constant Constant) : Instruction(Opcode.PushConstant)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { Constant };
+
+        new public static PushConstant Deserialize(SExpression sexpr)
+            => Deserialize(sexpr, Opcode.PushConstant, Operand.Constant.Deserialize, constant => new PushConstant(constant));
+    }
+
+    public record SetGlobal(Operand.Identifier ModuleName, Operand.Identifier GlobalName) : Instruction(Opcode.SetGlobal)
+    {
+        public override IEnumerable<IOperand> Operands => new[] { ModuleName, GlobalName };
+
+        new public static SetGlobal Deserialize(SExpression sexpr) => Deserialize(
+            sexpr,
+            Opcode.SetGlobal,
+            Operand.Identifier.Deserialize,
+            Operand.Identifier.Deserialize,
+            (moduleName, globalName) => new SetGlobal(moduleName, globalName)
+        );
     }
 
     public record Assert(Operand.Source Source1, Operand.Source Source2) : Instruction(Opcode.Assert)
@@ -520,8 +559,10 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
 
     public static Instruction Deserialize(SExpression sexpr) => sexpr.ExpectList().ExpectLength(1, null)[0].ExpectEnum<Opcode>() switch
     {
-        Opcode.Move => Unop.Move.Deserialize(sexpr),
+        Opcode.PushConstant => PushConstant.Deserialize(sexpr),
+        Opcode.SetGlobal => SetGlobal.Deserialize(sexpr),
 
+        
         Opcode.Add => Binop.Add.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Eq => Binop.Eq.Deserialize(sexpr),

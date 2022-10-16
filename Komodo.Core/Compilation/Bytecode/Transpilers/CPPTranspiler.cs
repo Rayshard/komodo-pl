@@ -98,7 +98,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         {
             Instruction.Dump i => Convert(i),
             Instruction.Call i => Convert(i),
-            Instruction.Move i => Convert(i),
             Instruction.Assert i => Convert(i),
             Instruction.Unop i => Convert(i),
             Instruction.Binop i => Convert(i),
@@ -170,7 +169,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
 ".Trim();
     }
 
-    public string Convert(Instruction.Move instruction) => $"throw std::runtime_error(\"Not implemented\");";
     public string Convert(Instruction.Assert instruction) => $"throw std::runtime_error(\"Not implemented\");";
 
     public string Convert(Instruction.Binop instruction)

@@ -6,7 +6,8 @@
         (function Main (params) (returns)
             (Assert (global MyModule myGlobal) 0)
 
-            (Move 1 (global MyModule myGlobal))
+            (PushConstant 1)
+            (SetGlobal MyModule myGlobal)
             (Assert (global MyModule myGlobal) 1)
 
             (Exit 0)

@@ -144,6 +144,18 @@ public class Interpreter
 
         switch (instruction)
         {
+            case Instruction.PushConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
+            case Instruction.SetGlobal instr:
+                {
+                    var value = stack.Pop();
+                    var expectedDataType = globals[(instr.ModuleName.Value, instr.GlobalName.Value)].DataType;
+
+                    if (value.DataType != expectedDataType)
+                        throw new Exception($"Global has data type: {expectedDataType}, but popped {value.DataType} from the stack.");
+
+                    globals[(instr.ModuleName.Value, instr.GlobalName.Value)] = value;
+                }
+                break;
             case Instruction.Exit instr:
                 {
                     exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
@@ -195,7 +207,6 @@ public class Interpreter
                     memory.Write(address, value);
                 }
                 break;
-            case Instruction.Move instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Source)); break;
             case Instruction.Binop instr:
                 {
                     var source1 = GetValue(stackFrame, instr.Source1);
