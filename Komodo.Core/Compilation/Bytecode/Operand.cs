@@ -263,6 +263,26 @@ public abstract record Operand : IOperand
             }
         }
 
+        public record Sizeof(Bytecode.DataType Type) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.UI64();
+
+            public override SExpression AsSExpression() => new SExpression.List(new[]{
+                new SExpression.UnquotedSymbol("sizeof"),
+                Type.AsSExpression()
+            });
+
+            new public static Sizeof Deserialize(SExpression sexpr)
+            {
+                sexpr.ExpectList()
+                     .ExpectLength(2)
+                     .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("sizeof"))
+                     .ExpectItem(1, Bytecode.DataType.Deserialize, out var type);
+
+                return new Sizeof(type);
+            }
+        }
+
         private static Func<SExpression, Constant>[] Deserializers => new Func<SExpression, Constant>[] {
             I8.Deserialize,
             UI8.Deserialize,
@@ -277,6 +297,7 @@ public abstract record Operand : IOperand
             True.Deserialize,
             False.Deserialize,
             Null.Deserialize,
+            Sizeof.Deserialize,
         };
 
         public static Constant Deserialize(SExpression sexpr)
@@ -474,24 +495,6 @@ public abstract record Operand : IOperand
             );
     }
 
-    public record Sizeof(Bytecode.DataType Type) : Operand, Source
-    {
-        public override SExpression AsSExpression() => new SExpression.List(new[]{
-            new SExpression.UnquotedSymbol("sizeof"),
-            Type.AsSExpression()
-        });
-
-        public static Sizeof Deserialize(SExpression sexpr)
-        {
-            sexpr.ExpectList()
-                 .ExpectLength(2)
-                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("sizeof"))
-                 .ExpectItem(1, Bytecode.DataType.Deserialize, out var type);
-
-            return new Sizeof(type);
-        }
-    }
-
     public record Function(string ModuleName, string FunctionName) : Operand, Source
     {
         public override SExpression AsSExpression() => new SExpression.List(new[]{
@@ -537,7 +540,6 @@ public abstract record Operand : IOperand
         Global.Deserialize,
         Array.Deserialize,
         Data.Deserialize,
-        Sizeof.Deserialize,
         Function.Deserialize,
         Sysfunc.Deserialize,
         Pop.Deserialize

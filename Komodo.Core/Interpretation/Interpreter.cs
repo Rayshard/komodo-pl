@@ -144,32 +144,26 @@ public class Interpreter
 
         switch (instruction)
         {
-            case Instruction.PushConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
-            case Instruction.GetGlobal instr: stack.Push(globals[(instr.ModuleName, instr.GlobalName)]); break;
-            case Instruction.SetGlobal instr:
+            case Instruction.LoadConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
+            case Instruction.LoadGlobal instr: stack.Push(globals[(instr.ModuleName, instr.GlobalName)]); break;
+            case Instruction.StoreGlobal instr:
                 {
-                    var value = stack.Pop();
                     var expectedDataType = globals[(instr.ModuleName, instr.GlobalName)].DataType;
-
-                    if (value.DataType != expectedDataType)
-                        throw new Exception($"Global has data type: {expectedDataType}, but popped {value.DataType} from the stack.");
+                    var value = PopStack(expectedDataType);
 
                     globals[(instr.ModuleName, instr.GlobalName)] = value;
                 }
                 break;
-            case Instruction.GetLocal instr: stack.Push(stackFrame.GetLocal(instr.Name)); break;
-            case Instruction.SetLocal instr:
+            case Instruction.LoadLocal instr: stack.Push(stackFrame.GetLocal(instr.Name)); break;
+            case Instruction.StoreLocal instr:
                 {
-                    var value = stack.Pop();
                     var expectedDataType = stackFrame.GetLocal(instr.Name).DataType;
-
-                    if (value.DataType != expectedDataType)
-                        throw new Exception($"Local {instr.Name} has data type: {expectedDataType}, but popped {value.DataType} from the stack.");
+                    var value = PopStack(expectedDataType);
 
                     stackFrame.SetLocal(instr.Name, value);
                 }
                 break;
-            case Instruction.GetArg instr: stack.Push(stackFrame.GetArgument(instr.Name)); break;
+            case Instruction.LoadArg instr: stack.Push(stackFrame.GetArgument(instr.Name)); break;
             case Instruction.Exit instr:
                 {
                     exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
@@ -177,46 +171,57 @@ public class Interpreter
                 }
                 break;
             case Instruction.Duplicate instr: stack.Push(PeekStack()); break;
-            case Instruction.Allocate.FromDataType instr:
+            case Instruction.Rotate2 instr:
                 {
-                    var address = memory.AllocateWrite(CreateDefault(instr.DataType));
-                    stack.Push(new Value.Reference(instr.DataType, address));
+                    var first = PopStack();
+                    var second = PopStack();
+                    stack.Push(first);
+                    stack.Push(second);
                 }
                 break;
-            case Instruction.Allocate.FromAmount instr:
+            case Instruction.Allocate instr:
                 {
+                    if (instr.DataType is null) // Allocate from size
+                    {
+                        var amount = PopStack<Value.UI64>(new DataType.UI64()).Value;
+                        var address = memory.Allocate(amount);
+                        stack.Push(new Value.Pointer(address, new DataType.Pointer(false)));
+                    }
+                    else // Allocate from data type
+                    {
+                        var address = memory.AllocateWrite(CreateDefault(instr.DataType));
+                        stack.Push(new Value.Reference(instr.DataType, address));
+                    }
+                }
+                break;
+            case Instruction.LoadMem instr:
+                {
+                    Value value;
 
-                    var amount = PopStack<Value.UI64>(new DataType.UI64()).Value;
-                    var address = memory.Allocate(amount);
-                    stack.Push(new Value.Pointer(address, new DataType.Pointer(false)));
-                }
-                break;
-            case Instruction.Load.FromReference instr:
-                {
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Source);
-                    var value = memory.Read(reference);
+                    if (instr.DataType is null)
+                    {
+                        var reference = PopStack<Value.Reference>();
+                        value = memory.Read(reference);
+                    }
+                    else
+                    {
+                        var pointer = PopStack<Value.Pointer>();
+                        value = memory.Read(pointer, instr.DataType);
+                    }
 
-                    SetValue(stackFrame, instr.Destination, value);
+                    stack.Push(value);
                 }
                 break;
-            case Instruction.Load.FromPointer instr:
+            case Instruction.StoreMem instr:
                 {
-                    var pointer = GetValue<Value.Pointer>(stackFrame, instr.Source);
-                    var value = memory.Read(pointer, instr.DataType);
-
-                    SetValue(stackFrame, instr.Destination, value);
-                }
-                break;
-            case Instruction.Store instr:
-                {
-                    var value = GetValue(stackFrame, instr.Value);
-                    var destination = GetValue(stackFrame, instr.Destination);
+                    var destination = PopStack();
+                    var value = PopStack();
 
                     var address = destination switch
                     {
-                        Value.Reference reference => reference.Address,
-                        Value.Pointer pointer when !pointer.IsReadonly => pointer.Address,
-                        _ => throw new InterpreterException($"Invalid destination operand. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
+                        Value.Reference reference when reference.ValueType == value.DataType => reference.Address,
+                        Value.Pointer pointer when pointer.IsReadWrite => pointer.Address,
+                        _ => throw new InterpreterException($"Invalid destination. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
                     };
 
                     memory.Write(address, value);
@@ -253,8 +258,6 @@ public class Interpreter
                     {
                         (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
                         (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
-                        (Opcode.IsNull, Value.Reference reference) => new Value.Bool(!reference.Allocated),
-                        (Opcode.IsNull, Value.Pointer pointer) => new Value.Bool(pointer.IsNull),
                         var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
                     };
 
@@ -277,8 +280,8 @@ public class Interpreter
                 }); break;
             case Instruction.Assert instr:
                 {
-                    var value1 = stack.Pop();
-                    var value2 = stack.Pop();
+                    var value1 = PopStack();
+                    var value2 = PopStack();
 
                     if (!Compare(value1, value2, instr.Comparison))
                         throw new InterpreterException($"Assertion Failed: {value1} {instr.Comparison} {value2}");
@@ -312,7 +315,7 @@ public class Interpreter
                 break;
             case Instruction.Convert instr:
                 {
-                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    Value result = (PopStack(), instr.Target) switch
                     {
                         (Value.I8(var value), DataType.I8) => new Value.I8(value),
                         (Value.I8(var value), DataType.UI8) => new Value.UI8((Byte)value),
@@ -461,7 +464,7 @@ public class Interpreter
                         (var value, var target) => throw new InterpreterException($"Cannot apply operation to {value.DataType} and {target}.")
                     };
 
-                    SetValue(stackFrame, instr.Destination, result);
+                    stack.Push(result);
                 }
                 break;
             case Instruction.Reinterpret instr:
@@ -551,7 +554,6 @@ public class Interpreter
             ),
             Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
             Operand.Sysfunc operand => sysfuncTable[operand.Name],
-            Operand.Sizeof operand => new Value.UI64(operand.Type.ByteSize),
             _ => throw new Exception($"Invalid source: {source}"),
         };
 
@@ -759,6 +761,8 @@ public class Interpreter
         (Value.F64(var value1), Value.F64(var value2), Comparison.EQ) => value1 == value2,
         (Value.Bool(var value1), Value.Bool(var value2), Comparison.EQ) => value1 == value2,
         (Value.Pointer pointer, Value.Reference reference, Comparison.EQ) => pointer.Address == reference.Address,
+        (Value.Pointer ptr1, Value.Pointer ptr2, Comparison.EQ) => ptr1.Address == ptr2.Address,
+        (Value.Reference ref1, Value.Reference ref2, Comparison.EQ) when ref1.ValueType == ref2.ValueType => ref1.Address == ref2.Address,
 
 
         (Value.I8(var value1), Value.I8(var value2), Comparison.NEQ) => value1 != value2,
@@ -773,6 +777,8 @@ public class Interpreter
         (Value.F64(var value1), Value.F64(var value2), Comparison.NEQ) => value1 != value2,
         (Value.Bool(var value1), Value.Bool(var value2), Comparison.NEQ) => value1 != value2,
         (Value.Pointer pointer, Value.Reference reference, Comparison.NEQ) => pointer.Address != reference.Address,
+        (Value.Pointer ptr1, Value.Pointer ptr2, Comparison.NEQ) => ptr1.Address != ptr2.Address,
+        (Value.Reference ref1, Value.Reference ref2, Comparison.NEQ) when ref1.ValueType == ref2.ValueType => ref1.Address != ref2.Address,
 
         _ => throw new NotImplementedException($"Connot compare {v1.DataType} to {v2.DataType} with {comparison}")
     };

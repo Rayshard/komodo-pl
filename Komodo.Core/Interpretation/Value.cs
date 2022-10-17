@@ -210,6 +210,7 @@ public abstract record Value
         Operand.Constant.True => new Value.Bool(true),
         Operand.Constant.False => new Value.Bool(false),
         Operand.Constant.Null => new Value.Pointer(Address.NULL, new DataType.Pointer(true)),
+        Operand.Constant.Sizeof(var type) => new Value.UI64(type.ByteSize),
         _ => throw new NotImplementedException(constant.ToString())
     };
 }

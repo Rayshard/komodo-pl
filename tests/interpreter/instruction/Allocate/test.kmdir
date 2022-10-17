@@ -3,7 +3,22 @@
     (module MyModule
         (function Main (params) (returns)
             (Allocate I64)
-            (PushConstant null)
+            (LoadConstant null)
+            (Assert NEQ)
+
+            (LoadConstant (sizeof UI64))
+            (Allocate)
+            (LoadConstant null)
+            (Assert NEQ)
+
+            (Allocate UI8)
+            (Allocate UI8)
+            (Assert NEQ)
+
+            (LoadConstant (sizeof Bool))
+            (Allocate)
+            (LoadConstant (sizeof Bool))
+            (Allocate)
             (Assert NEQ)
 
             (Exit 0)
