@@ -27,13 +27,12 @@ public record Function(
     string Name,
     VSROCollection<OptionallyNamedDataType> Parameters,
     VSROCollection<DataType> Returns,
-    VSROCollection<OptionallyNamedDataType> Locals,
+    VSRODictionary<string, DataType> Locals,
     VSROCollection<Instruction> Instructions,
     VSRODictionary<string, Label> Labels
 )
 {
     public Dictionary<string, NamedDataType> NamedParameters => Parameters.Where(p => p.Name is not null).Select(p => p.ToNamed()).ToDictionary(p => p.Name);
-    public Dictionary<string, NamedDataType> NamedLocals => Locals.Where(l => l.Name is not null).Select(l => l.ToNamed()).ToDictionary(l => l.Name);
 
     public IEnumerable<FunctionBodyElement> BodyElements
     {
@@ -74,7 +73,7 @@ public record Function(
         {
             var localsNodes = new List<SExpression>();
             localsNodes.Add(new SExpression.UnquotedSymbol("locals"));
-            localsNodes.AddRange(Locals.Select(local => local.AsSExpression()));
+            localsNodes.AddRange(Locals.Select(local => new NamedDataType(local.Value, local.Key).AsSExpression()));
             nodes.Add(new SExpression.List(localsNodes));
         }
 
@@ -92,8 +91,7 @@ public class FunctionBuilder
     private List<OptionallyNamedDataType> parameters = new List<OptionallyNamedDataType>();
     private Dictionary<string, int> namedParameters = new Dictionary<string, int>();
 
-    private List<OptionallyNamedDataType> locals = new List<OptionallyNamedDataType>();
-    private Dictionary<string, int> namedLocals = new Dictionary<string, int>();
+    private Dictionary<string, DataType> locals = new Dictionary<string, DataType>();
 
     private List<DataType> returns = new List<DataType>();
 
@@ -126,8 +124,8 @@ public class FunctionBuilder
             && localsNode[0] is SExpression.UnquotedSymbol localsNodeStartSymbol
             && localsNodeStartSymbol.Value == "locals")
         {
-            foreach (var local in localsNode.Skip(1).Select(item => OptionallyNamedDataType.Deserialize(item)))
-                AddLocal(local);
+            foreach (var local in localsNode.Skip(1).Select(item => NamedDataType.Deserialize(item)))
+                AddLocal(local.Name, local.DataType);
 
             remaining = remaining.Skip(1);
         }
@@ -157,17 +155,9 @@ public class FunctionBuilder
     public OptionallyNamedDataType GetParameter(int index) => parameters[index];
     public NamedDataType GetParameter(string name) => parameters[namedParameters[name]].ToNamed();
 
-    public void AddLocal(OptionallyNamedDataType local)
-    {
-        if (local.Name is not null)
-            namedLocals.Add(local.Name, locals.Count);
-
-        locals.Add(local);
-    }
-
-    public bool HasLocal(string name) => namedLocals.ContainsKey(name);
-    public OptionallyNamedDataType GetLocal(int index) => locals[index];
-    public NamedDataType GetLocal(string name) => locals[namedLocals[name]].ToNamed();
+    public void AddLocal(string name, DataType dataType) => locals.Add(name, dataType);
+    public bool HasLocal(string name) => locals.ContainsKey(name);
+    public DataType GetLocal(string name) => locals[name];
 
     public void AddReturn(DataType dataType) => returns.Add(dataType);
     public DataType GetReturn(int index) => returns[index];
@@ -179,7 +169,7 @@ public class FunctionBuilder
     {
         var name = this.name ?? throw new Exception("Name is not set");
         var parameters = this.parameters.ToVSROCollection();
-        var locals = this.locals.ToVSROCollection();
+        var locals = this.locals.ToVSRODictionary();
         var returns = this.returns.ToVSROCollection();
         var instructions = this.instructions.ToVSROCollection();
         var labels = this.labels.ToVSRODictionary();

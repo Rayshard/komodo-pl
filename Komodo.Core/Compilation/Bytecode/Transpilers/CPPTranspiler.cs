@@ -69,7 +69,7 @@ namespace {module.Name}
     public string Convert(Function function)
     {
         var parameters = function.Parameters.Select((p, i) => $"{Convert(p.DataType)} param{i}");
-        var locals = function.Locals.Select((l, i) => $"auto local{i} = {Convert(l.DataType)}();");
+        var locals = function.Locals.Select((l, i) => $"auto local{i} = {Convert(l.Value)}();");
         var bodyElements = Utility.Stringify(function.BodyElements.Select(Convert), Environment.NewLine);
 
         var cppFunctionParams = parameters.AppendIf(!function.Returns.IsEmpty(), "Value* returns").Prepend("Interpreter& interpreter");
@@ -99,8 +99,6 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
             Instruction.Dump i => Convert(i),
             Instruction.Call i => Convert(i),
             Instruction.Assert i => Convert(i),
-            Instruction.Unop i => Convert(i),
-            Instruction.Binop i => Convert(i),
             Instruction.Jump i => Convert(i),
             Instruction.Return i => Convert(i),
             _ => throw new NotImplementedException(instruction.ToString())
@@ -154,53 +152,10 @@ void {function.Name}({Utility.Stringify(cppFunctionParams, ", ")})
         _ => throw new NotImplementedException(destination.ToString())
     };
 
-    public string Convert(Instruction.Dump instruction) => $"std::cout << ToString({Convert(instruction.Source)}) << std::endl;";
-
-    public string Convert(Instruction.Call.Direct instruction)
-    {
-        var callArgsInitialization = Utility.Stringify(instruction.Args.Select((ca, i) => $"auto callArg{i} = {Convert(ca)};"), Environment.NewLine);
-        var callArgs = instruction.Args.Select((_, i) => $"callArg{i}").Prepend("interpreter");
-
-        return
-    $@"
-{callArgsInitialization}
-
-{instruction.Module}::{instruction.Function}({Utility.Stringify(callArgs, ", ")});
-".Trim();
-    }
-
+    public string Convert(Instruction.Dump instruction) => $"std::cout << ToString(interpreter.PopStack()) << std::endl;";
     public string Convert(Instruction.Assert instruction) => $"throw std::runtime_error(\"Not implemented\");";
-
-    public string Convert(Instruction.Binop instruction)
-    {
-        var source1 = Convert(instruction.Source1);
-        var source2 = Convert(instruction.Source2);
-        var rValue = instruction.Opcode switch
-        {
-            Opcode.Add => $"{source1} + {source2}",
-            Opcode.Mul => $"{source1} * {source2}",
-            Opcode.Eq => $"{source1} == {source2}",
-            _ => throw new NotImplementedException(instruction.ToString())
-        };
-
-        return Convert(instruction.Destination, rValue);
-    }
-
-    public string Convert(Instruction.Unop instruction)
-    {
-        var source = Convert(instruction.Source);
-        var rValue = instruction.Opcode switch
-        {
-            Opcode.Dec => $"{source} - 1",
-            _ => throw new NotImplementedException(instruction.ToString())
-        };
-
-        return Convert(instruction.Destination, rValue);
-    }
-
-    public string Convert(Instruction.Jump instruction) => instruction.Condition is null
-        ? $"goto {instruction.Label};"
-        : $"if ({Convert(instruction.Condition)})\n    goto {instruction.Label};";
-
+    public string Convert(Instruction.Dec instruction) => "interpreter.PushStack(interpreter.PopStack() - 1)";
+    public string Convert(Instruction.Jump instruction) => $"goto {instruction.Label};";
+    public string Convert(Instruction.CJump instruction) => $"if (interpreter.PopStack())\n    goto {instruction.Label};";
     public string Convert(Instruction.Return instruction) => throw new NotImplementedException();
 }

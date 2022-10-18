@@ -2,17 +2,20 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Call MyModule TestArgs 123 true)
+            (LoadConstant true)
+            (LoadConstant (I64 123))
+            (Call MyModule TestArgs)
 
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
         (function TestArgs (params (I64 myArgI64) (Bool myArgBool)) (returns)
-            (GetArg myArgI64)
-            (PushConstant 123)
+            (LoadArg myArgI64)
+            (LoadConstant 123)
             (Assert EQ)
 
-            (GetArg myArgBool)
-            (PushConstant true)
+            (LoadArg myArgBool)
+            (LoadConstant true)
             (Assert EQ)
 
             (Return)

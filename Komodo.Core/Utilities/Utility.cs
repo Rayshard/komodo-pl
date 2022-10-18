@@ -105,6 +105,16 @@ public static class Utility
         return result;
     }
 
+    public static Dictionary<K, V> ToDictionary<K, V>(this IEnumerable<(K Key, V Value)> enumerable) where K : notnull
+    {
+        var result = new Dictionary<K, V>();
+
+        foreach (var item in enumerable)
+            result.Add(item.Key, item.Value);
+
+        return result;
+    }
+
     public static (ReadOnlyCollection<TValue>, ReadOnlyDictionary<TKey, int>) ToCollectionWithMap<TItem, TKey, TValue>(this IEnumerable<TItem> enumerable, Func<TItem, TKey?> keySelector, Func<TItem, TValue> valueSelector) where TKey : notnull
     {
         var map = new Dictionary<TKey, int>();

@@ -21,7 +21,8 @@
             (Allocate)
             (Assert NEQ)
 
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )

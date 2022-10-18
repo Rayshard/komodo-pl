@@ -2,12 +2,16 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (LoadConstant true)
-            (LoadConstant true)
+            (LoadConstant (I64 11))
+            (LoadConstant (I64 22))
+            (Compare EQ)
+            (LoadConstant false)
             (Assert EQ)
 
+            (LoadConstant (I64 11))
+            (LoadConstant (I64 11))
+            (Compare EQ)
             (LoadConstant true)
-            (LoadConstant false)
             (Assert EQ)
 
             (LoadConstant (I64 0))

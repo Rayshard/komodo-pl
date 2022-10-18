@@ -4,13 +4,18 @@
         (global I64 myGlobal)
 
         (function Main (params) (returns)
-            (Assert (global MyModule myGlobal) 0)
+            (LoadGlobal MyModule myGlobal)
+            (LoadConstant (I64 0))
+            (Assert EQ)
 
-            (PushConstant 1)
-            (SetGlobal MyModule myGlobal)
-            (Assert (global MyModule myGlobal) 1)
+            (LoadConstant 1)
+            (StoreGlobal MyModule myGlobal)
+            (LoadGlobal MyModule myGlobal)
+            (LoadConstant (I64 1))
+            (Assert EQ)
 
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )

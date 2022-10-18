@@ -12,21 +12,20 @@ public class StackFrame
     public int FramePointer { get; }
     public ReadOnlyCollection<Value> Arguments { get; }
     public ReadOnlyDictionary<string, int> NamedArguments { get; }
-    public ReadOnlyDictionary<string, int> NamedLocals { get; }
-    public Value[] Locals { get; }
 
-    public StackFrame(InstructionPointer ip, int fp, IEnumerable<(Value Value, string? Name)> arguments, IEnumerable<(Value Value, string? Name)> locals)
+    private Dictionary<string, Value> locals;
+
+    public StackFrame(InstructionPointer ip, int fp, IEnumerable<(Value Value, string? Name)> arguments, IEnumerable<(string Name, Value Value)> locals)
     {
         IP = ip;
         FramePointer = fp;
 
         (Arguments, NamedArguments) = arguments.ToCollectionWithMap(item => item.Name, item => item.Value);
 
-        var (localsArray, localsMap) = locals.ToCollectionWithMap(item => item.Name, item => item.Value);
-        (Locals, NamedLocals) = (localsArray.ToArray(), localsMap);
+        this.locals = locals.ToDictionary();
     }
 
     public Value GetArgument(string name) => Arguments[NamedArguments[name]];
-    public Value GetLocal(string name) => Locals[NamedLocals[name]];
-    public void SetLocal(string name, Value value) => Locals[NamedLocals[name]] = value;
+    public Value GetLocal(string name) => locals[name];
+    public void SetLocal(string name, Value value) => locals[name] = value;
 }

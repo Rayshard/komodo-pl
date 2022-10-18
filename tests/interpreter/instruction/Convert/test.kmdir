@@ -19,7 +19,8 @@
             (Call MyModule ArrayConvert)
             (Call MyModule FuncConvert)
 
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
         (function I8Convert (params) (returns)
             (Return)
