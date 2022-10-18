@@ -2,18 +2,27 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (locals
-                (Ref I64)
-            )
+            (Allocate I64)
+            (LoadConstant null)
+            (Assert NEQ)
 
-            (IsNull (local 0) $stack)
-            (Assert (pop Bool) true)
+            (LoadConstant (sizeof UI64))
+            (Allocate)
+            (LoadConstant null)
+            (Assert NEQ)
 
-            (Allocate I64 (local 0))
-            (IsNull (local 0) $stack)
-            (Assert (pop Bool) false)
+            (Allocate UI8)
+            (Allocate UI8)
+            (Assert NEQ)
 
-            (Exit 0)
+            (LoadConstant (sizeof Bool))
+            (Allocate)
+            (LoadConstant (sizeof Bool))
+            (Allocate)
+            (Assert NEQ)
+
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )

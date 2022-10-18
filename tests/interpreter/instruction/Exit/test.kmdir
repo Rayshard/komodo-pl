@@ -2,7 +2,8 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Exit 45)
+            (LoadConstant (I64 45))
+            (Exit)
         )
     )
 )

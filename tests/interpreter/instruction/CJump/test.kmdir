@@ -2,11 +2,19 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Jump ExitLabel)
+            (LoadConstant false)
+            (CJump badExit)
+            (LoadConstant true)
+            (CJump goodExit)
+
+            (LoadConstant (I64 2))
+            (Exit)
+
+          (label badExit)
             (LoadConstant (I64 1))
             (Exit)
 
-          (label ExitLabel)
+          (label goodExit)
             (LoadConstant (I64 0))
             (Exit)
         )

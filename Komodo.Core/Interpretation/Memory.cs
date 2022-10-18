@@ -191,7 +191,7 @@ public class Memory
         if (end >= chunk.Next)
             throw new InterpreterException($"Unable to write memory: destination address range [{start}, {end}] crosses a chunk boundary.");
 
-        Array.Copy(dataAsArray, chunk.Data, dataAsArray.Length);
+        Array.Copy(dataAsArray, 0, chunk.Data, (int)(start.Value - chunk.Address.Value), dataAsArray.Length);
     }
 
     public void Write(Address start, Value value, bool prefixWithType = false)

@@ -25,7 +25,8 @@ public partial class Test
             (returns)
             (basicBlock __entry__
                 (Dump 123)
-                (Exit 0)
+                (LoadConstant (I64 0))
+                (Exit)
             )
         )
     )

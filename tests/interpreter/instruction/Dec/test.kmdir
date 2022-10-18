@@ -3,7 +3,9 @@
     (module MyModule
         (function Main (params) (returns)
             (LoadConstant (I64 11))
-            (Dump)
+            (Dec)
+            (LoadConstant (I64 10))
+            (Assert EQ)
 
             (LoadConstant (I64 0))
             (Exit)

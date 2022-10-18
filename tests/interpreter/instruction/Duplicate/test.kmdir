@@ -2,12 +2,12 @@
     (entry MyModule Main)
     (module MyModule
         (function Main (params) (returns)
-            (Move 123 $stack)
+            (LoadConstant 123)
             (Duplicate)
-            (Assert (pop I64) 123)
-            (Assert (pop I64) 123)
+            (Assert EQ)
 
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )

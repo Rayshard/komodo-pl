@@ -1,0 +1,33 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (LoadConstant (UI8 0))
+            (LoadConstant (UI16 1))
+            (LShift)
+            (LoadConstant (UI16 1))
+            (Assert EQ)
+
+            (LoadConstant (UI8 2))
+            (LoadConstant (UI16 2))
+            (LShift)
+            (LoadConstant (UI16 8))
+            (Assert EQ)
+
+            (LoadConstant (UI8 15))
+            (LoadConstant (UI16 1))
+            (LShift)
+            (LoadConstant (UI16 32768))
+            (Assert EQ)
+
+            (LoadConstant (UI8 16))
+            (LoadConstant (UI16 1))
+            (LShift)
+            (LoadConstant (UI16 0))
+            (Assert EQ)
+
+            (LoadConstant (I64 0))
+            (Exit)
+        )
+    )
+)

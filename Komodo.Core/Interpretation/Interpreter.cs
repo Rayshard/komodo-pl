@@ -86,7 +86,7 @@ public class Interpreter
         State = InterpreterState.Running;
 
         // Call Program Entry
-        PushStackFrame(Program.Entry, new Value[0]);
+        Call(Program.Entry.Module, Program.Entry.Function, 0);
 
         while (State == InterpreterState.Running)
         {
@@ -144,99 +144,158 @@ public class Interpreter
 
         switch (instruction)
         {
+            case Instruction.LoadConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
+            case Instruction.LoadGlobal instr: stack.Push(globals[(instr.ModuleName, instr.GlobalName)]); break;
+            case Instruction.StoreGlobal instr:
+                {
+                    var expectedDataType = globals[(instr.ModuleName, instr.GlobalName)].DataType;
+                    var value = PopStack(expectedDataType);
+
+                    globals[(instr.ModuleName, instr.GlobalName)] = value;
+                }
+                break;
+            case Instruction.LoadLocal instr: stack.Push(stackFrame.GetLocal(instr.Name)); break;
+            case Instruction.StoreLocal instr:
+                {
+                    var expectedDataType = stackFrame.GetLocal(instr.Name).DataType;
+                    var value = PopStack(expectedDataType);
+
+                    stackFrame.SetLocal(instr.Name, value);
+                }
+                break;
+            case Instruction.LoadArg instr: stack.Push(stackFrame.GetArgument(instr.Name)); break;
+            case Instruction.LoadData instr: stack.Push(data[(instr.ModuleName, instr.DataName)]); break;
+            case Instruction.LoadSysfunc instr: stack.Push(sysfuncTable[instr.Name]); break;
             case Instruction.Exit instr:
                 {
-                    exitcode = GetValue<Value.I64>(stackFrame, instr.Code, new DataType.I64()).Value;
+                    exitcode = PopStack<Value.I64>(new DataType.I64()).Value;
                     State = InterpreterState.ShuttingDown;
                 }
                 break;
             case Instruction.Duplicate instr: stack.Push(PeekStack()); break;
-            case Instruction.Allocate.FromDataType instr:
+            case Instruction.Rotate2 instr:
                 {
-                    var address = memory.AllocateWrite(CreateDefault(instr.DataType));
-                    SetValue(stackFrame, instr.Destination, new Value.Reference(instr.DataType, address));
+                    var first = PopStack();
+                    var second = PopStack();
+                    stack.Push(first);
+                    stack.Push(second);
                 }
                 break;
-            case Instruction.Allocate.FromAmount instr:
+            case Instruction.Allocate instr:
                 {
-                    var amount = GetValue<Value.UI64>(stackFrame, instr.Source, new DataType.UI64()).Value;
-                    var address = memory.Allocate(amount);
-                    SetValue(stackFrame, instr.Destination, new Value.Pointer(address, new DataType.Pointer(false)));
+                    if (instr.DataType is null) // Allocate from size
+                    {
+                        var amount = PopStack<Value.UI64>(new DataType.UI64()).Value;
+                        var address = memory.Allocate(amount);
+                        stack.Push(new Value.Pointer(address, new DataType.Pointer(false)));
+                    }
+                    else // Allocate from data type
+                    {
+                        var address = memory.AllocateWrite(CreateDefault(instr.DataType));
+                        stack.Push(new Value.Reference(instr.DataType, address));
+                    }
                 }
                 break;
-            case Instruction.Load.FromReference instr:
+            case Instruction.AllocateArray instr:
                 {
-                    var reference = GetValue<Value.Reference>(stackFrame, instr.Source);
-                    var value = memory.Read(reference);
+                    var amount = PopStack<Value.UI64>(new DataType.UI64()).Value;
+                    var address = memory.AllocateWrite(Enumerable.Range(0, (int)amount).Select(_ => CreateDefault(instr.ElementType)), false, true);
+                    stack.Push(new Value.Array(instr.ElementType, address));
+                }
+                break;
+            case Instruction.LoadMem instr:
+                {
+                    Value value;
 
-                    SetValue(stackFrame, instr.Destination, value);
-                }
-                break;
-            case Instruction.Load.FromPointer instr:
-                {
-                    var pointer = GetValue<Value.Pointer>(stackFrame, instr.Source);
-                    var value = memory.Read(pointer, instr.DataType);
+                    if (instr.DataType is null)
+                    {
+                        var reference = PopStack<Value.Reference>();
+                        value = memory.Read(reference);
+                    }
+                    else
+                    {
+                        var pointer = PopStack<Value.Pointer>();
+                        value = memory.Read(pointer, instr.DataType);
+                    }
 
-                    SetValue(stackFrame, instr.Destination, value);
+                    stack.Push(value);
                 }
                 break;
-            case Instruction.Store instr:
+            case Instruction.StoreMem instr:
                 {
-                    var value = GetValue(stackFrame, instr.Value);
-                    var destination = GetValue(stackFrame, instr.Destination);
+                    var destination = PopStack();
+                    var value = PopStack();
 
                     var address = destination switch
                     {
-                        Value.Reference reference => reference.Address,
-                        Value.Pointer pointer when !pointer.IsReadonly => pointer.Address,
-                        _ => throw new InterpreterException($"Invalid destination operand. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
+                        Value.Reference reference when reference.ValueType == value.DataType => reference.Address,
+                        Value.Pointer pointer when pointer.IsReadWrite => pointer.Address,
+                        _ => throw new InterpreterException($"Invalid destination. Expected a RWPtr or {new DataType.Reference(value.DataType)}, but found {destination.DataType}")
                     };
 
                     memory.Write(address, value);
                 }
                 break;
-            case Instruction.Move instr: SetValue(stackFrame, instr.Destination, GetValue(stackFrame, instr.Source)); break;
-            case Instruction.Binop instr:
+            case Instruction.StoreElement instr:
                 {
-                    var source1 = GetValue(stackFrame, instr.Source1);
-                    var source2 = GetValue(stackFrame, instr.Source2);
+                    var array = PopStack<Value.Array>();
+                    var arrayLength = memory.ReadUInt64(array.LengthStart);
+                    var index = PopStack<Value.UI64>(new DataType.UI64()).Value;
+                    var value = PopStack(array.ElementType);
 
-                    Value result = (instr.Opcode, source1, source2) switch
-                    {
-                        (Opcode.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
-                        (Opcode.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
-                        (Opcode.Eq, Value.I64(var op1), Value.I64(var op2)) => new Value.Bool(op1 == op2),
-                        (Opcode.LShift, Value.UI16(var op1), Value.UI8(var op2)) => new Value.UI16(op2 >= 16 ? (UInt16)0 : (UInt16)(op1 << op2)),
-                        (Opcode.LShift, Value.I16(var op1), Value.UI8(var op2)) => new Value.I16(op2 >= 16 ? (Int16)0 : (Int16)(op1 << op2)),
-                        (Opcode.BOR, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
-                        (Opcode.BOR, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
-                        (Opcode.GetElement, Value.UI64(var index), Value.Array a) => index < memory.ReadUInt64(a.LengthStart)
-                            ? memory.Read(a.ElementsStart + index * a.ElementType.ByteSize, a.ElementType)
-                            : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(a.LengthStart)}"),
-                        var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
-                    };
+                    if (index >= arrayLength)
+                        throw new InterpreterException($"Index {index} is greater than array length: {arrayLength}");
 
-                    SetValue(stackFrame, instr.Destination, result);
+                    memory.Write(array.ElementsStart + index * array.ElementType.ByteSize, value);
                 }
                 break;
-            case Instruction.Unop instr:
+            case Instruction.Add:
+            case Instruction.Sub:
+            case Instruction.Mul:
+            case Instruction.Div:
+            case Instruction.Mod:
+            case Instruction.Compare:
+            case Instruction.LShift:
+            case Instruction.BinaryOr:
+            case Instruction.LoadElement:
                 {
-                    var source = GetValue(stackFrame, instr.Source);
+                    var value1 = PopStack();
+                    var value2 = PopStack();
 
-                    Value result = (instr.Opcode, source) switch
+                    Value result = (instruction, value1, value2) switch
                     {
-                        (Opcode.Dec, Value.I64(var op)) => new Value.I64(op - 1),
-                        (Opcode.GetLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
-                        (Opcode.IsNull, Value.Reference reference) => new Value.Bool(!reference.Allocated),
-                        (Opcode.IsNull, Value.Pointer pointer) => new Value.Bool(pointer.IsNull),
-                        var operands => throw new Exception($"Cannot apply {instr.Opcode} to {source.DataType}.")
+                        (Instruction.Add, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 + op2),
+                        (Instruction.Mul, Value.I64(var op1), Value.I64(var op2)) => new Value.I64(op1 * op2),
+                        (Instruction.Compare(var comparison), _, _) => new Value.Bool(Compare(value1, value2, comparison)),
+                        (Instruction.LShift, Value.UI16(var op1), Value.UI8(var op2)) => new Value.UI16(op2 >= 16 ? (UInt16)0 : (UInt16)(op1 << op2)),
+                        (Instruction.LShift, Value.I16(var op1), Value.UI8(var op2)) => new Value.I16(op2 >= 16 ? (Int16)0 : (Int16)(op1 << op2)),
+                        (Instruction.BinaryOr, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
+                        (Instruction.BinaryOr, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
+                        (Instruction.LoadElement, Value.Array array, Value.UI64(var index)) => index < memory.ReadUInt64(array.LengthStart)
+                            ? memory.Read(array.ElementsStart + index * array.ElementType.ByteSize, array.ElementType)
+                            : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(array.LengthStart)}"),
+                        _ => throw new InterpreterException($"Cannot apply {instruction.Opcode} to {value1.DataType} and {value2.DataType}.")
                     };
 
-                    SetValue(stackFrame, instr.Destination, result);
+                    stack.Push(result);
+                }
+                break;
+            case Instruction.Dec:
+            case Instruction.Inc:
+            case Instruction.LoadLength:
+                {
+                    Value result = (instruction, PopStack()) switch
+                    {
+                        (Instruction.Dec, Value.I64(var value)) => new Value.I64(value - 1),
+                        (Instruction.LoadLength, Value.Array array) => new Value.UI64(memory.ReadUInt64(array.LengthStart)),
+                        (Instruction(var opcode), var value) => throw new Exception($"Cannot apply {opcode} to {value.DataType}.")
+                    };
+
+                    stack.Push(result);
                 }
                 break;
             case Instruction.Dump instr:
-                Config.StandardOutput.WriteLine(GetValue(stackFrame, instr.Source) switch
+                Config.StandardOutput.WriteLine(PopStack() switch
                 {
                     Value.Array value => value.Allocated
                         ? memory.Read(value.ElementsStart, value.ElementType, memory.ReadUInt64(value.LengthStart)).Stringify(", ", ("[", "]"))
@@ -251,38 +310,27 @@ public class Interpreter
                 }); break;
             case Instruction.Assert instr:
                 {
-                    var value1 = GetValue(stackFrame, instr.Source1);
-                    var value2 = GetValue(stackFrame, instr.Source2);
+                    var value1 = PopStack();
+                    var value2 = PopStack();
 
-                    if (value1 != value2)
-                        throw new InterpreterException($"Assertion Failed: {value1} != {value2}.");
+                    if (!Compare(value1, value2, instr.Comparison))
+                        throw new InterpreterException($"Assertion Failed: {value1} {instr.Comparison} {value2}");
                 }
                 break;
-            case Instruction.Call.Direct instr:
-                {
-                    var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
-                    PushStackFrame((instr.Module, instr.Function), receivedArgs);
-                }
-                break;
-            case Instruction.Call.Indirect instr:
-                {
-                    var source = GetValue<Value.Function>(stackFrame, instr.Source);
-                    var receivedArgs = instr.Args.Select(arg => GetValue(stackFrame, arg)).ToArray();
-
-                    Call(source, receivedArgs);
-                }
-                break;
-            case Instruction.Return instr:
-                {
-                    var values = instr.Sources.Select(source => GetValue(stackFrame, source)).ToArray();
-                    PopStackFrame(values);
-                }
-                break;
+            case Instruction.Call.Direct instr: Call(instr.Module, instr.Function, stackFrame.FramePointer); break;
+            case Instruction.Call.Indirect instr: Call(PopStack<Value.Function>(), stackFrame.FramePointer); break;
+            case Instruction.Syscall instr: Call(sysfuncTable[instr.Name], stackFrame.FramePointer); break;
+            case Instruction.LoadFunction instr: stack.Push(functionTable[(instr.Module, instr.Function)]); break;
+            case Instruction.Return instr: PopStackFrame(); break;
             case Instruction.Jump instr:
                 {
-                    var condition = instr.Condition is null || GetValue<Value.Bool>(stackFrame, instr.Condition, new DataType.Bool()).IsTrue;
-
-                    if (condition)
+                    var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
+                    nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
+                }
+                break;
+            case Instruction.CJump instr:
+                {
+                    if (PopStack<Value.Bool>(new DataType.Bool()).IsTrue)
                     {
                         var target = GetFunctionLabelTarget(stackFrame.IP.Module, stackFrame.IP.Function, instr.Label);
                         nextIP = new InstructionPointer(stackFrame.IP.Module, stackFrame.IP.Function, target);
@@ -291,7 +339,7 @@ public class Interpreter
                 break;
             case Instruction.Convert instr:
                 {
-                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    Value result = (PopStack(), instr.Target) switch
                     {
                         (Value.I8(var value), DataType.I8) => new Value.I8(value),
                         (Value.I8(var value), DataType.UI8) => new Value.UI8((Byte)value),
@@ -440,12 +488,12 @@ public class Interpreter
                         (var value, var target) => throw new InterpreterException($"Cannot apply operation to {value.DataType} and {target}.")
                     };
 
-                    SetValue(stackFrame, instr.Destination, result);
+                    stack.Push(result);
                 }
                 break;
             case Instruction.Reinterpret instr:
                 {
-                    var value = GetValue(stackFrame, instr.Source);
+                    var value = PopStack();
 
                     if (value.DataType is not DataType.Primitive)
                         throw new InterpreterException("Non-primitive types cannot be reinterpreted!");
@@ -454,12 +502,12 @@ public class Interpreter
                         ? throw new Exception($"Cannot interpret {value.DataType} which has size {value.DataType.ByteSize} as {instr.Target} which has size {instr.Target.ByteSize}")
                         : Value.Create(instr.Target, value.AsBytes());
 
-                    SetValue(stackFrame, instr.Destination, reinterpretedValue);
+                    stack.Push(reinterpretedValue);
                 }
                 break;
             case Instruction.ZeroExtend instr:
                 {
-                    Value result = (GetValue(stackFrame, instr.Source), instr.Target) switch
+                    Value result = (PopStack(), instr.Target) switch
                     {
                         (Value.I8(var value), DataType.I16) => new Value.I16((Int16)((Int16)value & 0xFF)),
                         (Value.I8(var value), DataType.UI16) => new Value.UI16((UInt16)((UInt16)value & 0xFF)),
@@ -494,93 +542,11 @@ public class Interpreter
                         var operands => throw new InterpreterException($"Cannot apply operation to {operands}.")
                     };
 
-                    SetValue(stackFrame, instr.Destination, result);
+                    stack.Push(result);
                 }
                 break;
             default: throw new Exception($"Instruction '{instruction.Opcode.ToString()}' has not been implemented.");
         }
-    }
-
-    private Value GetValue(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null)
-    {
-        var value = source switch
-        {
-            Operand.Constant.I8(var constant) => new Value.I8(constant),
-            Operand.Constant.UI8(var constant) => new Value.UI8(constant),
-            Operand.Constant.I16(var constant) => new Value.I16(constant),
-            Operand.Constant.UI16(var constant) => new Value.UI16(constant),
-            Operand.Constant.I32(var constant) => new Value.I32(constant),
-            Operand.Constant.UI32(var constant) => new Value.UI32(constant),
-            Operand.Constant.I64(var constant) => new Value.I64(constant),
-            Operand.Constant.UI64(var constant) => new Value.UI64(constant),
-            Operand.Constant.F32(var constant) => new Value.F32(constant),
-            Operand.Constant.F64(var constant) => new Value.F64(constant),
-            Operand.Constant.True => new Value.Bool(true),
-            Operand.Constant.False => new Value.Bool(false),
-            Operand.Local.Indexed(var i) => stackFrame.Locals[(int)i],
-            Operand.Local.Named(var n) => stackFrame.GetLocal(n),
-            Operand.Global(var module, var name) => globals[(module, name)],
-            Operand.Arg.Indexed(var i) => stackFrame.Arguments[(int)i],
-            Operand.Arg.Named(var n) => stackFrame.GetArgument(n),
-            Operand.Pop p => PopStack(p.Expected),
-            Operand.Data(var module, var name) => data[(module, name)],
-            Operand.Array(var elementType, var elements) => new Value.Array(
-                elementType,
-                memory.AllocateWrite(elements.Select(e => GetValue(stackFrame, e, elementType)), false, true)
-            ),
-            Operand.Function operand => functionTable[(operand.ModuleName, operand.FunctionName)],
-            Operand.Sysfunc operand => sysfuncTable[operand.Name],
-            Operand.Sizeof operand => new Value.UI64(operand.Type.ByteSize),
-            _ => throw new Exception($"Invalid source: {source}"),
-        };
-
-        if (expectedDataType is not null && value.DataType != expectedDataType)
-            throw new InterpreterException($"Invalid data type for source: {source}. Expected {expectedDataType}, but found {value.DataType}");
-
-        return value;
-    }
-
-    private T GetValue<T>(StackFrame stackFrame, Operand.Source source, DataType? expectedDataType = null) where T : Value
-        => GetValue(stackFrame, source).As<T>();
-
-    private void SetValue(StackFrame stackFrame, Operand.Destination destination, Value value)
-    {
-        Action setter;
-        DataType destDataType;
-
-        switch (destination)
-        {
-            case Operand.Local.Indexed l:
-                {
-                    setter = delegate { stackFrame.Locals[l.Index] = value; };
-                    destDataType = stackFrame.Locals[l.Index].DataType;
-                }
-                break;
-            case Operand.Local.Named l:
-                {
-                    setter = delegate { stackFrame.SetLocal(l.Name, value); };
-                    destDataType = stackFrame.GetLocal(l.Name).DataType;
-                }
-                break;
-            case Operand.Global g:
-                {
-                    setter = delegate { globals[(g.Module, g.Name)] = value; };
-                    destDataType = globals[(g.Module, g.Name)].DataType;
-                }
-                break;
-            case Operand.Stack:
-                {
-                    setter = delegate { stack.Push(value); };
-                    destDataType = value.DataType;
-                }
-                break;
-            default: throw new Exception($"Invalid destination: {destination}");
-        }
-
-        if (destDataType != value.DataType)
-            throw new Exception($"Invalid data type for destination: {destination}. Expected {value.DataType}, but found {destDataType}");
-
-        setter();
     }
 
     private Value PopStack(DataType? dt = null)
@@ -626,77 +592,96 @@ public class Interpreter
         throw new InvalidCastException($"Peeked '{typeof(T)}' from top of stack, but expected '{stackTop.GetType()}'");
     }
 
-    private void PushStackFrame((string Module, string Function) Target, Value[] args)
+    private void Call(string ModuleName, string FunctionName, int framePointer)
     {
-        var function = GetFunction(Target.Module, Target.Function);
-        var start = new InstructionPointer(Target.Module, Target.Function, 0);
+        var function = GetFunction(ModuleName, FunctionName);
+        var start = new InstructionPointer(ModuleName, FunctionName, 0);
 
-        // Verify and create arguments
-        if (args.Length != function.Parameters.Count)
-            throw new Exception($"Target function required {function.Parameters.Count} arguments, but only {args.Length} were given!");
+        // Verify that the correct number of args are on the frame's stack
+        var expectedNumArgs = function.Parameters.Count;
+        var frameStackSize = stack.Count - framePointer;
 
-        var arguments = new (Value, string?)[args.Length];
+        if (frameStackSize < expectedNumArgs)
+            throw new Exception($"Expected at least {expectedNumArgs} items on the stack, but found {frameStackSize}!");
 
-        foreach (var (arg, param, index) in args.Select((a, i) => (a, function.Parameters[i], i)))
+        // Pop and verify the items on the stack are the correct data type in the order of the parameter types
+        var arguments = new (Value, string?)[expectedNumArgs];
+
+        for (int i = 0; i < expectedNumArgs; i++)
         {
-            if (arg.DataType != param.DataType)
-                throw new Exception($"Expeceted {param.DataType} for target function's parameter {index}, but got {arg.DataType}!");
+            var parameter = function.Parameters[i];
+            var actual = stack.Peek().DataType;
 
-            arguments[index] = (arg, param.Name);
+            if (actual != parameter.DataType)
+                throw new Exception($"Expected {parameter.DataType} for argument {i}, but got {actual}!");
+
+            arguments[i] = (PopStack(parameter.DataType), parameter.Name);
         }
 
-        var locals = function.Locals.Select(l => (CreateDefault(l.DataType), l.Name)).ToArray();
+        var locals = function.Locals.Select(l => (l.Key, CreateDefault(l.Value))).ToArray();
 
         callStack.Push(new StackFrame(start, stack.Count, arguments, locals));
     }
 
-    private void Call(Value.Function target, Value[] args)
+    private void Call(Value.Function target, int framePointer)
     {
         var mangledString = memory.ReadString(target.Address);
 
         if (sysfuncTable.TryGetValue(mangledString, out var sysfunc))
         {
-            // Verify arguments
-            if (args.Length != sysfunc.Parameters.Count)
-                throw new Exception($"Sysfunc {mangledString} requires {sysfunc.Parameters.Count} arguments, but only {args.Length} were given!");
+            // Verify that the correct number of args are on the frame's stack
+            var expectedNumArgs = sysfunc.Parameters.Count;
+            var frameStackSize = stack.Count - framePointer;
 
-            var arguments = new (Value, string?)[args.Length];
+            if (frameStackSize < expectedNumArgs)
+                throw new Exception($"Expected at least {expectedNumArgs} items on the stack, but found {frameStackSize}!");
 
-            foreach (var (arg, param, index) in args.Select((a, i) => (a, sysfunc.Parameters[i], i)))
+            // Pop and verify the items on the stack are the correct data type in the order of the parameter types
+            var arguments = new Value[expectedNumArgs];
+
+            for (int i = 0; i < expectedNumArgs; i++)
             {
-                if (arg.DataType != param)
-                    throw new Exception($"Expeceted {param} for target function's parameter {index}, but got {arg.DataType}!");
+                var expected = sysfunc.Parameters[i];
+                var actual = stack.Peek().DataType;
+
+                if (actual != expected)
+                    throw new Exception($"Expected {expected} for argument {i}, but got {actual}!");
+
+                arguments[i] = PopStack(expected);
             }
 
             // Push return values onto the stack in reverse order
-            sysfunc.Call(args).Reverse().ForEach(stack.Push);
+            sysfunc.Call(arguments).Reverse().ForEach(stack.Push);
         }
-        else { PushStackFrame(Demangle(mangledString), args); }
+        else
+        {
+            var (moduleName, functionName) = Demangle(mangledString);
+            Call(moduleName, functionName, framePointer);
+        }
     }
 
-    private void PopStackFrame(Value[] returnValues)
+    private void PopStackFrame()
     {
         if (callStack.TryPop(out var frame))
         {
             var function = GetFunction(frame.IP.Module, frame.IP.Function);
 
-            // Verify return values
-            if (returnValues.Length != function.Returns.Count)
-                throw new Exception($"Expected {function.Returns.Count} return values but got {returnValues.Length}.");
+            // Verify that the correct number of returns are on the frame's stack
+            var expectedNumReturns = function.Returns.Count;
+            var frameStackSize = stack.Count - frame.FramePointer;
 
-            foreach (var (actual, expected, i) in returnValues.Select((value, i) => (value.DataType, function.Returns[i], i)))
+            if (frameStackSize != expectedNumReturns)
+                throw new Exception($"Expected {expectedNumReturns} items on the stack, but found {frameStackSize}!");
+
+            // Verify the items on the stack are the correct data type in the order of the return types
+            for (int i = 0; i < expectedNumReturns; i++)
             {
+                var expected = function.Returns[i];
+                var actual = stack.ElementAt(i).DataType;
+
                 if (actual != expected)
-                    throw new Exception($"Expeceted {expected} for function return {i}, but got {actual}!");
+                    throw new Exception($"Expected {expected} for return {i}, but got {actual}!");
             }
-
-            // Erase current stack from stack
-            while (stack.Count > frame.FramePointer)
-                stack.Pop();
-
-            // Push return values onto the stack in reverse order
-            foreach (var value in returnValues.Reverse())
-                stack.Push(value);
         }
         else { throw new InvalidOperationException("Cannot pop stack frame. The call stack is empty."); }
     }
@@ -723,6 +708,45 @@ public class Interpreter
         DataType.Function(var parameters, var returns) => new Value.Function(parameters, returns, Address.NULL),
         DataType.Pointer type => new Value.Pointer(Address.NULL, type),
         _ => throw new NotImplementedException(dataType.ToString())
+    };
+
+    public bool Compare(Value v1, Value v2, Comparison comparison) => (v1, v2, comparison) switch
+    {
+        (Value.I8(var value1), Value.I8(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI8(var value1), Value.UI8(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I16(var value1), Value.I16(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI16(var value1), Value.UI16(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I32(var value1), Value.I32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI32(var value1), Value.UI32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.I64(var value1), Value.I64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.UI64(var value1), Value.UI64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.F32(var value1), Value.F32(var value2), Comparison.EQ) => value1 == value2,
+        (Value.F64(var value1), Value.F64(var value2), Comparison.EQ) => value1 == value2,
+        (Value.Bool(var value1), Value.Bool(var value2), Comparison.EQ) => value1 == value2,
+        (Value.Pointer pointer, Value.Reference reference, Comparison.EQ) => pointer.Address == reference.Address,
+        (Value.Pointer ptr1, Value.Pointer ptr2, Comparison.EQ) when ptr1.IsReadonly == ptr2.IsReadonly || ptr1.IsNull || ptr2.IsNull => ptr1.Address == ptr2.Address,
+        (Value.Reference ref1, Value.Reference ref2, Comparison.EQ) when ref1.ValueType == ref2.ValueType => ref1.Address == ref2.Address,
+        (Value.Pointer ptr, Value.Function func, Comparison.EQ) when ptr.IsReadonly => ptr.Address == func.Address,
+        (Value.Pointer ptr, Value.Array array, Comparison.EQ) when ptr.IsReadonly => ptr.Address == array.Address,
+
+        (Value.I8(var value1), Value.I8(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI8(var value1), Value.UI8(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I16(var value1), Value.I16(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI16(var value1), Value.UI16(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I32(var value1), Value.I32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI32(var value1), Value.UI32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.I64(var value1), Value.I64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.UI64(var value1), Value.UI64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.F32(var value1), Value.F32(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.F64(var value1), Value.F64(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.Bool(var value1), Value.Bool(var value2), Comparison.NEQ) => value1 != value2,
+        (Value.Pointer pointer, Value.Reference reference, Comparison.NEQ) when pointer.IsReadonly => pointer.Address != reference.Address,
+        (Value.Pointer ptr1, Value.Pointer ptr2, Comparison.NEQ) when ptr1.IsReadonly == ptr2.IsReadonly || ptr1.IsNull || ptr2.IsNull => ptr1.Address != ptr2.Address,
+        (Value.Reference ref1, Value.Reference ref2, Comparison.NEQ) when ref1.ValueType == ref2.ValueType => ref1.Address != ref2.Address,
+        (Value.Pointer ptr, Value.Function func, Comparison.NEQ) when ptr.IsReadonly => ptr.Address != func.Address,
+        (Value.Pointer ptr, Value.Array array, Comparison.NEQ) when ptr.IsReadonly => ptr.Address != array.Address,
+
+        _ => throw new NotImplementedException($"Connot compare {v1.DataType} to {v2.DataType} with {comparison}")
     };
 
     public string Mangle(string module, string function) => $"{module} {function}";

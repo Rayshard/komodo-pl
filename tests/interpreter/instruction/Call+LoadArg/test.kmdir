@@ -1,0 +1,60 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (Call MyModule TestNoArgumentNoReturn)
+
+            (LoadConstant (I64 1))
+            (Call MyModule TestSingleArgument)
+
+            (LoadConstant (I64 4))
+            (LoadConstant (I64 3))
+            (LoadConstant (I64 2))
+            (Call MyModule TestMultipleArguments)
+
+            (LoadFunction MyModule TestNoArgumentNoReturn)
+            (Call)
+
+            (LoadConstant (I64 1))
+            (LoadFunction MyModule TestSingleArgument)
+            (Call)
+
+            (LoadConstant (I64 4))
+            (LoadConstant (I64 3))
+            (LoadConstant (I64 2))
+            (LoadFunction MyModule TestMultipleArguments)
+            (Call)
+
+            (LoadConstant (I64 0))
+            (Exit)
+        )
+        (function TestNoArgumentNoReturn (params) (returns)
+            (LoadConstant (I64 378))
+            (Dump)
+
+            (Return)
+        )
+        (function TestSingleArgument (params (I64 myArg)) (returns)
+            (LoadConstant (I64 1))
+            (LoadArg myArg)
+            (Assert EQ)
+
+            (Return)
+        )
+        (function TestMultipleArguments (params (I64 arg0) (I64 arg1) (I64 arg2)) (returns)
+            (LoadConstant (I64 2))
+            (LoadArg arg0)
+            (Assert EQ)
+
+            (LoadConstant (I64 3))
+            (LoadArg arg1)
+            (Assert EQ)
+
+            (LoadConstant (I64 4))
+            (LoadArg arg2)
+            (Assert EQ)
+
+            (Return)
+        )
+    )
+)

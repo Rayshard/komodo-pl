@@ -104,7 +104,7 @@ public abstract record Value
     public record Bool(Byte Value) : Value
     {
         public override DataType DataType => new DataType.Bool();
-        
+
         public static Bool True => new Bool(1);
         public static Bool False => new Bool(0);
 
@@ -141,7 +141,7 @@ public abstract record Value
         public bool Allocated => !Address.IsNull;
         public Address LengthStart => Address;
         public Address ElementsStart => Address + DataType.ByteSizeOf<DataType.UI64>();
-        
+
         public override Byte[] AsBytes() => Address.AsBytes();
     }
 
@@ -194,4 +194,23 @@ public abstract record Value
             _ => throw new NotImplementedException(dataType.ToString())
         };
     }
+
+    public static Value FromConstant(Operand.Constant constant) => constant switch
+    {
+        Operand.Constant.I8(var value) => new Value.I8(value),
+        Operand.Constant.UI8(var value) => new Value.UI8(value),
+        Operand.Constant.I16(var value) => new Value.I16(value),
+        Operand.Constant.UI16(var value) => new Value.UI16(value),
+        Operand.Constant.I32(var value) => new Value.I32(value),
+        Operand.Constant.UI32(var value) => new Value.UI32(value),
+        Operand.Constant.I64(var value) => new Value.I64(value),
+        Operand.Constant.UI64(var value) => new Value.UI64(value),
+        Operand.Constant.F32(var value) => new Value.F32(value),
+        Operand.Constant.F64(var value) => new Value.F64(value),
+        Operand.Constant.True => new Value.Bool(true),
+        Operand.Constant.False => new Value.Bool(false),
+        Operand.Constant.Null => new Value.Pointer(Address.NULL, new DataType.Pointer(true)),
+        Operand.Constant.Sizeof(var type) => new Value.UI64(type.ByteSize),
+        _ => throw new NotImplementedException(constant.ToString())
+    };
 }

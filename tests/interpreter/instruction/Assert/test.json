@@ -3,8 +3,8 @@
   "exitcode": 1,
   "stdin": [],
   "stdout": [
-    "Exception: Assertion Failed: (Bool false) != (Bool true).",
-    "    at MyModule.Main.1            (Assert false true)",
+    "Exception: Assertion Failed: (Bool false) EQ (Bool true)",
+    "    at MyModule.Main.5            (Assert EQ)",
     ""
   ],
   "stderr": []

@@ -3,23 +3,22 @@
     (module MyModule
         (function Main (params) (returns)
             (locals
-                I64
-                (I64 myLocalI64)
-                (Bool myLocalBool)
+                (I64 localI64)
             )
 
-            (Assert (local 0) 0)
-            (Assert (local myLocalI64) 0)
-            (Assert (local myLocalBool) false)
+            (LoadLocal localI64)
+            (LoadConstant 0)
+            (Assert EQ)
 
-            (Move 1 (local 0))
-            (Assert (local 0) 1)
-            (Move 2 (local 1))
-            (Assert (local myLocalI64) 2)
-            (Move true (local 2))
-            (Assert (local myLocalBool) true)
+            (LoadConstant 1)
+            (StoreLocal localI64)
 
-            (Exit 0)
+            (LoadLocal localI64)
+            (LoadConstant 1)
+            (Assert EQ)
+
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )

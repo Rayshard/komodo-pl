@@ -5,7 +5,8 @@
             (Call MyModule Factorial 20)
             (Dump (pop I64))
             
-            (Exit 0)
+            (LoadConstant (I64 0))
+            (Exit)
         )
         (function Factorial (params (I64 number)) (returns I64)
             (locals

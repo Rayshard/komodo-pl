@@ -3,11 +3,28 @@
     (module MyModule
         (function Main (params) (returns)
             (locals
-                (Func () ())
+                ((Func () ()) myFunc)
             )
 
-            (Dump (local 0))
-            (Exit 0)
+            (LoadLocal myFunc)
+            (LoadConstant null)
+            (Assert EQ)
+
+            (LoadFunction MyModule TestFunc)
+            (StoreLocal myFunc)
+            (LoadLocal myFunc)
+            (LoadConstant null)
+            (Assert NEQ)
+            
+            (LoadLocal myFunc)
+            (Call)
+
+            (LoadConstant (I64 1))
+            (Exit)
+        )
+        (function TestFunc (params) (returns)
+            (LoadConstant (I64 0))
+            (Exit)
         )
     )
 )
