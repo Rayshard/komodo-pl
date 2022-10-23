@@ -1,18 +1,10 @@
 (program MyProgram
     (entry MyModule Main)
     (module System
-        (function GetTime (params) (returns UI64)
-            (Syscall GetTime)
-            (Return (pop UI64))
-        )
-    )
-
-    (module MyModule
-        (function Main (params) (returns)
-            (Call System GetTime () ($stack))
-            (Dump (pop UI64))
-            (LoadConstant (I64 0))
-            (Exit)
+        (function Test (params) (returns UI64)
+            (locals
+                ((Const I64) myLocal)
+            )
         )
     )
 )

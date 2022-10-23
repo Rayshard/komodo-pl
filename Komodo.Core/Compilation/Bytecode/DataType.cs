@@ -16,6 +16,28 @@ public abstract record DataType
     public abstract record SignedInteger : Primitive;
     public abstract record UnsignedInteger : Primitive;
 
+    public record Const(DataType InnerType) : DataType
+    {
+        public override UInt64 ByteSize => InnerType.ByteSize;
+
+        public override SExpression AsSExpression() => new SExpression.List(new[]{
+            new SExpression.UnquotedSymbol("Const"),
+            InnerType.AsSExpression()
+        });
+
+        public override string AsMangledString() => $"const {InnerType.AsMangledString()}";
+
+        new public static Const Deserialize(SExpression sexpr)
+        {
+            sexpr.ExpectList()
+                 .ExpectLength(2)
+                 .ExpectItem(0, item => item.ExpectUnquotedSymbol().ExpectValue("Const"))
+                 .ExpectItem(1, DataType.Deserialize, out var innerType);
+
+            return new Const(innerType);
+        }
+    }
+
     public record I8 : SignedInteger
     {
         private static string Symbol => "I8";
@@ -286,6 +308,7 @@ public abstract record DataType
         F32.Deserialize, F64.Deserialize,
         Bool.Deserialize,
         Pointer.Deserialize, Reference.Deserialize, Array.Deserialize, Function.Deserialize,
+        Const.Deserialize
     };
 
     private static Func<SExpression, Primitive>[] PrimitiveDeserializers => new Func<SExpression, Primitive>[] {
