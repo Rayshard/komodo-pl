@@ -1,0 +1,12 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (LoadConstant "Hello, World!\n")
+            (Dump)
+
+            (LoadConstant (I64 0))
+            (Exit)
+        )
+    )
+)

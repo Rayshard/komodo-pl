@@ -283,6 +283,15 @@ public abstract record Operand : IOperand
             }
         }
 
+        public record String(string Value) : Constant
+        {
+            public override Bytecode.DataType DataType => new Bytecode.DataType.Array(new Bytecode.DataType.UI8());
+
+            public override SExpression AsSExpression() => new SExpression.QuotedSymbol(Value);
+
+            new public static String Deserialize(SExpression sexpr) => new String(sexpr.ExpectQuotedSymbol().Value);
+        }
+
         private static Func<SExpression, Constant>[] Deserializers => new Func<SExpression, Constant>[] {
             I8.Deserialize,
             UI8.Deserialize,
@@ -298,6 +307,7 @@ public abstract record Operand : IOperand
             False.Deserialize,
             Null.Deserialize,
             Sizeof.Deserialize,
+            String.Deserialize,
         };
 
         public static Constant Deserialize(SExpression sexpr)
@@ -332,7 +342,6 @@ public abstract record Operand : IOperand
 
         public static Enumeration<T> Deserialize(SExpression sexpr) => new Enumeration<T>(sexpr.ExpectEnum<T>());
     }
-
 
     public abstract record Variable(SExpression Symbol, VSROCollection<SExpression> IDList) : Operand
     {

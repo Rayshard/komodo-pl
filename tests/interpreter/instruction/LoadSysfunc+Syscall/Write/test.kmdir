@@ -1,15 +1,13 @@
 (program MyProgram
     (entry MyModule Main)
     (module MyModule
-        (data RO myString "A€±デ🐉\n")
-
         (function Main (params) (returns)
-            (LoadData MyModule myString)
+            (LoadConstant "A€±デ🐉\n")
             (LoadConstant (UI64 0))
             (LoadSysfunc Write)
             (Call)
 
-            (LoadData MyModule myString)
+            (LoadConstant "A€±デ🐉\n")
             (LoadConstant (UI64 0))
             (Syscall Write)
 

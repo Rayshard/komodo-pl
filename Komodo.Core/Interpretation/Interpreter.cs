@@ -24,6 +24,7 @@ public class Interpreter
     private Dictionary<(string Module, string Name), Value.Array> data = new Dictionary<(string Module, string Name), Value.Array>();
     private Dictionary<(string Module, string Name), Value.Function> functionTable = new Dictionary<(string Module, string Name), Value.Function>();
     private Dictionary<string, Sysfunc> sysfuncTable = new Dictionary<string, Sysfunc>();
+    private Dictionary<string, Value.Array> internPool = new Dictionary<string, Value.Array>();
 
     private Stack<Value> stack = new Stack<Value>();
     private Stack<StackFrame> callStack = new Stack<StackFrame>();
@@ -55,6 +56,15 @@ public class Interpreter
                 var address = memory.AllocateWrite(Mangle(module.Name, function.Name), true);
 
                 functionTable.Add((module.Name, function.Name), new Value.Function(parameters, function.Returns, address));
+
+                foreach(var instruction in function.Instructions)
+                {
+                    if(instruction is Instruction.LoadConstant(Operand.Constant.String(var str)) && !internPool.ContainsKey(str))
+                    {
+                        var bytes = Encoding.UTF8.GetBytes(str);
+                        internPool.Add(str, new Value.Array(new DataType.UI8(), memory.AllocateWrite(bytes, true)));
+                    }
+                }
             }
         }
     }
@@ -144,7 +154,31 @@ public class Interpreter
 
         switch (instruction)
         {
-            case Instruction.LoadConstant instr: stack.Push(Value.FromConstant(instr.Constant)); break;
+            case Instruction.LoadConstant instr:
+                {
+                    Value constant = instr.Constant switch
+                    {
+                        Operand.Constant.I8(var value) => new Value.I8(value),
+                        Operand.Constant.UI8(var value) => new Value.UI8(value),
+                        Operand.Constant.I16(var value) => new Value.I16(value),
+                        Operand.Constant.UI16(var value) => new Value.UI16(value),
+                        Operand.Constant.I32(var value) => new Value.I32(value),
+                        Operand.Constant.UI32(var value) => new Value.UI32(value),
+                        Operand.Constant.I64(var value) => new Value.I64(value),
+                        Operand.Constant.UI64(var value) => new Value.UI64(value),
+                        Operand.Constant.F32(var value) => new Value.F32(value),
+                        Operand.Constant.F64(var value) => new Value.F64(value),
+                        Operand.Constant.True => new Value.Bool(true),
+                        Operand.Constant.False => new Value.Bool(false),
+                        Operand.Constant.Null => new Value.Pointer(Address.NULL, new DataType.Pointer(true)),
+                        Operand.Constant.Sizeof(var type) => new Value.UI64(type.ByteSize),
+                        Operand.Constant.String(var value) => internPool[value],
+                        var value => throw new NotImplementedException(value.ToString())
+                    };
+
+                    stack.Push(constant);
+                }
+                break;
             case Instruction.LoadGlobal instr: stack.Push(globals[(instr.ModuleName, instr.GlobalName)]); break;
             case Instruction.StoreGlobal instr:
                 {
@@ -733,6 +767,7 @@ public class Interpreter
         (Value.Reference ref1, Value.Reference ref2, Comparison.EQ) when ref1.ValueType == ref2.ValueType => ref1.Address == ref2.Address,
         (Value.Pointer ptr, Value.Function func, Comparison.EQ) when ptr.IsReadonly => ptr.Address == func.Address,
         (Value.Pointer ptr, Value.Array array, Comparison.EQ) when ptr.IsReadonly => ptr.Address == array.Address,
+        (Value.Array array1, Value.Array array2, Comparison.EQ) => array1.Address == array2.Address,
 
         (Value.I8(var value1), Value.I8(var value2), Comparison.NEQ) => value1 != value2,
         (Value.UI8(var value1), Value.UI8(var value2), Comparison.NEQ) => value1 != value2,
@@ -750,6 +785,8 @@ public class Interpreter
         (Value.Reference ref1, Value.Reference ref2, Comparison.NEQ) when ref1.ValueType == ref2.ValueType => ref1.Address != ref2.Address,
         (Value.Pointer ptr, Value.Function func, Comparison.NEQ) when ptr.IsReadonly => ptr.Address != func.Address,
         (Value.Pointer ptr, Value.Array array, Comparison.NEQ) when ptr.IsReadonly => ptr.Address != array.Address,
+        (Value.Array array1, Value.Array array2, Comparison.NEQ) => array1.Address != array2.Address,
+
 
         _ => throw new NotImplementedException($"Connot compare {v1.DataType} to {v2.DataType} with {comparison}")
     };

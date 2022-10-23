@@ -1,0 +1,10 @@
+{
+  "args": ["run-ir", "test.kmdir"],
+  "exitcode": 0,
+  "stdin": [],
+  "stdout": [
+    "[(UI8 72), (UI8 101), (UI8 108), (UI8 108), (UI8 111), (UI8 44), (UI8 32), (UI8 87), (UI8 111), (UI8 114), (UI8 108), (UI8 100), (UI8 33), (UI8 10)]",
+    ""
+  ],
+  "stderr": []
+}
