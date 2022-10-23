@@ -90,7 +90,7 @@
             (LoadElement)
             (ZeroExtend I16)
             (LShift)
-            (BinaryOr)
+            (Or)
             (LoadConstant (I16 -41))
             (Assert EQ)
 
@@ -112,7 +112,7 @@
             (LoadElement)
             (ZeroExtend UI16)
             (LShift)
-            (BinaryOr)
+            (Or)
             (LoadConstant (UI16 41))
             (Assert EQ)
 

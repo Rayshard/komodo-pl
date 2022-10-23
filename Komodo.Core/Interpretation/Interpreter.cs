@@ -256,7 +256,9 @@ public class Interpreter
             case Instruction.Mod:
             case Instruction.Compare:
             case Instruction.LShift:
-            case Instruction.BinaryOr:
+            case Instruction.Or:
+            case Instruction.And:
+            case Instruction.Xor:
             case Instruction.LoadElement:
                 {
                     var value1 = PopStack();
@@ -269,8 +271,11 @@ public class Interpreter
                         (Instruction.Compare(var comparison), _, _) => new Value.Bool(Compare(value1, value2, comparison)),
                         (Instruction.LShift, Value.UI16(var op1), Value.UI8(var op2)) => new Value.UI16(op2 >= 16 ? (UInt16)0 : (UInt16)(op1 << op2)),
                         (Instruction.LShift, Value.I16(var op1), Value.UI8(var op2)) => new Value.I16(op2 >= 16 ? (Int16)0 : (Int16)(op1 << op2)),
-                        (Instruction.BinaryOr, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
-                        (Instruction.BinaryOr, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
+                        (Instruction.Or, Value.UI16(var op1), Value.UI16(var op2)) => new Value.UI16((UInt16)(op1 | op2)),
+                        (Instruction.Or, Value.I16(var op1), Value.I16(var op2)) => new Value.I16((Int16)(op1 | op2)),
+                        (Instruction.Or, Value.Bool(var op1), Value.Bool(var op2)) => new Value.Bool((Byte)(op1 | op2)),
+                        (Instruction.And, Value.Bool(var op1), Value.Bool(var op2)) => new Value.Bool((Byte)(op1 & op2)),
+                        (Instruction.Xor, Value.Bool(var op1), Value.Bool(var op2)) => new Value.Bool((Byte)(op1 ^ op2)),
                         (Instruction.LoadElement, Value.Array array, Value.UI64(var index)) => index < memory.ReadUInt64(array.LengthStart)
                             ? memory.Read(array.ElementsStart + index * array.ElementType.ByteSize, array.ElementType)
                             : throw new InterpreterException($"Index {index} is greater than array length: {memory.ReadUInt64(array.LengthStart)}"),

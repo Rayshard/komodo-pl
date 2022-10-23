@@ -33,7 +33,9 @@ public enum Opcode
     Mod,
     Compare,
     LShift,
-    BinaryOr,
+    Or,
+    And,
+    Xor,
     Exit,
     Dec,
     Inc,
@@ -355,9 +357,19 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         new public static Mod Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Mod, delegate { return new Mod(); });
     }
 
-    public record BinaryOr() : Instruction(Opcode.BinaryOr)
+    public record Or() : Instruction(Opcode.Or)
     {
-        new public static BinaryOr Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.BinaryOr, delegate { return new BinaryOr(); });
+        new public static Or Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Or, delegate { return new Or(); });
+    }
+
+    public record And() : Instruction(Opcode.And)
+    {
+        new public static And Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.And, delegate { return new And(); });
+    }
+
+    public record Xor() : Instruction(Opcode.Xor)
+    {
+        new public static Xor Deserialize(SExpression sexpr) => Deserialize(sexpr, Opcode.Xor, delegate { return new Xor(); });
     }
 
     public record LShift() : Instruction(Opcode.LShift)
@@ -511,7 +523,9 @@ public abstract record Instruction(Opcode Opcode) : FunctionBodyElement
         Opcode.LShift => LShift.Deserialize(sexpr),
         Opcode.Dump => Dump.Deserialize(sexpr),
         Opcode.Compare => Compare.Deserialize(sexpr),
-        Opcode.BinaryOr => BinaryOr.Deserialize(sexpr),
+        Opcode.Or => Or.Deserialize(sexpr),
+        Opcode.And => And.Deserialize(sexpr),
+        Opcode.Xor => Xor.Deserialize(sexpr),
         Opcode.Dec => Dec.Deserialize(sexpr),
         Opcode.Inc => Inc.Deserialize(sexpr),
         Opcode.LoadElement => LoadElement.Deserialize(sexpr),

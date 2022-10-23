@@ -1,0 +1,9 @@
+(program MyProgram
+    (entry MyModule Main)
+    (module MyModule
+        (function Main (params) (returns)
+            (LoadConstant (I64 0))
+            (Exit)
+        )
+    )
+)

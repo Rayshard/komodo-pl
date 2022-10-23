@@ -101,9 +101,12 @@ public abstract record Value
         public override Byte[] AsBytes() => BitConverter.GetBytes(Value);
     }
 
-    public record Bool(Byte Value) : Value
+    public record Bool : Value
     {
+        public Byte Value { get; }
+
         public override DataType DataType => new DataType.Bool();
+        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(IsTrue ? "true" : "false");
 
         public static Bool True => new Bool(1);
         public static Bool False => new Bool(0);
@@ -111,13 +114,14 @@ public abstract record Value
         public bool IsTrue => this == True;
         public bool IsFalse => this == False;
 
+        public Bool(byte value) { Value = value == 0 || value == 1 ? value : throw new Exception($"Internal value for Bool can only be 0 or 1 but found {value}"); }
         public Bool(bool value) : this(value ? True.Value : False.Value) { }
 
-        protected override SExpression ValueAsSExpression => new SExpression.UnquotedSymbol(IsTrue ? "true" : "false");
+        public void Deconstruct(out byte value) => value = Value;
 
         public override Byte[] AsBytes() => new Byte[] { Value };
 
-        private static Byte VerifyValue(Byte value) => value == 0 || value == 1 ? value : throw new Exception($"Internal value for Bool can only be 0 or 1 but found {value}");
+        public static implicit operator bool(Bool b) => b.IsTrue;
     }
 
     public record Pointer(Address Address, DataType.Pointer PointerType) : Value
