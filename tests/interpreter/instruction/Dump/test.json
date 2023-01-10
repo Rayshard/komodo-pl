@@ -1,7 +1,0 @@
-{
-  "args": ["run-ir", "test.kmdir"],
-  "exitcode": 0,
-  "stdin": [],
-  "stdout": ["(I64 11)", ""],
-  "stderr": []
-}

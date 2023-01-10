@@ -7,19 +7,11 @@ on:
 jobs:
   test_pull_request:
     runs-on: ubuntu-latest
-    env:
-      KMD_BIN: Komodo/bin/Debug/net6.0/Komodo
-      TESTS_DIR: tests/
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v2
+      - uses: actions/checkout@v2
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
         with:
-          dotnet-version: '6.0.x'
-      - name: Setup python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - run: pip install termcolor
-      - run: dotnet build
-      - run: python scripts/test.py $KMD_BIN $TESTS_DIR
+          toolchain: stable
+      - run: cargo build --release
+      - run: cargo test
