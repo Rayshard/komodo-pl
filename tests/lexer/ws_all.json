@@ -1,0 +1,20 @@
+{
+  "input": " \t\n\r",
+  "expected_tokens": [
+    {
+      "kind": "Whitespace",
+      "range": {
+        "start": 0,
+        "length": 4
+      }
+    },
+    {
+      "kind": "EOF",
+      "range": {
+        "start": 4,
+        "length": 0
+      }
+    }
+  ],
+  "expected_errors": []
+}

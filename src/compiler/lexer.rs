@@ -25,6 +25,10 @@ pub struct Token<'a> {
 }
 
 impl<'a> Token<'a> {
+    pub fn new(kind: TokenKind, value: &'a str, range: Range) -> Token {
+        Token { kind, value, range }
+    }
+
     pub fn value_char_length(&self, source: &str) -> usize {
         source[self.range.start()..self.range.end()].chars().count()
     }
@@ -40,16 +44,6 @@ const TOKEN_DEFINITIONS: &'static [TokenParser] = &[
     (TokenKind::Whitespace, |input| multispace1(input)),
 ];
 
-macro_rules! make_eof {
-    ($offset:expr) => {
-        Token {
-            kind: TokenKind::EOF,
-            value: "",
-            range: Range::new($offset, 0),
-        }
-    };
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum LexErrorKind {
     InvalidCharacter(char),
@@ -61,9 +55,15 @@ pub struct LexError {
     kind: LexErrorKind,
 }
 
+impl LexError {
+    pub fn new(range: Range, kind: LexErrorKind) -> LexError {
+        LexError { range, kind }
+    }
+}
+
 pub struct LexResult<'a> {
     tokens: Vec<Token<'a>>,
-    errors: Vec<LexError>
+    errors: Vec<LexError>,
 }
 
 impl<'a> LexResult<'a> {
@@ -126,80 +126,11 @@ pub fn lex(input: &str) -> LexResult {
     }
 
     // Add EOF token at the end of the input
-    tokens.push(make_eof!(parse_offset));
+    tokens.push(Token {
+        kind: TokenKind::EOF,
+        value: "",
+        range: Range::new(parse_offset, 0),
+    });
 
-    LexResult {
-        tokens,
-        errors
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        lexer::{lex, Token, TokenKind},
-        utilities::range::Range,
-    };
-
-    use super::LexError;
-
-    fn assert_lex(input: &str, expected_tokens: &[(TokenKind, &str)], expected_errors: &[LexError]) {
-        let mut right_tokens = vec![];
-        let mut offset = 0;
-
-        for (kind, value) in expected_tokens {
-            right_tokens.push(Token {
-                kind: kind.clone(),
-                value,
-                range: Range::new(offset, value.len()),
-            });
-
-            offset += value.len();
-        }
-
-        right_tokens.push(make_eof!(offset));
-
-        let lex_result = lex(input);
-        assert_eq!(lex_result.tokens, right_tokens);
-        assert_eq!(&lex_result.errors[..], expected_errors);
-    }
-
-    #[test]
-    fn interger_literal() {
-        assert_lex("123", &[(TokenKind::IntegerLiteral, "123")], &[]);
-    }
-
-    #[test]
-    fn symbol_plus() {
-        assert_lex("+", &[(TokenKind::SymbolPlus, "+")], &[]);
-    }
-
-    #[test]
-    fn symbol_hyphen() {
-        assert_lex("-", &[(TokenKind::SymbolHyphen, "-")], &[]);
-    }
-
-    #[test]
-    fn symbol_asterisk() {
-        assert_lex("*", &[(TokenKind::SymbolAsterisk, "*")], &[]);
-    }
-
-    #[test]
-    fn symbol_forward_slash() {
-        assert_lex("/", &[(TokenKind::SymbolForwardSlash, "/")], &[]);
-    }
-
-    #[test]
-    fn symbol_eof() {
-        assert_lex("", &[], &[]);
-    }
-
-    #[test]
-    fn whitespace() {
-        assert_lex(" ", &[(TokenKind::Whitespace, " ")], &[]);
-        assert_lex("\t", &[(TokenKind::Whitespace, "\t")], &[]);
-        assert_lex("\n", &[(TokenKind::Whitespace, "\n")], &[]);
-        assert_lex("\r", &[(TokenKind::Whitespace, "\r")], &[]);
-        assert_lex(" \t\n\r", &[(TokenKind::Whitespace, " \t\n\r")], &[]);
-    }
+    LexResult { tokens, errors }
 }
