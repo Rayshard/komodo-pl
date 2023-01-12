@@ -1,7 +1,13 @@
 use compiler::lexer;
 
 fn main() {
-    for token in lexer::lex("123 + 456") {
+    let lex_result =lexer::lex("123.4");
+
+    for token in lex_result.tokens() {
         println!("{token:?}")
+    }
+
+    for error in lex_result.errors() {
+        println!("{error:?}")
     }
 }

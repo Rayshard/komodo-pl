@@ -1,6 +1,6 @@
 use std::{fmt::Display};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Range {
     start: usize,
     length: usize,
