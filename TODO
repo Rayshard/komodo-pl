@@ -1,2 +1,3 @@
 ✔ Add EOF token @done(23-01-12 07:33)
 ✔ Make lex return a result with LexError as Error @done(23-01-12 08:51)
+☐ Remove value field from Token since value can be computed as needed

@@ -20,12 +20,10 @@ def generate_lexer_tests():
                 et_range = et["range"]
                 et_range_start = int(et_range["start"])
                 et_range_length = int(et_range["length"])
-                et_range_end = et_range_start + et_range_length
 
                 test_expected_tokens.append(
                     f"Token::new("
                     f"TokenKind::{et['kind']}, "
-                    f"\"{repr(test_input[et_range_start:et_range_end])[1:-1]}\", "
                     f"Range::new({et_range_start}, {et_range_length})"
                     ")"
                 )

@@ -1,13 +1,25 @@
-use compiler::lexer;
+use compiler::{lexer, parser};
 
 fn main() {
-    let lex_result =lexer::lex("123.4");
+    let result = lexer::lex("(5-123) + 456 * 6");
 
-    for token in lex_result.tokens() {
-        println!("{token:?}")
+    if result.has_errors() {
+        for error in result.errors() {
+            println!("{error:?}")
+        }
+
+        return;
     }
 
-    for error in lex_result.errors() {
-        println!("{error:?}")
+    let result = match parser::parse_module(result.tokens()) {
+        Ok((module, _)) => module,
+        Err((error, state)) => {
+            println!("{}", error.message);
+            return;
+        }
+    };
+    
+    for element in result.elements() {
+        println!("{element:?}")
     }
 }

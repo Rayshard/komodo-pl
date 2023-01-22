@@ -6,27 +6,29 @@ use nom::{
 
 use crate::utilities::range::Range;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenKind {
     IntegerLiteral,
     SymbolPlus,
     SymbolHyphen,
     SymbolAsterisk,
     SymbolForwardSlash,
+    SymbolSemicolon,
+    SymbolOpenParenthesis,
+    SymbolCloseParenthesis,
     Whitespace,
     EOF,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Token<'a> {
-    kind: TokenKind,
-    value: &'a str,
-    range: Range,
+#[derive(Debug, PartialEq, Clone)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub range: Range,
 }
 
-impl<'a> Token<'a> {
-    pub fn new(kind: TokenKind, value: &'a str, range: Range) -> Token {
-        Token { kind, value, range }
+impl Token {
+    pub fn new(kind: TokenKind, range: Range) -> Token {
+        Token { kind, range }
     }
 
     pub fn value_char_length(&self, source: &str) -> usize {
@@ -41,6 +43,9 @@ const TOKEN_DEFINITIONS: &'static [TokenParser] = &[
     (TokenKind::SymbolHyphen, |input| tag("-")(input)),
     (TokenKind::SymbolAsterisk, |input| tag("*")(input)),
     (TokenKind::SymbolForwardSlash, |input| tag("/")(input)),
+    (TokenKind::SymbolSemicolon, |input| tag(";")(input)),
+    (TokenKind::SymbolOpenParenthesis, |input| tag("(")(input)),
+    (TokenKind::SymbolCloseParenthesis, |input| tag(")")(input)),
     (TokenKind::Whitespace, |input| multispace1(input)),
 ];
 
@@ -51,8 +56,8 @@ pub enum LexErrorKind {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct LexError {
-    range: Range,
-    kind: LexErrorKind,
+    pub range: Range,
+    pub kind: LexErrorKind,
 }
 
 impl LexError {
@@ -62,7 +67,8 @@ impl LexError {
 }
 
 pub struct LexResult<'a> {
-    tokens: Vec<Token<'a>>,
+    input: &'a str,
+    tokens: Vec<Token>,
     errors: Vec<LexError>,
 }
 
@@ -99,7 +105,6 @@ pub fn lex(input: &str) -> LexResult {
 
                 longest = Some(Token {
                     kind: kind.clone(),
-                    value,
                     range: Range::new(parse_offset, value.len()),
                 });
             }
@@ -128,9 +133,8 @@ pub fn lex(input: &str) -> LexResult {
     // Add EOF token at the end of the input
     tokens.push(Token {
         kind: TokenKind::EOF,
-        value: "",
         range: Range::new(parse_offset, 0),
     });
 
-    LexResult { tokens, errors }
+    LexResult { input, tokens, errors }
 }
