@@ -1,7 +1,7 @@
 use compiler::{lexer, parser};
 
 fn main() {
-    let result = lexer::lex("(5-123) + 456 * 6");
+    let result = lexer::lex("5 7 9 + 8");
 
     if result.has_errors() {
         for error in result.errors() {

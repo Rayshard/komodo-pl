@@ -1,0 +1,10 @@
+{
+  "input": "module myModule { }",
+  "node": {
+    "kind": "Module",
+    "attributes": {
+      "elements": []
+    }
+  },
+  "errors": []
+}

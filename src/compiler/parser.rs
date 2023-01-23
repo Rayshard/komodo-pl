@@ -41,7 +41,6 @@ impl<'a> ParseState<'a> {
     }
 }
 
-#[derive(Clone)]
 pub struct ParseError {
     pub range: Range,
     pub message: String,
@@ -78,7 +77,7 @@ fn longest<'a, T>(
     if let Some(result) = longest_success {
         Ok(result)
     } else {
-        Err(longest_error.unwrap()) // This only fails if there were 0 parsers supplied to the function
+        Err(longest_error.unwrap()) // This call to unwrap() only fails if there were 0 parsers supplied to the function
     }
 }
 
@@ -86,7 +85,7 @@ fn expect_token(kind: TokenKind) -> Box<dyn Fn(ParseState) -> ParseResult<&Token
     Box::new(move |state| {
         let token = state.current_token();
 
-        if token.kind == kind.clone() {
+        if token.kind == kind {
             Ok((token, state.next()))
         } else {
             Err((
@@ -193,9 +192,15 @@ pub fn parse_parenthesized_expression<'a>(
 }
 
 pub fn parse_module(tokens: &[Token]) -> ParseResult<Module> {
-    let state = ParseState::new(tokens);
+    let mut state = skip_whitespace(&ParseState::new(tokens));
+    let mut elements = Vec::<Expression>::new();
 
-    let (expr, state) = parse_expression(state)?;
+    while state.current_token().kind != TokenKind::EOF {
+        let (expr, next_state) = parse_expression(state)?;
 
-    Ok((Module::new(vec![expr]), state))
+        elements.push(expr);
+        state = skip_whitespace(&next_state);
+    }
+
+    Ok((Module::new(elements), state))
 }
