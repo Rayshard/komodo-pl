@@ -1,5 +1,5 @@
 use crate::{
-    cst::{Expression, Module},
+    cst::{BinaryOperator, BinaryOperatorKind, Expression, Module},
     lexer::{Token, TokenKind},
     utilities::range::Range,
 };
@@ -100,45 +100,74 @@ fn expect_token(kind: TokenKind) -> Box<dyn Fn(ParseState) -> ParseResult<&Token
     })
 }
 
-/*
-var expr = ParseAtom(stream, diagnostics);
+pub fn skip_whitespace<'a>(state: &ParseState<'a>) -> ParseState<'a> {
+    let mut state = state.clone();
 
-        if (expr != null)
-        {
-            while (true)
-            {
-                var streamStart = stream.Offset;
+    while state.current_token().kind == TokenKind::Whitespace {
+        state = state.next();
+    }
 
-                var (binop, _) = Try(ParseBinop, stream);
-                if (binop == null || binop.Precedence < minPrecedence)
-                {
-                    stream.Offset = streamStart;
-                    break;
-                }
+    state
+}
 
-                var nextMinPrecedence = binop.Asssociativity == BinaryOperationAssociativity.Right ? binop.Precedence : (binop.Precedence + 1);
-                var rhs = ParseExpressionAtPrecedence(nextMinPrecedence, stream, diagnostics);
-                if (rhs == null)
-                    return null;
-
-                expr = new BinopExpression(expr, binop, rhs);
-            }
+pub fn parse_binary_operator(state: ParseState) -> ParseResult<BinaryOperator> {
+    let token = state.current_token();
+    let kind = match token.kind {
+        TokenKind::SymbolPlus => BinaryOperatorKind::Add,
+        TokenKind::SymbolHyphen => BinaryOperatorKind::Subtract,
+        TokenKind::SymbolAsterisk => BinaryOperatorKind::Multiply,
+        TokenKind::SymbolForwardSlash => BinaryOperatorKind::Divide,
+        _ => {
+            return Err((
+                ParseError {
+                    range: token.range.clone(),
+                    message: format!("Expected a binary operator, but found {:?}", token.kind),
+                },
+                state,
+            ))
         }
+    };
 
-        return expr;
-         */
+    Ok((BinaryOperator::new(kind, token), state.next()))
+}
 
-pub fn parse_expression<'a>(state: ParseState<'a>) -> ParseResult<Expression<'a>> {
+pub fn parse_expression_at_precedence<'a>(
+    minimum_precedence: u32,
+    state: ParseState<'a>,
+) -> ParseResult<Expression<'a>> {
     let atoms: &[fn(ParseState) -> ParseResult<Expression>] =
         &[parse_integer_literal, parse_parenthesized_expression];
 
-    let mut expresssion = longest(atoms, state)?;
+    let (mut expression, mut state) = longest(atoms, state)?;
 
     loop {
-        
+        if let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(&state)) {
+            if binop.precedence() < minimum_precedence {
+                break;
+            }
+
+            let next_minimum_precedence = if binop.is_right_associative() {
+                binop.precedence()
+            } else {
+                binop.precedence() + 1
+            };
+
+            let (rhs, next_state) = parse_expression_at_precedence(next_minimum_precedence, skip_whitespace(&next_state))?;
+
+            expression = Expression::Binary { left: Box::new(expression), op: binop, right: Box::new(rhs) };
+            state = next_state;
+        } else {
+            break;
+        }
     }
 
-    Ok(expresssion)
+    Ok((expression, state))
+}
+
+pub fn parse_expression<'a>(
+    state: ParseState<'a>,
+) -> ParseResult<Expression<'a>> {
+    parse_expression_at_precedence(0, state)
 }
 
 pub fn parse_integer_literal<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression<'a>> {
