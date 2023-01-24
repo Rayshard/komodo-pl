@@ -1,7 +1,10 @@
-use compiler::{lexer, parser};
+use komodo::{
+    compiler::{lexer, parser},
+    runtime::interpreter,
+};
 
 fn main() {
-    let result = lexer::lex("5 7 9 + 8");
+    let result = lexer::lex("5; 7; 9+3;");
 
     if result.has_errors() {
         for error in result.errors() {
@@ -18,8 +21,6 @@ fn main() {
             return;
         }
     };
-    
-    for element in result.elements() {
-        println!("{element:?}")
-    }
+
+    println!("{:?}", interpreter::interpret_module(&result));
 }

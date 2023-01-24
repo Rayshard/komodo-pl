@@ -13,5 +13,5 @@ name = "cli"
 path = "src/main.rs"
 
 [lib]
-name = "compiler"
-path = "src/compiler/lib.rs"
+name = "komodo"
+path = "src/lib.rs"

@@ -4,7 +4,7 @@ use nom::{
     IResult,
 };
 
-use crate::utilities::range::Range;
+use super::utilities::range::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenKind {

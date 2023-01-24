@@ -1,17 +1,22 @@
-use crate::lexer::Token;
+use super::lexer::Token;
 
 pub struct Module<'a> {
-    elements: Vec<Expression<'a>>,
+    statements: Vec<Statement<'a>>,
 }
 
 impl<'a> Module<'a> {
-    pub fn new(elements: Vec<Expression>) -> Module {
-        Module { elements }
+    pub fn new(statements: Vec<Statement>) -> Module {
+        Module { statements }
     }
 
-    pub fn elements(&self) -> &[Expression<'a>] {
-        &self.elements
+    pub fn statements(&self) -> &[Statement<'a>] {
+        &self.statements
     }
+}
+
+#[derive(Debug)]
+pub enum Statement<'a> {
+    Expression(Expression<'a>, &'a Token)
 }
 
 #[derive(Debug)]
@@ -46,6 +51,10 @@ pub struct BinaryOperator<'a> {
 impl<'a> BinaryOperator<'a> {
     pub fn new(kind: BinaryOperatorKind, token: &'a Token) -> BinaryOperator {
         BinaryOperator { kind, token }
+    }
+
+    pub fn kind(&self) -> &BinaryOperatorKind {
+        &self.kind
     }
 
     pub fn precedence(&self) -> u32 {

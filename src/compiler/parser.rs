@@ -1,5 +1,5 @@
-use crate::{
-    cst::{BinaryOperator, BinaryOperatorKind, Expression, Module},
+use super::{
+    cst::{BinaryOperator, BinaryOperatorKind, Expression, Module, Statement},
     lexer::{Token, TokenKind},
     utilities::range::Range,
 };
@@ -191,16 +191,24 @@ pub fn parse_parenthesized_expression<'a>(
     ))
 }
 
+pub fn parse_statement<'a>(
+    state: ParseState<'a>,
+) -> ParseResult<Statement<'a>> {
+    let (expression, state) = parse_expression(state)?;
+    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon)(skip_whitespace(&state))?;
+    ParseResult::Ok((Statement::Expression(expression, semicolon), state))
+}
+
 pub fn parse_module(tokens: &[Token]) -> ParseResult<Module> {
     let mut state = skip_whitespace(&ParseState::new(tokens));
-    let mut elements = Vec::<Expression>::new();
+    let mut statements = Vec::<Statement>::new();
 
     while state.current_token().kind != TokenKind::EOF {
-        let (expr, next_state) = parse_expression(state)?;
+        let (statement, next_state) = parse_statement(state)?;
 
-        elements.push(expr);
+        statements.push(statement);
         state = skip_whitespace(&next_state);
     }
 
-    Ok((Module::new(elements), state))
+    Ok((Module::new(statements), state))
 }
