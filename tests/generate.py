@@ -5,7 +5,7 @@ import pathlib
 
 def generate_lexer_tests():
     with open("tests/lexer_tests.rs", "w") as file:
-        file.write("use komodo::compiler::{lexer::*, utilities::range::Range};\n")
+        file.write("use komodo::compiler::{lexing::{lexer::*, token::{TokenKind, Token}}, utilities::range::Range};\n")
 
         for test_file_path in glob.glob("tests/lexer/*.json"):
             with open(test_file_path) as test_file:
@@ -57,11 +57,11 @@ def generate_lexer_tests():
                  "\n"
                  "#[test]\n"
                 f"fn {test_name}() {{\n"
-                f"  let result = lex(\"{repr(test_input)[1:-1]}\");\n\n"
-                f"  assert_eq!(result.tokens(), &[\n"
+                f"  let (tokens, errors) = lex(\"{repr(test_input)[1:-1]}\");\n\n"
+                f"  assert_eq!(tokens, &[\n"
                 f"      {test_expected_tokens}\n"
                  "  ]);\n\n"
-                f"  assert_eq!(result.errors(),&[\n"
+                f"  assert_eq!(errors, &[\n"
                 f"      {test_expected_errors}\n"
                  "  ]);\n"
                  "}\n"
