@@ -180,7 +180,7 @@ fn lex_exact(input: &str, kind: TokenKind, expected: &str) -> LexResult {
                 (None, Some(ec)) => {
                     return Err((
                         LexErrorKind::UnexpectedEOF {
-                            expected: "a whitespace character".to_string(),
+                            expected: ec.to_string(),
                         },
                         input.len(),
                     ))
@@ -222,11 +222,11 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
         for lexer in LEXERS {
             match lexer(&input[parse_offset..]) {
                 Ok((kind, length)) => {
-                    if let Some(token) = &longest {
+                    if let Some(longest) = &longest {
                         let token_char_count =
                             &input[parse_offset..parse_offset + length].chars().count();
 
-                        if token_char_count < &token.value_char_length(input) {
+                        if token_char_count <= &longest.value_char_length(input) {
                             continue;
                         }
                     }
