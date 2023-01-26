@@ -1,7 +1,6 @@
 use super::{
     cst::{BinaryOperator, BinaryOperatorKind, Expression, Module, Statement},
-    lexer::{Token, TokenKind},
-    utilities::range::Range,
+    utilities::range::Range, lexing::token::{Token, TokenKind},
 };
 
 #[derive(Clone)]

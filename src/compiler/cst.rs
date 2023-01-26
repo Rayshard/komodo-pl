@@ -1,4 +1,4 @@
-use super::lexer::Token;
+use super::lexing::token::Token;
 
 pub struct Module<'a> {
     statements: Vec<Statement<'a>>,
