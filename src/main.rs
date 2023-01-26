@@ -1,26 +1,40 @@
+use std::fs;
+
+use colored::Colorize;
+use escape_string::escape;
 use komodo::{
     compiler::{lexer, parser},
     runtime::interpreter,
 };
 
 fn main() {
-    let result = lexer::lex("5; 7; 9+3;");
+    let input = fs::read_to_string("tests/e2e/hello-world.kmd").expect("Unable to read file");
+    
+    // Lex
+    let result = lexer::lex(&input);
+
+    for token in result.tokens() {
+        println!("{token:?} = {}", escape(token.value(&input)))
+    }
 
     if result.has_errors() {
         for error in result.errors() {
-            println!("{error:?}")
+            println!("{}", error.to_string().red())
         }
 
         return;
     }
 
+    // Parse
     let result = match parser::parse_module(result.tokens()) {
         Ok((module, _)) => module,
-        Err((error, state)) => {
-            println!("{}", error.message);
+        Err((error, _)) => {
+            println!("{}", error.to_string().red());
             return;
         }
     };
 
-    println!("{:?}", interpreter::interpret_module(&result));
+    // Interpret
+    let result = interpreter::interpret_module(&result);
+    println!("{result:?}");
 }

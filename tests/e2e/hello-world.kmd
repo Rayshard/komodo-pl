@@ -1,0 +1,6 @@
+import io;
+
+func main()
+{
+    io.stdout.print_line("Hello, World!");
+}

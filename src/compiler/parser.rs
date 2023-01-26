@@ -46,6 +46,12 @@ pub struct ParseError {
     pub message: String,
 }
 
+impl ToString for ParseError {
+    fn to_string(&self) -> String {
+        format!("Parsing Error [{}, {}]: {}", self.range.start(), self.range.end() - 1, self.message)
+    }
+}
+
 pub type ParseResult<'a, T> = Result<(T, ParseState<'a>), (ParseError, ParseState<'a>)>;
 
 fn longest<'a, T>(
