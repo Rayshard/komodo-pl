@@ -1,36 +1,39 @@
 use super::lexing::token::Token;
 
-pub struct Module<'a> {
-    statements: Vec<Statement<'a>>,
+pub struct Script {
+    statements: Vec<Statement>,
 }
 
-impl<'a> Module<'a> {
-    pub fn new(statements: Vec<Statement>) -> Module {
-        Module { statements }
+impl Script {
+    pub fn new(statements: Vec<Statement>) -> Script {
+        Script { statements }
     }
 
-    pub fn statements(&self) -> &[Statement<'a>] {
+    pub fn statements(&self) -> &[Statement] {
         &self.statements
     }
 }
 
 #[derive(Debug)]
-pub enum Statement<'a> {
-    Expression(Expression<'a>, &'a Token)
+pub enum Statement {
+    Import { keyword: Token, path: Token, semicolon: Token },
+    Expression(Expression, Token),
 }
 
 #[derive(Debug)]
-pub enum Expression<'a> {
-    IntegerLiteral(&'a Token),
+pub enum Expression {
+    IntegerLiteral(Token),
+    Identifier(Token),
+    Call(Box<Expression>, Token, Box<Expression>, Token),
     Binary {
-        left: Box<Expression<'a>>,
-        op: BinaryOperator<'a>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression>,
+        op: BinaryOperator,
+        right: Box<Expression>,
     },
     Parenthesized {
-        open_parenthesis: &'a Token,
-        expression: Box<Expression<'a>>,
-        close_parenthesis: &'a Token,
+        open_parenthesis: Token,
+        expression: Box<Expression>,
+        close_parenthesis: Token,
     },
 }
 
@@ -40,16 +43,17 @@ pub enum BinaryOperatorKind {
     Subtract,
     Multiply,
     Divide,
+    MemberAccess,
 }
 
 #[derive(Debug)]
-pub struct BinaryOperator<'a> {
+pub struct BinaryOperator {
     kind: BinaryOperatorKind,
-    token: &'a Token,
+    token: Token,
 }
 
-impl<'a> BinaryOperator<'a> {
-    pub fn new(kind: BinaryOperatorKind, token: &'a Token) -> BinaryOperator {
+impl<'a> BinaryOperator {
+    pub fn new(kind: BinaryOperatorKind, token: Token) -> BinaryOperator {
         BinaryOperator { kind, token }
     }
 
@@ -77,6 +81,7 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => 0,
             BinaryOperatorKind::Multiply => 1,
             BinaryOperatorKind::Divide => 1,
+            BinaryOperatorKind::MemberAccess => 2,
         }
     }
 
@@ -86,6 +91,7 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => false,
             BinaryOperatorKind::Multiply => false,
             BinaryOperatorKind::Divide => false,
+            BinaryOperatorKind::MemberAccess => false,
         }
     }
 
@@ -95,6 +101,7 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => true,
             BinaryOperatorKind::Multiply => true,
             BinaryOperatorKind::Divide => true,
+            BinaryOperatorKind::MemberAccess => true,
         }
     }
 }

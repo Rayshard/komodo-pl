@@ -1,9 +1,9 @@
-use std::fmt::Display;
+use std::{fmt::Display, io};
 
 use colored::Colorize;
 use komodo::{
     compiler::{
-        cst::Module,
+        cst::Script,
         lexing::{
             lexer::{self, LexError},
             token::Token,
@@ -14,14 +14,20 @@ use komodo::{
     runtime::interpreter,
 };
 
-enum CompilationError<'a> {
-    Lexer(&'a TextSource, Vec<LexError>),
-    Parser(&'a TextSource, ParseError),
+enum CompilationError {
+    File(io::Error),
+    Lexer(TextSource, Vec<LexError>),
+    Parser(TextSource, ParseError),
 }
 
-impl<'a> Display for CompilationError<'a> {
+impl Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            CompilationError::File(error) => write!(
+                f,
+                "{}",
+                format!("ERROR | Unable to load file: {error}").red()
+            ),
             CompilationError::Lexer(source, errors) => {
                 let concated_errors = errors
                     .iter()
@@ -51,7 +57,9 @@ impl<'a> Display for CompilationError<'a> {
     }
 }
 
-fn lex(source: &TextSource) -> Result<(&TextSource, Vec<Token>), CompilationError> {
+type CompilationResult = Result<Script, CompilationError>;
+
+fn lex<'a>(source: TextSource) -> Result<(TextSource, Vec<Token>), CompilationError> {
     let (tokens, errors) = lexer::lex(source.text());
 
     // for token in tokens.iter() {
@@ -65,46 +73,32 @@ fn lex(source: &TextSource) -> Result<(&TextSource, Vec<Token>), CompilationErro
     }
 }
 
-fn parse<'a>(
-    (source, tokens): (&'a TextSource, &'a Vec<Token>),
-) -> Result<Module, CompilationError> {
-    parser::parse_module(&tokens).map_or_else(
+fn parse((source, tokens): (TextSource, Vec<Token>)) -> Result<Script, CompilationError> {
+    parser::parse_script(&tokens).map_or_else(
         |(error, _)| Err(CompilationError::Parser(source, error)),
         |(module, _)| Ok(module),
     )
 }
 
+fn compile(source: TextSource) -> CompilationResult {
+    let lex_result = lex(source)?;
+    parse(lex_result)
+}
+
+fn compile_file(path: &str) -> CompilationResult {
+    let source = TextSource::from_file(path).map_err(|error| CompilationError::File(error))?;
+    compile(source)
+}
+
 fn main() {
-    let text_source = match TextSource::from_file("tests/e2e/hello-world.kmd") {
-        Ok(ts) => ts,
-        Err(error) => {
-            println!(
-                "{}",
-                format!("ERROR | Unable to load file: {}", error.to_string()).red()
-            );
-            return;
+    match compile_file("tests/e2e/hello-world.kmd") {
+        Ok(module) => {
+            let result = interpreter::interpret_script(&module);
+            println!("{result:?}");
         }
-    };
-
-    // Lex
-    let result = match lex(&text_source) {
-        Ok(result) => result,
         Err(error) => {
             println!("{error}");
-            return;
+            std::process::exit(1);
         }
-    };
-
-    // Parse
-    let result = match parse((result.0, &result.1)) {
-        Ok(module) => module,
-        Err(error) => {
-            println!("{error}");
-            return;
-        }
-    };
-
-    // Interpret
-    let result = interpreter::interpret_module(&result);
-    println!("{result:?}");
+    }
 }
