@@ -1,6 +1,7 @@
 use super::{
     cst::{BinaryOperator, BinaryOperatorKind, Expression, Module, Statement},
-    utilities::range::Range, lexing::token::{Token, TokenKind},
+    lexing::token::{Token, TokenKind},
+    utilities::range::Range,
 };
 
 #[derive(Clone)]
@@ -47,18 +48,25 @@ pub struct ParseError {
 
 impl ToString for ParseError {
     fn to_string(&self) -> String {
-        format!("Parsing Error [{}, {}]: {}", self.range.start(), self.range.end() - 1, self.message)
+        self.message.clone()
     }
 }
 
 pub type ParseResult<'a, T> = Result<(T, ParseState<'a>), (ParseError, ParseState<'a>)>;
 
 fn longest<'a, T>(
-    parsers: &[fn(ParseState<'a>) -> ParseResult<'a, T>],
     state: ParseState<'a>,
+    parsers: &[fn(ParseState<'a>) -> ParseResult<'a, T>],
+    multi_error_message: String,
 ) -> ParseResult<'a, T> {
     let mut longest_success: Option<(T, ParseState)> = None;
-    let mut longest_error: Option<(ParseError, ParseState)> = None;
+    let mut longest_error: (ParseError, ParseState) = (
+        ParseError {
+            range: state.current_token().range.clone(),
+            message: multi_error_message.clone(),
+        },
+        state.clone(),
+    );
 
     for parser in parsers {
         match parser(state.clone()) {
@@ -68,21 +76,21 @@ fn longest<'a, T>(
             {
                 longest_success = Some(result);
             }
-            Err(result)
-                if longest_success.is_none()
-                    || longest_error.is_none()
-                    || result.1.offset > longest_error.as_ref().unwrap().1.offset =>
-            {
-                longest_error = Some(result);
-            }
+            Err(result) if result.1.offset > longest_error.1.offset => longest_error = result,
+            Err(result) if result.1.offset == longest_error.1.offset => longest_error = (
+                ParseError {
+                    range: longest_error.0.range,
+                    message: multi_error_message.clone(),
+                },
+                longest_error.1,
+            ),
             _ => continue,
         }
     }
 
-    if let Some(result) = longest_success {
-        Ok(result)
-    } else {
-        Err(longest_error.unwrap()) // This call to unwrap() only fails if there were 0 parsers supplied to the function
+    match longest_success {
+        Some(success) if success.1.offset >= longest_error.1.offset => Ok(success),
+        _ => Err(longest_error)
     }
 }
 
@@ -142,7 +150,7 @@ pub fn parse_expression_at_precedence<'a>(
     let atoms: &[fn(ParseState) -> ParseResult<Expression>] =
         &[parse_integer_literal, parse_parenthesized_expression];
 
-    let (mut expression, mut state) = longest(atoms, state)?;
+    let (mut expression, mut state) = longest(state, atoms, "Expected an expression".to_string())?;
 
     loop {
         if let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(&state)) {
@@ -156,9 +164,16 @@ pub fn parse_expression_at_precedence<'a>(
                 binop.precedence() + 1
             };
 
-            let (rhs, next_state) = parse_expression_at_precedence(next_minimum_precedence, skip_whitespace(&next_state))?;
+            let (rhs, next_state) = parse_expression_at_precedence(
+                next_minimum_precedence,
+                skip_whitespace(&next_state),
+            )?;
 
-            expression = Expression::Binary { left: Box::new(expression), op: binop, right: Box::new(rhs) };
+            expression = Expression::Binary {
+                left: Box::new(expression),
+                op: binop,
+                right: Box::new(rhs),
+            };
             state = next_state;
         } else {
             break;
@@ -168,9 +183,7 @@ pub fn parse_expression_at_precedence<'a>(
     Ok((expression, state))
 }
 
-pub fn parse_expression<'a>(
-    state: ParseState<'a>,
-) -> ParseResult<Expression<'a>> {
+pub fn parse_expression<'a>(state: ParseState<'a>) -> ParseResult<Expression<'a>> {
     parse_expression_at_precedence(0, state)
 }
 
@@ -196,9 +209,7 @@ pub fn parse_parenthesized_expression<'a>(
     ))
 }
 
-pub fn parse_statement<'a>(
-    state: ParseState<'a>,
-) -> ParseResult<Statement<'a>> {
+pub fn parse_statement<'a>(state: ParseState<'a>) -> ParseResult<Statement<'a>> {
     let (expression, state) = parse_expression(state)?;
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon)(skip_whitespace(&state))?;
     ParseResult::Ok((Statement::Expression(expression, semicolon), state))

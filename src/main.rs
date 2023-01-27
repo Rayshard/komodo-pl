@@ -1,7 +1,6 @@
-use std::{fmt::Display, fs};
+use std::fmt::Display;
 
 use colored::Colorize;
-use escape_string::escape;
 use komodo::{
     compiler::{
         cst::Module,
@@ -10,59 +9,86 @@ use komodo::{
             token::Token,
         },
         parser::{self, ParseError},
+        utilities::text_source::TextSource,
     },
     runtime::interpreter,
 };
 
-enum CompilationError {
-    Lexer(Vec<LexError>),
-    Parser(ParseError),
+enum CompilationError<'a> {
+    Lexer(&'a TextSource, Vec<LexError>),
+    Parser(&'a TextSource, ParseError),
 }
 
-impl Display for CompilationError {
+impl<'a> Display for CompilationError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompilationError::Lexer(errors) => {
+            CompilationError::Lexer(source, errors) => {
                 let concated_errors = errors
                     .iter()
-                    .map(|e| e.to_string())
+                    .map(|e| {
+                        format!(
+                            "ERROR ({}) {}",
+                            source.get_terminal_link(e.range.start()).unwrap(),
+                            e.to_string()
+                        )
+                    })
                     .collect::<Vec<String>>()
                     .join("\n");
 
                 write!(f, "{}", concated_errors.red())
             }
-            CompilationError::Parser(error) => write!(f, "{}", error.to_string().red()),
+            CompilationError::Parser(source, error) => write!(
+                f,
+                "{}",
+                format!(
+                    "ERROR ({}) {}",
+                    source.get_terminal_link(error.range.start()).unwrap(),
+                    error.to_string()
+                )
+                .red()
+            ),
         }
     }
 }
 
-fn lex(input: &str) -> Result<Vec<Token>, CompilationError> {
-    let (tokens, errors) = lexer::lex(&input);
+fn lex(source: &TextSource) -> Result<(&TextSource, Vec<Token>), CompilationError> {
+    let (tokens, errors) = lexer::lex(source.text());
 
     // for token in tokens.iter() {
     //     println!("{token:?} = {}", escape(token.value(&input)))
     // }
 
     if errors.is_empty() {
-        Ok(tokens)
+        Ok((source, tokens))
     } else {
-        Err(CompilationError::Lexer(errors))
+        Err(CompilationError::Lexer(source, errors))
     }
 }
 
-fn parse(input: &Vec<Token>) -> Result<Module, CompilationError> {
-    parser::parse_module(input).map_or_else(
-        |(error, _)| Err(CompilationError::Parser(error)),
+fn parse<'a>(
+    (source, tokens): (&'a TextSource, &'a Vec<Token>),
+) -> Result<Module, CompilationError> {
+    parser::parse_module(&tokens).map_or_else(
+        |(error, _)| Err(CompilationError::Parser(source, error)),
         |(module, _)| Ok(module),
     )
 }
 
 fn main() {
-    let result = fs::read_to_string("tests/e2e/hello-world.kmd").expect("Unable to read file");
+    let text_source = match TextSource::from_file("tests/e2e/hello-world.kmd") {
+        Ok(ts) => ts,
+        Err(error) => {
+            println!(
+                "{}",
+                format!("ERROR | Unable to load file: {}", error.to_string()).red()
+            );
+            return;
+        }
+    };
 
     // Lex
-    let result = match lex(&result) {
-        Ok(tokens) => tokens,
+    let result = match lex(&text_source) {
+        Ok(result) => result,
         Err(error) => {
             println!("{error}");
             return;
@@ -70,7 +96,7 @@ fn main() {
     };
 
     // Parse
-    let result = match parse(&result) {
+    let result = match parse((result.0, &result.1)) {
         Ok(module) => module,
         Err(error) => {
             println!("{error}");

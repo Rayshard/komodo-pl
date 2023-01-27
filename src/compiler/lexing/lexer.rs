@@ -25,7 +25,7 @@ impl LexError {
 
 impl ToString for LexError {
     fn to_string(&self) -> String {
-        let message = match &self.kind {
+        match &self.kind {
             LexErrorKind::UnexpectedCharacter {
                 character,
                 expected,
@@ -36,14 +36,7 @@ impl ToString for LexError {
             LexErrorKind::StringLiteralMissingClosingQuotation => {
                 format!("Expected \" to termintate string literal")
             }
-        };
-
-        format!(
-            "Lexing Error [{}, {}]: {}",
-            self.range.start(),
-            self.range.end() - 1,
-            message
-        )
+        }
     }
 }
 
