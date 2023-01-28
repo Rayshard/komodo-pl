@@ -1,7 +1,7 @@
 use super::{
-    cst::{BinaryOperator, BinaryOperatorKind, Expression, Script, Statement},
+    cst::{BinaryOperator, BinaryOperatorKind, Expression, Script, Statement, UnaryOperator},
     lexing::token::{Token, TokenKind},
-    utilities::range::Range,
+    utilities::{range::Range, text_source::TextSource},
 };
 
 #[derive(Clone)]
@@ -123,39 +123,100 @@ pub fn skip_whitespace<'a>(state: &ParseState<'a>) -> ParseState<'a> {
 }
 
 pub fn parse_binary_operator(state: ParseState) -> ParseResult<BinaryOperator> {
-    let token = state.current_token();
-    let kind = match token.kind {
-        TokenKind::SymbolPlus => BinaryOperatorKind::Add,
-        TokenKind::SymbolHyphen => BinaryOperatorKind::Subtract,
-        TokenKind::SymbolAsterisk => BinaryOperatorKind::Multiply,
-        TokenKind::SymbolForwardSlash => BinaryOperatorKind::Divide,
-        TokenKind::SymbolPeriod => BinaryOperatorKind::MemberAccess,
-        _ => {
-            return Err((
-                ParseError {
-                    range: token.range.clone(),
-                    message: format!("Expected a binary operator, but found {:?}", token.kind),
-                },
-                state,
-            ))
-        }
-    };
+    longest(
+        state,
+        &[
+            |state| {
+                expect_token(TokenKind::SymbolPlus, state).map(|(token, state)| {
+                    (
+                        BinaryOperator::new(BinaryOperatorKind::Add, token.clone()),
+                        state,
+                    )
+                })
+            },
+            |state| {
+                expect_token(TokenKind::SymbolHyphen, state).map(|(token, state)| {
+                    (
+                        BinaryOperator::new(BinaryOperatorKind::Subtract, token.clone()),
+                        state,
+                    )
+                })
+            },
+            |state| {
+                expect_token(TokenKind::SymbolAsterisk, state).map(|(token, state)| {
+                    (
+                        BinaryOperator::new(BinaryOperatorKind::Multiply, token.clone()),
+                        state,
+                    )
+                })
+            },
+            |state| {
+                expect_token(TokenKind::SymbolForwardSlash, state).map(|(token, state)| {
+                    (
+                        BinaryOperator::new(BinaryOperatorKind::Divide, token.clone()),
+                        state,
+                    )
+                })
+            },
+        ],
+        "Expected a binary operator".to_string(),
+    )
+}
 
-    Ok((BinaryOperator::new(kind, token.clone()), state.next()))
+pub fn parse_postfix_unary_operator(state: ParseState) -> ParseResult<UnaryOperator> {
+    longest(state, &[], "Expected a post-fix unary operator".to_string())
+}
+
+pub fn parse_primary_expression(state: ParseState) -> ParseResult<Expression> {
+    let atoms: &[fn(ParseState) -> ParseResult<Expression>] = &[
+        parse_integer_literal_expression,
+        parse_string_literal_expression,
+        parse_parenthesized_expression,
+        parse_identifier_expression,
+    ];
+
+    let (mut expression, mut state) = longest(state, atoms, "Expected an expression".to_string())?;
+
+    loop {
+        let token = state.current_token();
+
+        match token.kind {
+            TokenKind::SymbolPeriod => {
+                let (member, next_state) = expect_token(TokenKind::Identifier, state.next())?;
+                expression = Expression::MemberAccess {
+                    head: Box::new(expression),
+                    dot: token.clone(),
+                    member,
+                };
+
+                state = next_state;
+            }
+            TokenKind::SymbolOpenParenthesis => {
+                let (arg, next_state) = parse_expression(state.next())?;
+                let (close_parenthesis, next_state) =
+                    expect_token(TokenKind::SymbolCloseParenthesis, next_state)?;
+
+                expression = Expression::Call {
+                    head: Box::new(expression),
+                    open_parenthesis: token.clone(),
+                    arg: Box::new(arg),
+                    close_parenthesis,
+                };
+
+                state = next_state;
+            }
+            _ => break,
+        }
+    }
+
+    Ok((expression, state))
 }
 
 pub fn parse_expression_at_precedence<'a>(
     minimum_precedence: u32,
     state: ParseState<'a>,
 ) -> ParseResult<Expression> {
-    let atoms: &[fn(ParseState) -> ParseResult<Expression>] = &[
-        parse_integer_literal_expression,
-        parse_parenthesized_expression,
-        parse_identifier_expression,
-        parse_call_expression,
-    ];
-
-    let (mut expression, mut state) = longest(state, atoms, "Expected an expression".to_string())?;
+    let (mut expression, mut state) = parse_primary_expression(state)?;
 
     loop {
         if let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(&state)) {
@@ -179,6 +240,7 @@ pub fn parse_expression_at_precedence<'a>(
                 op: binop,
                 right: Box::new(rhs),
             };
+
             state = next_state;
         } else {
             break;
@@ -197,26 +259,14 @@ pub fn parse_integer_literal_expression<'a>(state: ParseState<'a>) -> ParseResul
     Ok((Expression::IntegerLiteral(token), state))
 }
 
+pub fn parse_string_literal_expression<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression> {
+    let (token, state) = expect_token(TokenKind::StringLiteral, state)?;
+    Ok((Expression::StringLiteral(token), state))
+}
+
 pub fn parse_identifier_expression<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression> {
     let (token, state) = expect_token(TokenKind::Identifier, state)?;
     Ok((Expression::Identifier(token), state))
-}
-
-pub fn parse_call_expression<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression> {
-    let (head, state) = parse_expression(state)?;
-    let (open_parenthesis, state) = expect_token(TokenKind::SymbolOpenParenthesis, state)?;
-    let (arg, state) = parse_expression(state)?;
-    let (close_parenthesis, state) = expect_token(TokenKind::SymbolCloseParenthesis, state)?;
-    
-    Ok((
-        Expression::Call(
-            Box::new(head),
-            open_parenthesis,
-            Box::new(arg),
-            close_parenthesis,
-        ),
-        state,
-    ))
 }
 
 pub fn parse_parenthesized_expression<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression> {
@@ -235,14 +285,25 @@ pub fn parse_parenthesized_expression<'a>(state: ParseState<'a>) -> ParseResult<
 }
 
 pub fn parse_import_statement<'a>(state: ParseState<'a>) -> ParseResult<'a, Statement> {
-    let (keyword, state) = expect_token(TokenKind::KeywordImport, state)?;
-    let (path, state) = expect_token(TokenKind::StringLiteral, skip_whitespace(&state))?;
+    let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
+    let (item, state) = expect_token(TokenKind::Identifier, skip_whitespace(&state))?;
+
+    let (from, state) = if let Ok((keyword_from, state)) =
+        expect_token(TokenKind::KeywordFrom, skip_whitespace(&state))
+    {
+        let (path, state) = expect_token(TokenKind::StringLiteral, skip_whitespace(&state))?;
+        (Some((keyword_from, path)), state)
+    } else {
+        (None, state)
+    };
+
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(&state))?;
 
     Ok((
         Statement::Import {
-            keyword,
-            path,
+            keyword_import,
+            item,
+            from,
             semicolon,
         },
         state,
@@ -263,7 +324,7 @@ pub fn parse_statement(state: ParseState) -> ParseResult<Statement> {
     longest(state, parsers, "Expected a statement".to_string())
 }
 
-pub fn parse_script(tokens: &[Token]) -> ParseResult<Script> {
+pub fn parse_script(source: TextSource, tokens: &[Token]) -> ParseResult<Script> {
     let mut state = skip_whitespace(&ParseState::new(tokens));
     let mut statements = Vec::<Statement>::new();
 
@@ -274,5 +335,5 @@ pub fn parse_script(tokens: &[Token]) -> ParseResult<Script> {
         state = skip_whitespace(&next_state);
     }
 
-    Ok((Script::new(statements), state))
+    Ok((Script::new(source, statements), state))
 }

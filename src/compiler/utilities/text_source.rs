@@ -2,7 +2,7 @@ use std::{fs, io};
 
 use super::{position::Position, range::Range};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextSource {
     name: String,
     text: String,

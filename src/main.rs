@@ -74,9 +74,9 @@ fn lex<'a>(source: TextSource) -> Result<(TextSource, Vec<Token>), CompilationEr
 }
 
 fn parse((source, tokens): (TextSource, Vec<Token>)) -> Result<Script, CompilationError> {
-    parser::parse_script(&tokens).map_or_else(
+    parser::parse_script(source.clone(), &tokens).map_or_else(
         |(error, _)| Err(CompilationError::Parser(source, error)),
-        |(module, _)| Ok(module),
+        |(script, _)| Ok(script),
     )
 }
 
@@ -92,8 +92,9 @@ fn compile_file(path: &str) -> CompilationResult {
 
 fn main() {
     match compile_file("tests/e2e/hello-world.kmd") {
-        Ok(module) => {
-            let result = interpreter::interpret_script(&module);
+        Ok(script) => {
+            println!("{script:#?}");
+            let result = interpreter::interpret_script(&script);
             println!("{result:?}");
         }
         Err(error) => {

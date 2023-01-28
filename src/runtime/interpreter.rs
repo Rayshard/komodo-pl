@@ -1,4 +1,8 @@
-use crate::compiler::cst::{BinaryOperatorKind, Expression, Script, Statement};
+use crate::compiler::{
+    cst::{BinaryOperatorKind, Expression, Script, Statement, UnaryOperator},
+    lexing::token,
+    utilities::text_source::TextSource,
+};
 
 #[derive(Debug)]
 pub enum Value {
@@ -12,12 +16,17 @@ pub type InterpretError = String;
 
 pub type InterpretResult = Result<Value, InterpretError>;
 
-fn interpret_expression(expression: &Expression) -> InterpretResult {
+fn interpret_expression(expression: &Expression, source: &TextSource) -> InterpretResult {
     match expression {
-        Expression::IntegerLiteral(token) => Ok(Value::I64(0)),
+        Expression::IntegerLiteral(token) => {
+            Ok(Value::I64(token.value(source.text()).parse().unwrap()))
+        }
+        Expression::StringLiteral(token) => {
+            Ok(Value::String(token.value(source.text()).to_string()))
+        }
         Expression::Binary { left, op, right } => {
-            let left = interpret_expression(left.as_ref())?;
-            let right = interpret_expression(right.as_ref())?;
+            let left = interpret_expression(left.as_ref(), source)?;
+            let right = interpret_expression(right.as_ref(), source)?;
 
             match (left, op.kind(), right) {
                 (Value::I64(left), BinaryOperatorKind::Add, Value::I64(right)) => {
@@ -32,9 +41,6 @@ fn interpret_expression(expression: &Expression) -> InterpretResult {
                 (Value::I64(left), BinaryOperatorKind::Divide, Value::I64(right)) => {
                     Ok(Value::I64(left / right))
                 }
-                (Value::Object(left), BinaryOperatorKind::MemberAccess, Value::Object(right)) => {
-                    Ok(Value::Object(format!("{left}.{right}")))
-                }
                 (left, op, right) => Err(format!(
                     "Unable to perform operation '{op:?}' on {left:?} and {right:?}"
                 )),
@@ -44,29 +50,64 @@ fn interpret_expression(expression: &Expression) -> InterpretResult {
             open_parenthesis: _,
             expression,
             close_parenthesis: _,
-        } => interpret_expression(expression.as_ref()),
-        Expression::Identifier(token) => Ok(Value::Object("id".to_string())),
-        Expression::Call(head, _, arg, _) => {
-            let head = interpret_expression(head.as_ref())?;
-            let arg = interpret_expression(arg.as_ref())?;
+        } => interpret_expression(expression.as_ref(), source),
+        Expression::Identifier(token) => Ok(Value::Object(token.value(source.text()).to_string())),
+        Expression::MemberAccess {
+            head,
+            dot: _,
+            member,
+        } => {
+            let head = interpret_expression(head.as_ref(), source)?;
 
-            match (head, arg) {
-                (Value::Object(head), Value::String(arg)) if head == "io.stdout.print_line" => {
-                    println!("Hello, World!");
+            if let Value::Object(head) = head {
+                Ok(Value::Object(format!(
+                    "{head}.{}",
+                    member.value(source.text())
+                )))
+            } else {
+                Err(format!("Unable to access non-object expression: {head:?}"))
+            }
+        }
+        Expression::Call {
+            head,
+            open_parenthesis: _,
+            arg,
+            close_parenthesis: _,
+        } => {
+            let head = interpret_expression(head.as_ref(), source)?;
+            let arg = interpret_expression(arg.as_ref(), source)?;
+
+            match head {
+                Value::Object(head) if head == "io.stdout.print_line" => {
+                    match arg {
+                        Value::Unit => println!("()"),
+                        Value::I64(value) => println!("{value}"),
+                        Value::String(value) => println!("{value}"),
+                        Value::Object(value) => println!("{value}"),
+                    }
+
                     Ok(Value::Unit)
                 }
-                (head, arg) => Err(format!("Unable to perform call expression on {head:?} with {arg:?}")),
+                head => Err(format!("Unable to perform call operation on {head:?}")),
             }
+        }
+        Expression::Unary { operand, op } => {
+            let operand = interpret_expression(operand.as_ref(), source)?;
+
+            Err(format!(
+                "Unable to perform unary operation {op:?} on {operand:?}"
+            ))
         }
     }
 }
 
-fn interpret_statement(statement: &Statement) -> InterpretResult {
+fn interpret_statement(statement: &Statement, source: &TextSource) -> InterpretResult {
     match statement {
-        Statement::Expression(expression, _) => interpret_expression(expression),
+        Statement::Expression(expression, _) => interpret_expression(expression, source),
         Statement::Import {
-            keyword: _,
-            path: _,
+            keyword_import: _,
+            item: _,
+            from: _,
             semicolon: _,
         } => Ok(Value::Unit),
     }
@@ -76,7 +117,7 @@ pub fn interpret_script(script: &Script) -> InterpretResult {
     let mut last = Value::Unit;
 
     for statement in script.statements() {
-        last = interpret_statement(statement)?;
+        last = interpret_statement(statement, script.source())?;
     }
 
     Ok(last)

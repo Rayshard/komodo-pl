@@ -1,30 +1,66 @@
-use super::lexing::token::Token;
+use super::{lexing::token::Token, utilities::text_source::TextSource};
 
+#[derive(Debug)]
 pub struct Script {
+    source: TextSource,
     statements: Vec<Statement>,
 }
 
 impl Script {
-    pub fn new(statements: Vec<Statement>) -> Script {
-        Script { statements }
+    pub fn new(source: TextSource, statements: Vec<Statement>) -> Script {
+        Script { source, statements }
     }
 
     pub fn statements(&self) -> &[Statement] {
         &self.statements
     }
+
+    pub fn source(&self) -> &TextSource {
+        &self.source
+    }
+}
+
+#[derive(Debug)]
+pub enum ImportPath {
+    Simple(Token),
+    Complex {
+        head: Box<ImportPath>,
+        dot: Token,
+        member: Token
+    }
 }
 
 #[derive(Debug)]
 pub enum Statement {
-    Import { keyword: Token, path: Token, semicolon: Token },
+    Import {
+        keyword_import: Token,
+        item: Token,
+        from: Option<ImportPath>,
+        semicolon: Token,
+    },
     Expression(Expression, Token),
 }
 
 #[derive(Debug)]
 pub enum Expression {
     IntegerLiteral(Token),
+    StringLiteral(Token),
     Identifier(Token),
-    Call(Box<Expression>, Token, Box<Expression>, Token),
+    MemberAccess {
+        head: Box<Expression>,
+        dot: Token,
+        member: Token,
+    },
+    Call {
+        head: Box<Expression>,
+        open_parenthesis: Token,
+        arg: Box<Expression>,
+        close_parenthesis: Token,
+    },
+    Unary {
+        operand: Box<Expression>,
+        op: UnaryOperator,
+    },
     Binary {
         left: Box<Expression>,
         op: BinaryOperator,
@@ -43,7 +79,6 @@ pub enum BinaryOperatorKind {
     Subtract,
     Multiply,
     Divide,
-    MemberAccess,
 }
 
 #[derive(Debug)]
@@ -52,7 +87,7 @@ pub struct BinaryOperator {
     token: Token,
 }
 
-impl<'a> BinaryOperator {
+impl BinaryOperator {
     pub fn new(kind: BinaryOperatorKind, token: Token) -> BinaryOperator {
         BinaryOperator { kind, token }
     }
@@ -81,7 +116,6 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => 0,
             BinaryOperatorKind::Multiply => 1,
             BinaryOperatorKind::Divide => 1,
-            BinaryOperatorKind::MemberAccess => 2,
         }
     }
 
@@ -91,7 +125,6 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => false,
             BinaryOperatorKind::Multiply => false,
             BinaryOperatorKind::Divide => false,
-            BinaryOperatorKind::MemberAccess => false,
         }
     }
 
@@ -101,7 +134,9 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Subtract => true,
             BinaryOperatorKind::Multiply => true,
             BinaryOperatorKind::Divide => true,
-            BinaryOperatorKind::MemberAccess => true,
         }
     }
 }
+
+#[derive(Debug)]
+pub enum UnaryOperator {}

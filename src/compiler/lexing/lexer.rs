@@ -198,6 +198,7 @@ const LEXERS: &'static [fn(input: &str) -> LexResult] = &[
     |input| lex_exact(input, TokenKind::SymbolCloseCurlyBracket, "}"),
     |input| lex_exact(input, TokenKind::SymbolPeriod, "."),
     |input| lex_exact(input, TokenKind::KeywordImport, "import"),
+    |input| lex_exact(input, TokenKind::KeywordFrom, "from"),
     lex_identifier,
     lex_whitespace,
 ];
