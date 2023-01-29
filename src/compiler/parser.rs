@@ -16,7 +16,7 @@ pub struct ParseState<'a> {
 impl<'a> ParseState<'a> {
     fn new(tokens: &'a [Token]) -> ParseState<'a> {
         if let Some(token) = tokens.last() {
-            if token.kind != TokenKind::EOF {
+            if !token.is_eof() {
                 panic!("Invalid tokens. The last token of the input tokens should be an EOF token.")
             }
 
@@ -65,7 +65,7 @@ fn longest<'a, T>(
     let mut longest_success: Option<(T, ParseState)> = None;
     let mut longest_error: (ParseError, ParseState) = (
         ParseError {
-            range: state.current_token().range.clone(),
+            range: state.current_token().range().clone(),
             message: multi_error_message.clone(),
         },
         state.clone(),
@@ -102,23 +102,23 @@ fn longest<'a, T>(
 fn expect_token(kind: TokenKind, state: ParseState) -> ParseResult<Token> {
     let token = state.current_token();
 
-    if token.kind == kind {
+    if token.kind() == &kind {
         Ok((token.clone(), state.next()))
     } else {
         Err((
             ParseError {
-                range: token.range.clone(),
-                message: format!("Expected {kind:?}, but found {:?}", token.kind),
+                range: token.range().clone(),
+                message: format!("Expected {kind:?}, but found {:?}", token.kind()),
             },
             state,
         ))
     }
 }
 
-pub fn skip_whitespace<'a>(state: &ParseState<'a>) -> ParseState<'a> {
-    let mut state = state.clone();
+pub fn skip_whitespace<'a>(state: ParseState<'a>) -> ParseState<'a> {
+    let mut state = state;
 
-    while state.current_token().kind == TokenKind::Whitespace {
+    while state.current_token().is_whitespace() {
         state = state.next();
     }
 
@@ -183,7 +183,7 @@ pub fn parse_primary_expression(state: ParseState) -> ParseResult<Expression> {
     loop {
         let token = state.current_token();
 
-        match token.kind {
+        match token.kind() {
             TokenKind::SymbolPeriod => {
                 let (member, next_state) = expect_token(TokenKind::Identifier, state.next())?;
                 expression = Expression::MemberAccess {
@@ -221,33 +221,27 @@ pub fn parse_expression_at_precedence<'a>(
 ) -> ParseResult<Expression> {
     let (mut expression, mut state) = parse_primary_expression(state)?;
 
-    loop {
-        if let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(&state)) {
-            if binop.precedence() < minimum_precedence {
-                break;
-            }
-
-            let next_minimum_precedence = if binop.is_right_associative() {
-                binop.precedence()
-            } else {
-                binop.precedence() + 1
-            };
-
-            let (rhs, next_state) = parse_expression_at_precedence(
-                next_minimum_precedence,
-                skip_whitespace(&next_state),
-            )?;
-
-            expression = Expression::Binary {
-                left: Box::new(expression),
-                op: binop,
-                right: Box::new(rhs),
-            };
-
-            state = next_state;
-        } else {
+    while let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(state.clone())) {
+        if binop.precedence() < minimum_precedence {
             break;
         }
+
+        let next_minimum_precedence = if binop.is_right_associative() {
+            binop.precedence()
+        } else {
+            binop.precedence() + 1
+        };
+
+        let (rhs, next_state) =
+            parse_expression_at_precedence(next_minimum_precedence, skip_whitespace(next_state))?;
+
+        expression = Expression::Binary {
+            left: Box::new(expression),
+            op: binop,
+            right: Box::new(rhs),
+        };
+
+        state = next_state;
     }
 
     Ok((expression, state))
@@ -274,8 +268,8 @@ pub fn parse_identifier_expression<'a>(state: ParseState<'a>) -> ParseResult<'a,
 
 pub fn parse_parenthesized_expression<'a>(state: ParseState<'a>) -> ParseResult<'a, Expression> {
     let (open_parenthesis, state) = expect_token(TokenKind::SymbolOpenParenthesis, state)?;
-    let (expression, state) = parse_expression(state)?;
-    let (close_parenthesis, state) = expect_token(TokenKind::SymbolCloseParenthesis, state)?;
+    let (expression, state) = parse_expression(skip_whitespace(state))?;
+    let (close_parenthesis, state) = expect_token(TokenKind::SymbolCloseParenthesis, skip_whitespace(state))?;
 
     Ok((
         Expression::Parenthesized {
@@ -291,9 +285,9 @@ pub fn parse_import_path<'a>(state: ParseState<'a>) -> ParseResult<'a, ImportPat
     let (mut path, mut state) = expect_token(TokenKind::Identifier, state)
         .map(|(token, state)| (ImportPath::Simple(token), state))?;
 
-    while let Ok((dot, next_state)) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(&state))
+    while let Ok((dot, next_state)) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(state.clone()))
     {
-        let (member, next_state) = expect_token(TokenKind::Identifier, next_state)?;
+        let (member, next_state) = expect_token(TokenKind::Identifier, skip_whitespace(next_state))?;
 
         path = ImportPath::Complex {
             head: Box::new(path),
@@ -308,16 +302,16 @@ pub fn parse_import_path<'a>(state: ParseState<'a>) -> ParseResult<'a, ImportPat
 
 pub fn parse_import_statement<'a>(state: ParseState<'a>) -> ParseResult<'a, Statement> {
     let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
-    let (import_path, state) = parse_import_path(skip_whitespace(&state))?;
+    let (import_path, state) = parse_import_path(skip_whitespace(state))?;
     let (from_path, state) = if let Ok((keyword_from, state)) =
-        expect_token(TokenKind::KeywordFrom, skip_whitespace(&state))
+        expect_token(TokenKind::KeywordFrom, skip_whitespace(state.clone()))
     {
-        let (path, state) = parse_import_path(skip_whitespace(&state))?;
+        let (path, state) = parse_import_path(skip_whitespace(state))?;
         (Some((keyword_from, path)), state)
     } else {
         (None, state)
     };
-    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(&state))?;
+    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     Ok((
         Statement::Import {
@@ -332,7 +326,7 @@ pub fn parse_import_statement<'a>(state: ParseState<'a>) -> ParseResult<'a, Stat
 
 pub fn parse_expression_statement(state: ParseState) -> ParseResult<Statement> {
     let (expression, state) = parse_expression(state)?;
-    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(&state))?;
+    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     ParseResult::Ok((Statement::Expression(expression, semicolon), state))
 }
@@ -345,14 +339,14 @@ pub fn parse_statement(state: ParseState) -> ParseResult<Statement> {
 }
 
 pub fn parse_script(source: TextSource, tokens: &[Token]) -> ParseResult<Script> {
-    let mut state = skip_whitespace(&ParseState::new(tokens));
+    let mut state = skip_whitespace(ParseState::new(tokens));
     let mut statements = Vec::<Statement>::new();
 
-    while state.current_token().kind != TokenKind::EOF {
+    while !state.current_token().is_eof() {
         let (statement, next_state) = parse_statement(state)?;
 
         statements.push(statement);
-        state = skip_whitespace(&next_state);
+        state = skip_whitespace(next_state);
     }
 
     Ok((Script::new(source, statements), state))

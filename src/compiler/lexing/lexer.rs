@@ -225,10 +225,7 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
                         }
                     }
 
-                    longest = Some(Token {
-                        kind,
-                        range: Range::new(parse_offset, length),
-                    });
+                    longest = Some(Token::new(kind, Range::new(parse_offset, length)));
                 }
                 Err((kind, length)) => {
                     if let Some(error) = &longest_error {
@@ -249,7 +246,7 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
         // of the next character in the input
         match longest {
             Some(token) => {
-                parse_offset += token.range.length();
+                parse_offset += token.range().length();
                 tokens.push(token);
             }
             None => match longest_error {
@@ -263,10 +260,7 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
     }
 
     // Add EOF token at the end of the input
-    tokens.push(Token {
-        kind: TokenKind::EOF,
-        range: Range::new(parse_offset, 0),
-    });
+    tokens.push(Token::new(TokenKind::EOF, Range::new(parse_offset, 0)));
 
     (tokens, errors)
 }

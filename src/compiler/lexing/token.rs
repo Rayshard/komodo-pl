@@ -23,13 +23,21 @@ pub enum TokenKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
-    pub kind: TokenKind,
-    pub range: Range,
+    kind: TokenKind,
+    range: Range,
 }
 
 impl Token {
     pub fn new(kind: TokenKind, range: Range) -> Token {
         Token { kind, range }
+    }
+
+    pub fn kind(&self) -> &TokenKind {
+        &self.kind
+    }
+
+    pub fn range(&self) -> &Range {
+        &self.range
     }
 
     pub fn value_char_length(&self, source: &str) -> usize {
@@ -38,5 +46,13 @@ impl Token {
 
     pub fn value<'a>(&self, input: &'a str) -> &'a str {
         &input[self.range.start()..self.range.end()]
+    }
+
+    pub fn is_eof(&self) -> bool {
+        matches!(self.kind, TokenKind::EOF)
+    }
+
+    pub fn is_whitespace(&self) -> bool {
+        matches!(self.kind, TokenKind::Whitespace)
     }
 }
