@@ -1,6 +1,8 @@
 use std::{fmt::Display};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub struct Range {
     start: usize,
     length: usize,

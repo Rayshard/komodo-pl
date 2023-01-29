@@ -1,4 +1,3 @@
-pub mod parser;
-pub mod cst;
+pub mod parsing;
 pub mod utilities;
 pub mod lexing;

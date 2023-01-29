@@ -5,7 +5,7 @@ import pathlib
 
 def generate_lexer_tests():
     with open("tests/lexer_tests.rs", "w") as file:
-        file.write("use komodo::compiler::{lexing::{lexer::*, token::{TokenKind, Token}}, utilities::range::Range};\n")
+        file.write("use komodo::compiler::{lexing::{lexer::*, token::{TokenKind, Token}}, utilities::{range::Range, text_source::TextSource}};\n")
 
         for test_file_path in glob.glob("tests/lexer/*.json"):
             with open(test_file_path) as test_file:
@@ -22,9 +22,10 @@ def generate_lexer_tests():
                 et_range_length = int(et_range["length"])
 
                 test_expected_tokens.append(
-                    f"Token::new("
+                     "Token::new("
                     f"TokenKind::{et['kind']}, "
-                    f"Range::new({et_range_start}, {et_range_length})"
+                    f"Range::new({et_range_start}, {et_range_length}), "
+                     "&source"
                     ")"
                 )
             
@@ -57,7 +58,8 @@ def generate_lexer_tests():
                  "\n"
                  "#[test]\n"
                 f"fn {test_name}() {{\n"
-                f"  let (tokens, errors) = lex(\"{repr(test_input)[1:-1]}\");\n\n"
+                f"  let source = TextSource::new(\"test\".to_string(), \"{repr(test_input)[1:-1]}\".to_string());\n"
+                f"  let (tokens, errors) = lex(&source);\n\n"
                 f"  assert_eq!(tokens, &[\n"
                 f"      {test_expected_tokens}\n"
                  "  ]);\n\n"

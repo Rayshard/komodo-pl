@@ -1,8 +1,5 @@
-use crate::compiler::{
-    cst::{BinaryOperatorKind, Expression, Script, Statement, UnaryOperator},
-    lexing::token,
-    utilities::text_source::TextSource,
-};
+use crate::compiler::parsing::cst::{expression::Expression, binary_operator::BinaryOperatorKind, script::Script, statement::Statement};
+
 
 #[derive(Debug)]
 pub enum Value {
@@ -16,17 +13,13 @@ pub type InterpretError = String;
 
 pub type InterpretResult = Result<Value, InterpretError>;
 
-fn interpret_expression(expression: &Expression, source: &TextSource) -> InterpretResult {
+fn interpret_expression(expression: &Expression) -> InterpretResult {
     match expression {
-        Expression::IntegerLiteral(token) => {
-            Ok(Value::I64(token.value(source.text()).parse().unwrap()))
-        }
-        Expression::StringLiteral(token) => {
-            Ok(Value::String(token.value(source.text()).to_string()))
-        }
+        Expression::IntegerLiteral(token) => Ok(Value::I64(token.value().parse().unwrap())),
+        Expression::StringLiteral(token) => Ok(Value::String(token.value().to_string())),
         Expression::Binary { left, op, right } => {
-            let left = interpret_expression(left.as_ref(), source)?;
-            let right = interpret_expression(right.as_ref(), source)?;
+            let left = interpret_expression(left.as_ref())?;
+            let right = interpret_expression(right.as_ref())?;
 
             match (left, op.kind(), right) {
                 (Value::I64(left), BinaryOperatorKind::Add, Value::I64(right)) => {
@@ -50,20 +43,17 @@ fn interpret_expression(expression: &Expression, source: &TextSource) -> Interpr
             open_parenthesis: _,
             expression,
             close_parenthesis: _,
-        } => interpret_expression(expression.as_ref(), source),
-        Expression::Identifier(token) => Ok(Value::Object(token.value(source.text()).to_string())),
+        } => interpret_expression(expression.as_ref()),
+        Expression::Identifier(token) => Ok(Value::Object(token.value().to_string())),
         Expression::MemberAccess {
             head,
             dot: _,
             member,
         } => {
-            let head = interpret_expression(head.as_ref(), source)?;
+            let head = interpret_expression(head.as_ref())?;
 
             if let Value::Object(head) = head {
-                Ok(Value::Object(format!(
-                    "{head}.{}",
-                    member.value(source.text())
-                )))
+                Ok(Value::Object(format!("{head}.{}", member.value())))
             } else {
                 Err(format!("Unable to access non-object expression: {head:?}"))
             }
@@ -74,8 +64,8 @@ fn interpret_expression(expression: &Expression, source: &TextSource) -> Interpr
             arg,
             close_parenthesis: _,
         } => {
-            let head = interpret_expression(head.as_ref(), source)?;
-            let arg = interpret_expression(arg.as_ref(), source)?;
+            let head = interpret_expression(head.as_ref())?;
+            let arg = interpret_expression(arg.as_ref())?;
 
             match head {
                 Value::Object(head) if head == "stdout.print_line" => {
@@ -92,7 +82,7 @@ fn interpret_expression(expression: &Expression, source: &TextSource) -> Interpr
             }
         }
         Expression::Unary { operand, op } => {
-            let operand = interpret_expression(operand.as_ref(), source)?;
+            let operand = interpret_expression(operand.as_ref())?;
 
             Err(format!(
                 "Unable to perform unary operation {op:?} on {operand:?}"
@@ -101,9 +91,12 @@ fn interpret_expression(expression: &Expression, source: &TextSource) -> Interpr
     }
 }
 
-fn interpret_statement(statement: &Statement, source: &TextSource) -> InterpretResult {
+fn interpret_statement(statement: &Statement) -> InterpretResult {
     match statement {
-        Statement::Expression(expression, _) => interpret_expression(expression, source),
+        Statement::Expression {
+            expression,
+            semicolon: _,
+        } => interpret_expression(expression),
         Statement::Import {
             keyword_import: _,
             import_path: _,
@@ -117,7 +110,7 @@ pub fn interpret_script(script: &Script) -> InterpretResult {
     let mut last = Value::Unit;
 
     for statement in script.statements() {
-        last = interpret_statement(statement, script.source())?;
+        last = interpret_statement(statement)?;
     }
 
     Ok(last)

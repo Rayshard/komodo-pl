@@ -1,4 +1,4 @@
-use crate::compiler::utilities::range::Range;
+use crate::compiler::utilities::{range::Range, text_source::TextSource};
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -11,21 +11,34 @@ pub enum LexErrorKind {
     StringLiteralMissingClosingQuotation,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct LexError {
-    pub range: Range,
-    pub kind: LexErrorKind,
+#[derive(Debug, PartialEq)]
+pub struct LexError<'a> {
+    range: Range,
+    kind: LexErrorKind,
+    source: &'a TextSource,
 }
 
-impl LexError {
-    pub fn new(range: Range, kind: LexErrorKind) -> LexError {
-        LexError { range, kind }
+impl<'a> LexError<'a> {
+    pub fn new(range: Range, kind: LexErrorKind, source: &TextSource) -> LexError {
+        LexError { range, kind, source }
+    }
+
+    pub fn range(&self) -> &Range {
+        &self.range
+    }
+
+    pub fn kind(&self) -> &LexErrorKind {
+        &self.kind
+    }
+
+    pub fn source(&self) -> &'a TextSource {
+        &self.source
     }
 }
 
-impl ToString for LexError {
+impl<'a> ToString for LexError<'a> {
     fn to_string(&self) -> String {
-        match &self.kind {
+        let message = match &self.kind {
             LexErrorKind::UnexpectedCharacter {
                 character,
                 expected,
@@ -36,7 +49,13 @@ impl ToString for LexError {
             LexErrorKind::StringLiteralMissingClosingQuotation => {
                 format!("Expected \" to termintate string literal")
             }
-        }
+        };
+
+        format!(
+            "ERROR ({}) {}",
+            self.source.get_terminal_link(self.range.start()).unwrap(),
+            message
+        )
     }
 }
 
@@ -203,29 +222,29 @@ const LEXERS: &'static [fn(input: &str) -> LexResult] = &[
     lex_whitespace,
 ];
 
-pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
+pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
     let mut tokens = vec![];
     let mut errors = vec![];
     let mut parse_offset = 0;
 
-    while parse_offset < input.len() {
+    while parse_offset < source.len() {
         // Attempt to find the first longest token
         let mut longest: Option<Token> = None;
         let mut longest_error: Option<LexError> = None;
 
         for lexer in LEXERS {
-            match lexer(&input[parse_offset..]) {
+            match lexer(&source.text()[parse_offset..]) {
                 Ok((kind, length)) => {
                     if let Some(longest) = &longest {
                         let token_char_count =
-                            &input[parse_offset..parse_offset + length].chars().count();
+                            source.text()[parse_offset..parse_offset + length].chars().count();
 
-                        if token_char_count <= &longest.value_char_length(input) {
+                        if token_char_count <= longest.value_char_length() {
                             continue;
                         }
                     }
 
-                    longest = Some(Token::new(kind, Range::new(parse_offset, length)));
+                    longest = Some(Token::new(kind, Range::new(parse_offset, length), source));
                 }
                 Err((kind, length)) => {
                     if let Some(error) = &longest_error {
@@ -237,6 +256,7 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
                     longest_error = Some(LexError {
                         kind,
                         range: Range::new(parse_offset, length),
+                        source
                     });
                 }
             }
@@ -260,7 +280,7 @@ pub fn lex(input: &str) -> (Vec<Token>, Vec<LexError>) {
     }
 
     // Add EOF token at the end of the input
-    tokens.push(Token::new(TokenKind::EOF, Range::new(parse_offset, 0)));
+    tokens.push(Token::new(TokenKind::EOF, Range::new(parse_offset, 0), source));
 
     (tokens, errors)
 }

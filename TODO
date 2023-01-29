@@ -4,4 +4,5 @@
 ✔ Fix parser error handling with longest parser. If there are multiple longest, then return all of them? @done(23-01-27 10:13)
 ☐ implement hello world
 ☐ fix parse errors
-☐ Change reference in skip_whitespace to non-reference
+☐ remove unecessary lifetimes
+✔ Change reference in skip_whitespace to non-reference @done(23-01-29 09:38)

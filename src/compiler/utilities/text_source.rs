@@ -2,7 +2,7 @@ use std::{fs, io};
 
 use super::{position::Position, range::Range};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TextSource {
     name: String,
     text: String,
@@ -32,6 +32,10 @@ impl TextSource {
         &self.text
     }
 
+    pub fn len(&self) -> usize {
+        self.text.len()
+    }
+
     pub fn get_position(&self, offset: usize) -> Option<Position> {
         if offset > self.text.len() {
             return None;
@@ -56,6 +60,10 @@ impl TextSource {
     pub fn get_terminal_link(&self, offset: usize) -> Option<String> {
         let position = self.get_position(offset)?;
         Some(format!("{}:{}", self.name, position))
+    }
+
+    pub fn text_from_range(&self, range: &Range) -> &str {
+        &self.text[range.start()..range.end()]
     }
 
     pub fn from_file(path: &str) -> io::Result<TextSource> {

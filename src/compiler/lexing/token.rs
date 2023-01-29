@@ -1,6 +1,8 @@
-use crate::compiler::utilities::range::Range;
+use serde::{Serialize, ser::SerializeMap};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+use crate::compiler::utilities::{range::Range, text_source::TextSource};
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub enum TokenKind {
     IntegerLiteral,
     StringLiteral,
@@ -22,14 +24,19 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Token {
+pub struct Token<'a> {
     kind: TokenKind,
     range: Range,
+    source: &'a TextSource,
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, range: Range) -> Token {
-        Token { kind, range }
+impl<'a> Token<'a> {
+    pub fn new(kind: TokenKind, range: Range, source: &'a TextSource) -> Token<'a> {
+        Token {
+            kind,
+            range,
+            source,
+        }
     }
 
     pub fn kind(&self) -> &TokenKind {
@@ -40,12 +47,16 @@ impl Token {
         &self.range
     }
 
-    pub fn value_char_length(&self, source: &str) -> usize {
-        source[self.range.start()..self.range.end()].chars().count()
+    pub fn source(&self) -> &'a TextSource {
+        &self.source
     }
 
-    pub fn value<'a>(&self, input: &'a str) -> &'a str {
-        &input[self.range.start()..self.range.end()]
+    pub fn value_char_length(&self) -> usize {
+        self.value().chars().count()
+    }
+
+    pub fn value(&self) -> &'a str {
+        self.source.text_from_range(&self.range)
     }
 
     pub fn is_eof(&self) -> bool {
@@ -54,5 +65,20 @@ impl Token {
 
     pub fn is_whitespace(&self) -> bool {
         matches!(self.kind, TokenKind::Whitespace)
+    }
+}
+
+impl<'a> Serialize for Token<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+
+        map.serialize_entry("kind", &self.kind)?;
+        map.serialize_entry("range", &self.range)?;
+        map.serialize_entry("value", &self.value())?;
+
+        map.end()
     }
 }

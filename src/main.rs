@@ -3,24 +3,26 @@ use std::{fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
-        cst::Script,
         lexing::{
             lexer::{self, LexError},
             token::Token,
         },
-        parser::{self, ParseError},
+        parsing::{
+            cst::script::Script,
+            parser::{self, ParseError},
+        },
         utilities::text_source::TextSource,
     },
     runtime::interpreter,
 };
 
-enum CompilationError {
+enum CompilationError<'a> {
     File(io::Error),
-    Lexer(TextSource, Vec<LexError>),
-    Parser(TextSource, ParseError),
+    Lexer(Vec<LexError<'a>>),
+    Parser(ParseError<'a>),
 }
 
-impl Display for CompilationError {
+impl<'a> Display for CompilationError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CompilationError::File(error) => write!(
@@ -28,72 +30,62 @@ impl Display for CompilationError {
                 "{}",
                 format!("ERROR | Unable to load file: {error}").red()
             ),
-            CompilationError::Lexer(source, errors) => {
+            CompilationError::Lexer(errors) => {
                 let concated_errors = errors
                     .iter()
-                    .map(|e| {
-                        format!(
-                            "ERROR ({}) {}",
-                            source.get_terminal_link(e.range.start()).unwrap(),
-                            e.to_string()
-                        )
-                    })
+                    .map(|e| e.to_string())
                     .collect::<Vec<String>>()
                     .join("\n");
 
                 write!(f, "{}", concated_errors.red())
             }
-            CompilationError::Parser(source, error) => write!(
-                f,
-                "{}",
-                format!(
-                    "ERROR ({}) {}",
-                    source.get_terminal_link(error.range.start()).unwrap(),
-                    error.to_string()
-                )
-                .red()
-            ),
+            CompilationError::Parser(error) => write!(f, "{}", error.to_string().red()),
         }
     }
 }
 
-type CompilationResult = Result<Script, CompilationError>;
+type CompilationResult<'a, T> = Result<T, CompilationError<'a>>;
 
-fn lex<'a>(source: TextSource) -> Result<(TextSource, Vec<Token>), CompilationError> {
-    let (tokens, errors) = lexer::lex(source.text());
+fn lex<'a>(source: &'a TextSource) -> CompilationResult<Vec<Token<'a>>> {
+    let (tokens, errors) = lexer::lex(source);
 
     // for token in tokens.iter() {
     //     println!("{token:?} = {}", escape(token.value(&input)))
     // }
 
     if errors.is_empty() {
-        Ok((source, tokens))
+        Ok(tokens)
     } else {
-        Err(CompilationError::Lexer(source, errors))
+        Err(CompilationError::Lexer(errors))
     }
 }
 
-fn parse((source, tokens): (TextSource, Vec<Token>)) -> Result<Script, CompilationError> {
-    parser::parse_script(source.clone(), &tokens).map_or_else(
-        |(error, _)| Err(CompilationError::Parser(source, error)),
-        |(script, _)| Ok(script),
+fn parse<'a>(source: &'a TextSource, tokens: Vec<Token<'a>>) -> CompilationResult<'a, Script<'a>> {
+    parser::parse_script(source, &tokens).map_or_else(
+        |error| Err(CompilationError::Parser(error)),
+        |script| Ok(script),
     )
 }
 
-fn compile(source: TextSource) -> CompilationResult {
-    let lex_result = lex(source)?;
-    parse(lex_result)
-}
-
-fn compile_file(path: &str) -> CompilationResult {
-    let source = TextSource::from_file(path).map_err(|error| CompilationError::File(error))?;
-    compile(source)
+fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, Script<'a>> {
+    let tokens = lex(&source)?;
+    parse(source, tokens)
 }
 
 fn main() {
-    match compile_file("tests/e2e/hello-world.kmd") {
+    let source = match TextSource::from_file("tests/e2e/hello-world.kmd")
+        .map_err(|error| CompilationError::File(error))
+    {
+        Ok(source) => source,
+        Err(error) => {
+            println!("{error}");
+            std::process::exit(1);
+        }
+    };
+
+    match compile(&source) {
         Ok(script) => {
-            println!("{script:#?}");
+            println!("{}", serde_yaml::to_string(&script).unwrap());
             let result = interpreter::interpret_script(&script);
             println!("{result:?}");
         }
