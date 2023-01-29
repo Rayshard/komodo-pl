@@ -1,5 +1,8 @@
 use super::{
-    cst::{BinaryOperator, BinaryOperatorKind, Expression, Script, Statement, UnaryOperator},
+    cst::{
+        BinaryOperator, BinaryOperatorKind, Expression, ImportPath, Script, Statement,
+        UnaryOperator,
+    },
     lexing::token::{Token, TokenKind},
     utilities::{range::Range, text_source::TextSource},
 };
@@ -284,26 +287,43 @@ pub fn parse_parenthesized_expression<'a>(state: ParseState<'a>) -> ParseResult<
     ))
 }
 
+pub fn parse_import_path<'a>(state: ParseState<'a>) -> ParseResult<'a, ImportPath> {
+    let (mut path, mut state) = expect_token(TokenKind::Identifier, state)
+        .map(|(token, state)| (ImportPath::Simple(token), state))?;
+
+    while let Ok((dot, next_state)) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(&state))
+    {
+        let (member, next_state) = expect_token(TokenKind::Identifier, next_state)?;
+
+        path = ImportPath::Complex {
+            head: Box::new(path),
+            dot,
+            member,
+        };
+        state = next_state;
+    }
+
+    Ok((path, state))
+}
+
 pub fn parse_import_statement<'a>(state: ParseState<'a>) -> ParseResult<'a, Statement> {
     let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
-    let (item, state) = expect_token(TokenKind::Identifier, skip_whitespace(&state))?;
-
-    let (from, state) = if let Ok((keyword_from, state)) =
+    let (import_path, state) = parse_import_path(skip_whitespace(&state))?;
+    let (from_path, state) = if let Ok((keyword_from, state)) =
         expect_token(TokenKind::KeywordFrom, skip_whitespace(&state))
     {
-        let (path, state) = expect_token(TokenKind::StringLiteral, skip_whitespace(&state))?;
+        let (path, state) = parse_import_path(skip_whitespace(&state))?;
         (Some((keyword_from, path)), state)
     } else {
         (None, state)
     };
-
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(&state))?;
 
     Ok((
         Statement::Import {
             keyword_import,
-            item,
-            from,
+            import_path,
+            from_path,
             semicolon,
         },
         state,

@@ -78,7 +78,7 @@ fn interpret_expression(expression: &Expression, source: &TextSource) -> Interpr
             let arg = interpret_expression(arg.as_ref(), source)?;
 
             match head {
-                Value::Object(head) if head == "io.stdout.print_line" => {
+                Value::Object(head) if head == "stdout.print_line" => {
                     match arg {
                         Value::Unit => println!("()"),
                         Value::I64(value) => println!("{value}"),
@@ -106,8 +106,8 @@ fn interpret_statement(statement: &Statement, source: &TextSource) -> InterpretR
         Statement::Expression(expression, _) => interpret_expression(expression, source),
         Statement::Import {
             keyword_import: _,
-            item: _,
-            from: _,
+            import_path: _,
+            from_path: _,
             semicolon: _,
         } => Ok(Value::Unit),
     }

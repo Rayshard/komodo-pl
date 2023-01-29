@@ -34,8 +34,8 @@ pub enum ImportPath {
 pub enum Statement {
     Import {
         keyword_import: Token,
-        item: Token,
-        from: Option<ImportPath>,
+        import_path: ImportPath,
+        from_path: Option<(Token, ImportPath)>,
         semicolon: Token,
     },
     Expression(Expression, Token),
