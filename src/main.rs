@@ -74,18 +74,12 @@ fn parse<'a>(
     )
 }
 
-fn typecheck<'a>(script: CSTScript<'a>) -> CompilationResult<'a, ASTNode<'a, ASTScript<'a>>> {
-    typechecker::typecheck_script(script).map_or_else(
-        |error| Err(CompilationError::Typechecker(error)),
-        |script| Ok(script),
-    )
-}
 
-fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTNode<'a, ASTScript<'a>>> {
+fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTNode<'a, ASTScript>> {
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
-    typecheck(script)
+    typechecker::typecheck_script(script).map_err(|error| CompilationError::Typechecker(error))
 }
 
 fn main() {

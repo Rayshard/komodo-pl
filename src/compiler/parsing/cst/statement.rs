@@ -31,7 +31,7 @@ pub enum Statement<'a> {
     },
 }
 
-impl<'a> Node for Statement<'a> {
+impl<'a> Node<'a> for Statement<'a> {
     fn range(&self) -> Range {
         match self {
             Statement::Import {
@@ -47,7 +47,7 @@ impl<'a> Node for Statement<'a> {
         }
     }
 
-    fn source(&self) -> &TextSource {
+    fn source(&self) -> &'a TextSource {
         match self {
             Statement::Import {
                 keyword_import,

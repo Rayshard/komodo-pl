@@ -6,7 +6,7 @@ pub mod expression;
 pub mod binary_operator;
 pub mod unary_operator;
 
-pub trait Node {
+pub trait Node<'a> {
     fn range(&self) -> Range;
-    fn source(&self) -> &TextSource;
+    fn source(&self) -> &'a TextSource;
 }

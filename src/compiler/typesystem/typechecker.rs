@@ -11,6 +11,7 @@ use crate::compiler::{
     utilities::{range::Range, text_source::TextSource},
 };
 
+#[derive(Debug)]
 pub struct TypecheckError<'a> {
     range: Range,
     message: String,
@@ -30,7 +31,7 @@ impl<'a> ToString for TypecheckError<'a> {
 pub type TypecheckResult<'a, T> = Result<ASTNode<'a, T>, TypecheckError<'a>>;
 
 pub fn typecheck_expression<'a>(
-    expression: &'a CSTExpression<'a>,
+    expression: &CSTExpression<'a>,
 ) -> TypecheckResult<'a, ASTExpression<'a>> {
     match expression {
         CSTExpression::IntegerLiteral(token) => match token.value().parse::<i64>() {
@@ -98,7 +99,7 @@ pub fn typecheck_expression<'a>(
 }
 
 pub fn typecheck_statement<'a>(
-    statement: &'a CSTStatement<'a>,
+    statement: &CSTStatement<'a>,
 ) -> TypecheckResult<'a, ASTStatement<'a>> {
     match statement {
         CSTStatement::Import {
@@ -121,7 +122,7 @@ pub fn typecheck_statement<'a>(
     }
 }
 
-pub fn typecheck_script<'a>(script: &'a CSTScript<'a>) -> TypecheckResult<'a, ASTScript<'a>> {
+pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ASTScript<'a>> {
     let mut statements = vec![];
 
     for statement in script.statements() {
