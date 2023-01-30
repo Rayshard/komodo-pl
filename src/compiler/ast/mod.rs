@@ -1,5 +1,7 @@
 use serde::{Serialize, ser::SerializeMap};
 
+use self::{script::Script, statement::Statement, expression::Expression, literal::Literal};
+
 use super::{typesystem::ts_type::TSType, utilities::text_source::TextSource};
 
 pub mod expression;
@@ -54,3 +56,8 @@ where
         map.end()
     }
 }
+
+pub type ScriptNode<'a> = Node<'a, Script<'a>>;
+pub type StatementNode<'a> = Node<'a, Statement<'a>>;
+pub type ExpressionNode<'a> = Node<'a, Expression<'a>>;
+pub type LiteralNode<'a> = Node<'a, Literal>;

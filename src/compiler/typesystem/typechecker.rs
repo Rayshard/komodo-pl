@@ -1,11 +1,12 @@
 use crate::compiler::{
     ast::{
         expression::Expression as ASTExpression, literal::Literal as ASTLiteral,
-        script::Script as ASTScript, statement::Statement as ASTStatement, Node as ASTNode,
+        script::Script as ASTScript, statement::Statement as ASTStatement, ExpressionNode,
+        LiteralNode, ScriptNode, StatementNode,
     },
     parsing::cst::{
         expression::Expression as CSTExpression, script::Script as CSTScript,
-        statement::Statement as CSTStatement, Node as CSTNode,
+        statement::Statement as CSTStatement, Node as CSTNode, binary_operator::BinaryOperatorKind,
     },
     typesystem::ts_type::TSType,
     utilities::{range::Range, text_source::TextSource},
@@ -28,15 +29,15 @@ impl<'a> ToString for TypecheckError<'a> {
     }
 }
 
-pub type TypecheckResult<'a, T> = Result<ASTNode<'a, T>, TypecheckError<'a>>;
+pub type TypecheckResult<'a, T> = Result<T, TypecheckError<'a>>;
 
 pub fn typecheck_expression<'a>(
     expression: &CSTExpression<'a>,
-) -> TypecheckResult<'a, ASTExpression<'a>> {
+) -> TypecheckResult<'a, ExpressionNode<'a>> {
     match expression {
         CSTExpression::IntegerLiteral(token) => match token.value().parse::<i64>() {
-            Ok(value) => Ok(ASTNode::new(
-                ASTExpression::Literal(ASTNode::new(
+            Ok(value) => Ok(ExpressionNode::new(
+                ASTExpression::Literal(LiteralNode::new(
                     ASTLiteral::Int64(value),
                     TSType::Int64,
                     expression.source(),
@@ -55,7 +56,15 @@ pub fn typecheck_expression<'a>(
                 source: expression.source(),
             }),
         },
-        CSTExpression::StringLiteral(_) => todo!(),
+        CSTExpression::StringLiteral(token) => Ok(ExpressionNode::new(
+            ASTExpression::Literal(LiteralNode::new(
+                ASTLiteral::String(token.value().trim_matches('"').to_string()),
+                TSType::String,
+                expression.source(),
+            )),
+            TSType::String,
+            expression.source(),
+        )),
         CSTExpression::Identifier(_) => todo!(),
         CSTExpression::MemberAccess {
             head: _,
@@ -74,14 +83,23 @@ pub fn typecheck_expression<'a>(
             let right = typecheck_expression(right.as_ref())?;
 
             match (left.ts_type(), op.kind(), right.ts_type()) {
-                (TSType::Int64, op, TSType::Int64) => Ok(ASTNode::new(
+                (TSType::Int64, op, TSType::Int64) => Ok(ExpressionNode::new(
                     ASTExpression::Binary {
                         left: Box::new(left),
                         op: op.clone(),
                         right: Box::new(right),
                     },
                     TSType::Int64,
-                    expression.source()
+                    expression.source(),
+                )),
+                (TSType::String, BinaryOperatorKind::Add, TSType::String) => Ok(ExpressionNode::new(
+                    ASTExpression::Binary {
+                        left: Box::new(left),
+                        op: BinaryOperatorKind::Add,
+                        right: Box::new(right),
+                    },
+                    TSType::String,
+                    expression.source(),
                 )),
                 (left, op, right) => Err(TypecheckError {
                     range: expression.range(),
@@ -100,7 +118,7 @@ pub fn typecheck_expression<'a>(
 
 pub fn typecheck_statement<'a>(
     statement: &CSTStatement<'a>,
-) -> TypecheckResult<'a, ASTStatement<'a>> {
+) -> TypecheckResult<'a, StatementNode<'a>> {
     match statement {
         CSTStatement::Import {
             keyword_import: _,
@@ -113,16 +131,16 @@ pub fn typecheck_statement<'a>(
             semicolon: _,
         } => {
             let expression = typecheck_expression(expression)?;
-            Ok(ASTNode::new(
+            Ok(StatementNode::new(
                 ASTStatement::Expression(expression),
                 TSType::Unit,
-                statement.source()
+                statement.source(),
             ))
         }
     }
 }
 
-pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ASTScript<'a>> {
+pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ScriptNode<'a>> {
     let mut statements = vec![];
 
     for statement in script.statements() {
@@ -136,5 +154,9 @@ pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ASTScr
         TSType::Unit
     };
 
-    Ok(ASTNode::new(ASTScript::new(statements), ts_type, script.source()))
+    Ok(ScriptNode::new(
+        ASTScript::new(statements),
+        ts_type,
+        script.source(),
+    ))
 }

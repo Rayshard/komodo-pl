@@ -3,7 +3,7 @@ use std::{fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
-        ast::{script::Script as ASTScript, Node as ASTNode},
+        ast::{Node as ASTNode, ScriptNode as ASTScriptNode},
         lexing::{
             lexer::{self, LexError},
             token::Token,
@@ -74,12 +74,15 @@ fn parse<'a>(
     )
 }
 
+fn typecheck<'a>(script: CSTScript<'a>) -> CompilationResult<'a, ASTScriptNode<'a>> {
+    typechecker::typecheck_script(script).map_err(|error| CompilationError::Typechecker(error))
+}
 
-fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTNode<'a, ASTScript>> {
+fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTScriptNode<'a>> {
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
-    typechecker::typecheck_script(script).map_err(|error| CompilationError::Typechecker(error))
+    typecheck(script)
 }
 
 fn main() {
@@ -95,7 +98,7 @@ fn main() {
 
     match compile(&source) {
         Ok(script) => {
-            println!("{}", serde_yaml::to_string(&script).unwrap());
+            //println!("{}", serde_yaml::to_string(&script).unwrap());
             let result = interpreter::interpret_script(&script);
             println!("{result:?}");
         }
