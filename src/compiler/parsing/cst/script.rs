@@ -15,11 +15,11 @@ impl<'a> Script<'a> {
         Script { source, statements }
     }
 
-    pub fn statements(&self) -> &[Statement] {
+    pub fn statements(&self) -> &[Statement<'a>] {
         &self.statements
     }
 
-    pub fn source(&self) -> &TextSource {
+    pub fn source(&self) -> &'a TextSource {
         &self.source
     }
 }

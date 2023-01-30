@@ -39,7 +39,7 @@ pub enum Expression<'a> {
     },
 }
 
-impl<'a> Node<'a> for Expression<'a> {
+impl<'a> Node for Expression<'a> {
     fn range(&self) -> Range {
         match self {
             Expression::IntegerLiteral(token) => token.range().clone(),
@@ -67,7 +67,7 @@ impl<'a> Node<'a> for Expression<'a> {
         }
     }
 
-    fn source(&self) -> &'a TextSource {
+    fn source(&self) -> &TextSource {
         match self {
             Expression::IntegerLiteral(token) => token.source(),
             Expression::StringLiteral(token) => token.source(),
