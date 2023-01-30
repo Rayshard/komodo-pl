@@ -3,14 +3,16 @@ use std::{fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
+        ast::{script::Script as ASTScript, Node as ASTNode},
         lexing::{
             lexer::{self, LexError},
             token::Token,
         },
         parsing::{
-            cst::script::Script,
+            cst::script::Script as CSTScript,
             parser::{self, ParseError},
         },
+        typesystem::typechecker::{self, TypecheckError},
         utilities::text_source::TextSource,
     },
     runtime::interpreter,
@@ -20,6 +22,7 @@ enum CompilationError<'a> {
     File(io::Error),
     Lexer(Vec<LexError<'a>>),
     Parser(ParseError<'a>),
+    Typechecker(TypecheckError<'a>),
 }
 
 impl<'a> Display for CompilationError<'a> {
@@ -40,6 +43,7 @@ impl<'a> Display for CompilationError<'a> {
                 write!(f, "{}", concated_errors.red())
             }
             CompilationError::Parser(error) => write!(f, "{}", error.to_string().red()),
+            CompilationError::Typechecker(error) => write!(f, "{}", error.to_string().red()),
         }
     }
 }
@@ -60,16 +64,28 @@ fn lex<'a>(source: &'a TextSource) -> CompilationResult<Vec<Token<'a>>> {
     }
 }
 
-fn parse<'a>(source: &'a TextSource, tokens: Vec<Token<'a>>) -> CompilationResult<'a, Script<'a>> {
+fn parse<'a>(
+    source: &'a TextSource,
+    tokens: Vec<Token<'a>>,
+) -> CompilationResult<'a, CSTScript<'a>> {
     parser::parse_script(source, &tokens).map_or_else(
         |error| Err(CompilationError::Parser(error)),
         |script| Ok(script),
     )
 }
 
-fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, Script<'a>> {
+fn typecheck<'a>(script: &'a CSTScript<'a>) -> CompilationResult<'a, ASTNode<'a, ASTScript<'a>>> {
+    typechecker::typecheck_script(script).map_or_else(
+        |error| Err(CompilationError::Typechecker(error)),
+        |script| Ok(script),
+    )
+}
+
+fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTNode<'a, ASTScript<'a>>> {
     let tokens = lex(&source)?;
-    parse(source, tokens)
+    let script = parse(source, tokens)?;
+
+    typecheck(&script)
 }
 
 fn main() {

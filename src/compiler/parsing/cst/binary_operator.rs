@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::compiler::lexing::token::Token;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum BinaryOperatorKind {
     Add,
     Subtract,

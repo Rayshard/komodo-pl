@@ -1,8 +1,11 @@
 use serde::Serialize;
 
-use crate::compiler::lexing::token::Token;
+use crate::compiler::{
+    lexing::token::Token,
+    utilities::{range::Range, text_source::TextSource},
+};
 
-use super::expression::Expression;
+use super::{expression::Expression, Node};
 
 #[derive(Debug, Serialize)]
 pub enum ImportPath<'a> {
@@ -26,4 +29,36 @@ pub enum Statement<'a> {
         expression: Expression<'a>,
         semicolon: Token<'a>,
     },
+}
+
+impl<'a> Node<'a> for Statement<'a> {
+    fn range(&self) -> Range {
+        match self {
+            Statement::Import {
+                keyword_import,
+                import_path: _,
+                from_path: _,
+                semicolon,
+            } => Range::new(keyword_import.range().start(), semicolon.range().end()),
+            Statement::Expression {
+                expression,
+                semicolon,
+            } => Range::new(expression.range().start(), semicolon.range().end()),
+        }
+    }
+
+    fn source(&self) -> &'a TextSource {
+        match self {
+            Statement::Import {
+                keyword_import,
+                import_path: _,
+                from_path: _,
+                semicolon: _,
+            } => keyword_import.source(),
+            Statement::Expression {
+                expression,
+                semicolon: _,
+            } => expression.source(),
+        }
+    }
 }
