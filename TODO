@@ -5,4 +5,5 @@
 ☐ implement hello world
 ☐ fix parse errors
 ☐ remove unecessary lifetimes
+☐ Make TypecheckError an enum with ContextError as a variant
 ✔ Change reference in skip_whitespace to non-reference @done(23-01-29 09:38)

@@ -197,7 +197,7 @@ pub fn typecheck_statement<'a>(
 
                 match from_path.ts_type() {
                     TSType::Module { name, members } => {
-                        let mut import_ctx = Context::new(None);
+                        let mut import_ctx = Context::new(None); // TODO: ctx needs ot be created from module
 
                         (
                             typecheck_import_path(import_path, &mut import_ctx)?,
@@ -221,7 +221,16 @@ pub fn typecheck_statement<'a>(
                 ASTImportPath::Complex { head: _, member } => member,
             };
 
-            ctx.set(name, import_path.ts_type().clone());
+            ctx.set(name, import_path.ts_type().clone()).map_or_else(
+                |error| {
+                    Err(TypecheckError {
+                        range: import_path.range(),
+                        message: error,
+                        source: import_path.source(),
+                    })
+                },
+                |ts_type| Ok(ts_type.clone()),
+            )?;
 
             Ok(StatementNode::new(
                 ASTStatement::Import {

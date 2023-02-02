@@ -21,16 +21,22 @@ impl<'a> Node<'a> for ImportPath<'a> {
     fn range(&self) -> Range {
         match self {
             ImportPath::Simple(token) => token.range().clone(),
-            ImportPath::Complex { head, dot, member } => {
-                Range::new(head.range().start(), member.range().end())
-            }
+            ImportPath::Complex {
+                head,
+                dot: _,
+                member,
+            } => Range::new(head.range().start(), member.range().end()),
         }
     }
 
     fn source(&self) -> &'a TextSource {
         match self {
             ImportPath::Simple(token) => token.source(),
-            ImportPath::Complex { head, dot, member } => head.source(),
+            ImportPath::Complex {
+                head,
+                dot: _,
+                member: _,
+            } => head.source(),
         }
     }
 }
