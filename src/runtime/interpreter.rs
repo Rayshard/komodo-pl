@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::compiler::{
-    ast::{expression::Expression, literal::Literal, statement::Statement, Node, ScriptNode},
+    ast::{expression::Expression, literal::{Literal}, statement::Statement, node::Node, ScriptNode},
     parsing::cst::binary_operator::BinaryOperatorKind,
 };
 
@@ -29,7 +29,6 @@ fn interpret_literal(literal: &Node<Literal>) -> InterpretResult {
 fn interpret_expression(expression: &Node<Expression>) -> InterpretResult {
     match expression.instance() {
         Expression::Literal(literal) => interpret_literal(literal),
-        //Expression::StringLiteral(token) => Ok(Value::String(token.value().to_string())),
         Expression::Binary { left, op, right } => {
             let left = interpret_expression(left.as_ref())?;
             let right = interpret_expression(right.as_ref())?;
@@ -104,6 +103,7 @@ fn interpret_expression(expression: &Node<Expression>) -> InterpretResult {
 fn interpret_statement(statement: &Node<Statement>) -> InterpretResult {
     match statement.instance() {
         Statement::Expression(expression) => interpret_expression(expression),
+        Statement::Import { import_path, from_path } => todo!(),
     }
 }
 

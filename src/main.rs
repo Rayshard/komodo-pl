@@ -3,7 +3,7 @@ use std::{fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
-        ast::{Node as ASTNode, ScriptNode as ASTScriptNode},
+        ast::ScriptNode as ASTScriptNode,
         lexing::{
             lexer::{self, LexError},
             token::Token,

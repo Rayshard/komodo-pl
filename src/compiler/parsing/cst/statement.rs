@@ -17,6 +17,24 @@ pub enum ImportPath<'a> {
     },
 }
 
+impl<'a> Node<'a> for ImportPath<'a> {
+    fn range(&self) -> Range {
+        match self {
+            ImportPath::Simple(token) => token.range().clone(),
+            ImportPath::Complex { head, dot, member } => {
+                Range::new(head.range().start(), member.range().end())
+            }
+        }
+    }
+
+    fn source(&self) -> &'a TextSource {
+        match self {
+            ImportPath::Simple(token) => token.source(),
+            ImportPath::Complex { head, dot, member } => head.source(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub enum Statement<'a> {
     Import {

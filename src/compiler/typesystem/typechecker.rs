@@ -1,16 +1,22 @@
 use crate::compiler::{
     ast::{
-        expression::Expression as ASTExpression, literal::Literal as ASTLiteral,
-        script::Script as ASTScript, statement::Statement as ASTStatement, ExpressionNode,
-        LiteralNode, ScriptNode, StatementNode,
+        expression::Expression as ASTExpression, import_path::ImportPath as ASTImportPath,
+        literal::Literal as ASTLiteral, script::Script as ASTScript,
+        statement::Statement as ASTStatement, ExpressionNode, ImportPathNode, LiteralNode,
+        ScriptNode, StatementNode,
     },
     parsing::cst::{
-        expression::Expression as CSTExpression, script::Script as CSTScript,
-        statement::Statement as CSTStatement, Node as CSTNode, binary_operator::BinaryOperatorKind,
+        binary_operator::BinaryOperatorKind,
+        expression::Expression as CSTExpression,
+        script::Script as CSTScript,
+        statement::{ImportPath as CSTImportPath, Statement as CSTStatement},
+        Node as CSTNode,
     },
     typesystem::ts_type::TSType,
     utilities::{range::Range, text_source::TextSource},
 };
+
+use super::context::Context;
 
 #[derive(Debug)]
 pub struct TypecheckError<'a> {
@@ -33,6 +39,7 @@ pub type TypecheckResult<'a, T> = Result<T, TypecheckError<'a>>;
 
 pub fn typecheck_expression<'a>(
     expression: &CSTExpression<'a>,
+    ctx: &mut Context,
 ) -> TypecheckResult<'a, ExpressionNode<'a>> {
     match expression {
         CSTExpression::IntegerLiteral(token) => match token.value().parse::<i64>() {
@@ -79,8 +86,8 @@ pub fn typecheck_expression<'a>(
         } => todo!(),
         CSTExpression::Unary { operand: _, op: _ } => todo!(),
         CSTExpression::Binary { left, op, right } => {
-            let left = typecheck_expression(left.as_ref())?;
-            let right = typecheck_expression(right.as_ref())?;
+            let left = typecheck_expression(left.as_ref(), ctx)?;
+            let right = typecheck_expression(right.as_ref(), ctx)?;
 
             match (left.ts_type(), op.kind(), right.ts_type()) {
                 (TSType::Int64, op, TSType::Int64) => Ok(ExpressionNode::new(
@@ -92,15 +99,17 @@ pub fn typecheck_expression<'a>(
                     TSType::Int64,
                     expression.source(),
                 )),
-                (TSType::String, BinaryOperatorKind::Add, TSType::String) => Ok(ExpressionNode::new(
-                    ASTExpression::Binary {
-                        left: Box::new(left),
-                        op: BinaryOperatorKind::Add,
-                        right: Box::new(right),
-                    },
-                    TSType::String,
-                    expression.source(),
-                )),
+                (TSType::String, BinaryOperatorKind::Add, TSType::String) => {
+                    Ok(ExpressionNode::new(
+                        ASTExpression::Binary {
+                            left: Box::new(left),
+                            op: BinaryOperatorKind::Add,
+                            right: Box::new(right),
+                        },
+                        TSType::String,
+                        expression.source(),
+                    ))
+                }
                 (left, op, right) => Err(TypecheckError {
                     range: expression.range(),
                     message: format!("Unable to apply operator {op:?} to {left:?} and {right:?}"),
@@ -112,25 +121,122 @@ pub fn typecheck_expression<'a>(
             open_parenthesis: _,
             expression,
             close_parenthesis: _,
-        } => typecheck_expression(expression),
+        } => typecheck_expression(expression, ctx),
+    }
+}
+
+pub fn typecheck_import_path<'a, 'b>(
+    path: &CSTImportPath<'a>,
+    ctx: &mut Context<'b>,
+) -> TypecheckResult<'a, ImportPathNode<'a>> {
+    match path {
+        CSTImportPath::Simple(token) => {
+            let name = token.value();
+            let ts_type = ctx.get(name).map_or_else(
+                |error| {
+                    Err(TypecheckError {
+                        range: path.range().clone(),
+                        message: error,
+                        source: path.source(),
+                    })
+                },
+                |ts_type| Ok(ts_type.clone()),
+            )?;
+
+            Ok(ImportPathNode::new(
+                ASTImportPath::Simple(name.to_string()),
+                ts_type,
+                path.source(),
+            ))
+        }
+        CSTImportPath::Complex {
+            head,
+            dot: _,
+            member,
+        } => {
+            let head = typecheck_import_path(head, ctx)?;
+            let import_ctx = Context::new(None); // TODO: ctx needs to be created from head
+
+            let name = member.value();
+            let ts_type = import_ctx.get(name).map_or_else(
+                |error| {
+                    Err(TypecheckError {
+                        range: path.range().clone(),
+                        message: error,
+                        source: path.source(),
+                    })
+                },
+                |ts_type| Ok(ts_type.clone()),
+            )?;
+
+            Ok(ImportPathNode::new(
+                ASTImportPath::Complex {
+                    head: Box::new(head),
+                    member: name.to_string(),
+                },
+                ts_type,
+                path.source(),
+            ))
+        }
     }
 }
 
 pub fn typecheck_statement<'a>(
     statement: &CSTStatement<'a>,
+    ctx: &mut Context,
 ) -> TypecheckResult<'a, StatementNode<'a>> {
     match statement {
         CSTStatement::Import {
             keyword_import: _,
-            import_path: _,
-            from_path: _,
+            import_path,
+            from_path,
             semicolon: _,
-        } => todo!(),
+        } => {
+            let (import_path, from_path) = if let Some((_, from_path)) = from_path {
+                let from_path = typecheck_import_path(from_path, ctx)?;
+
+                match from_path.ts_type() {
+                    TSType::Module { name, members } => {
+                        let mut import_ctx = Context::new(None);
+
+                        (
+                            typecheck_import_path(import_path, &mut import_ctx)?,
+                            Some(from_path),
+                        )
+                    }
+                    ts_type => {
+                        return Err(TypecheckError {
+                            range: from_path.range(),
+                            message: format!("Expected module but found {ts_type:?}"),
+                            source: from_path.source(),
+                        })
+                    }
+                }
+            } else {
+                (typecheck_import_path(import_path, ctx)?, None)
+            };
+
+            let name = match import_path.instance() {
+                ASTImportPath::Simple(name) => name,
+                ASTImportPath::Complex { head: _, member } => member,
+            };
+
+            ctx.set(name, import_path.ts_type().clone());
+
+            Ok(StatementNode::new(
+                ASTStatement::Import {
+                    import_path,
+                    from_path,
+                },
+                TSType::Unit,
+                statement.source(),
+            ))
+        }
         CSTStatement::Expression {
             expression,
             semicolon: _,
         } => {
-            let expression = typecheck_expression(expression)?;
+            let expression = typecheck_expression(expression, ctx)?;
             Ok(StatementNode::new(
                 ASTStatement::Expression(expression),
                 TSType::Unit,
@@ -141,10 +247,11 @@ pub fn typecheck_statement<'a>(
 }
 
 pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ScriptNode<'a>> {
+    let mut ctx = Context::new(None);
     let mut statements = vec![];
 
     for statement in script.statements() {
-        let statement = typecheck_statement(statement)?;
+        let statement = typecheck_statement(statement, &mut ctx)?;
         statements.push(statement);
     }
 
