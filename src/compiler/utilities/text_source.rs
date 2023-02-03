@@ -36,6 +36,10 @@ impl TextSource {
         self.text.len()
     }
 
+    pub fn range(&self) -> Range {
+        Range::new(0, self.len())
+    }
+
     pub fn get_position(&self, offset: usize) -> Option<Position> {
         if offset > self.text.len() {
             return None;

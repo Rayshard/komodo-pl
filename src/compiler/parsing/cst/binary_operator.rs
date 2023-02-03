@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-use crate::compiler::lexing::token::Token;
+use crate::compiler::{lexing::token::Token, utilities::{range::Range, text_source::TextSource}};
+
+use super::Node;
 
 #[derive(Debug, Serialize, Clone)]
 pub enum BinaryOperatorKind {
@@ -64,5 +66,15 @@ impl BinaryOperatorKind {
             BinaryOperatorKind::Multiply => true,
             BinaryOperatorKind::Divide => true,
         }
+    }
+}
+
+impl<'source> Node<'source> for BinaryOperator<'source> {
+    fn range(&self) -> Range {
+        self.token.range().clone()
+    }
+
+    fn source(&self) -> &'source TextSource {
+        self.token.source()
     }
 }

@@ -1,8 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::utilities::range::Range;
-
-use super::{node::Nodeable, ImportPathNode};
+use super::{ImportPathNode};
 
 #[derive(Serialize)]
 pub enum ImportPath<'source> {
@@ -11,10 +9,4 @@ pub enum ImportPath<'source> {
         head: Box<ImportPathNode<'source>>,
         member: String,
     },
-}
-
-impl<'source> Nodeable for ImportPath<'source> {
-    fn range(&self) -> Range {
-        todo!()
-    }
 }

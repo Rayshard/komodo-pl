@@ -16,6 +16,7 @@ pub enum TokenKind {
     SymbolOpenCurlyBracket,
     SymbolCloseCurlyBracket,
     SymbolPeriod,
+    SymbolComma,
     KeywordImport,
     KeywordFrom,
     Identifier,

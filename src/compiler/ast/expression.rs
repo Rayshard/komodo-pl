@@ -1,8 +1,8 @@
 use serde::Serialize;
 
-use crate::compiler::{parsing::cst::binary_operator::BinaryOperatorKind, utilities::range::Range};
+use crate::compiler::{parsing::cst::binary_operator::BinaryOperatorKind};
 
-use super::{node::Nodeable, LiteralNode, ExpressionNode};
+use super::{ExpressionNode, LiteralNode};
 
 #[derive(Serialize)]
 pub enum Expression<'source> {
@@ -12,10 +12,13 @@ pub enum Expression<'source> {
         op: BinaryOperatorKind,
         right: Box<ExpressionNode<'source>>,
     },
-}
-
-impl<'source> Nodeable for Expression<'source> {
-    fn range(&self) -> Range {
-        todo!()
-    }
+    Call {
+        head: Box<ExpressionNode<'source>>,
+        args: Vec<ExpressionNode<'source>>,
+    },
+    MemberAccess {
+        head: Box<ExpressionNode<'source>>,
+        member: String,
+    },
+    Identifier(String)
 }

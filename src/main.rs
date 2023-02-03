@@ -1,4 +1,4 @@
-use std::{fmt::Display, io};
+use std::{collections::HashMap, fmt::Display, io};
 
 use colored::Colorize;
 use komodo::{
@@ -14,11 +14,12 @@ use komodo::{
         },
         typesystem::{
             context::Context,
+            ts_type::TSType,
             typechecker::{self, TypecheckError},
         },
         utilities::text_source::TextSource,
     },
-    runtime::interpreter,
+    runtime::interpreter::{self, Value},
 };
 
 enum CompilationError<'source> {
@@ -90,7 +91,34 @@ fn compile<'source>(
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
-    let ctx = Context::new(None);
+    let mut ctx = Context::new(None);
+    ctx.set(
+        "std",
+        TSType::Module {
+            name: "std".to_string(),
+            members: HashMap::from([(
+                "io".to_string(),
+                TSType::Module {
+                    name: "io".to_string(),
+                    members: HashMap::from([(
+                        "stdout".to_string(),
+                        TSType::Object {
+                            name: "stdout".to_string(),
+                            members: HashMap::from([(
+                                "print_line".to_string(),
+                                TSType::Function {
+                                    name: "print_line".to_string(),
+                                    parameters: vec![("value".to_string(), TSType::String)],
+                                    return_type: Box::new(TSType::Unit),
+                                },
+                            )]),
+                        },
+                    )]),
+                },
+            )]),
+        },
+    )
+    .unwrap();
 
     typecheck(script, &ctx)
 }
@@ -109,7 +137,31 @@ fn main() {
     match compile(&source) {
         Ok(script) => {
             //println!("{}", serde_yaml::to_string(&script).unwrap());
-            let result = interpreter::interpret_script(&script);
+
+            let ctx = interpreter::Context::from([(
+                "std".to_string(),
+                Value::Module {
+                    name: "std".to_string(),
+                    members: HashMap::from([(
+                        "io".to_string(),
+                        Value::Module {
+                            name: "std.io".to_string(),
+                            members: HashMap::from([(
+                                "stdout".to_string(),
+                                Value::Object {
+                                    name: "std.io.stdout".to_string(),
+                                    members: HashMap::from([(
+                                        "print_line".to_string(),
+                                        Value::Function("std.io.stdout.print_line".to_string()),
+                                    )]),
+                                },
+                            )]),
+                        },
+                    )]),
+                },
+            )]);
+
+            let result = interpreter::interpret_script(&script, &ctx);
             println!("{result:?}");
         }
         Err(error) => {

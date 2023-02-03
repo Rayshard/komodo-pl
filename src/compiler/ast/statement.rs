@@ -1,8 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::utilities::range::Range;
-
-use super::{node::Nodeable, ImportPathNode, ExpressionNode};
+use super::{ImportPathNode, ExpressionNode};
 
 #[derive(Serialize)]
 pub enum Statement<'source> {
@@ -11,10 +9,4 @@ pub enum Statement<'source> {
         from_path: Option<ImportPathNode<'source>>,
     },
     Expression(ExpressionNode<'source>),
-}
-
-impl<'source> Nodeable for Statement<'source> {
-    fn range(&self) -> Range {
-        todo!()
-    }
 }

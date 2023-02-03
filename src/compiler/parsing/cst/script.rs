@@ -1,8 +1,8 @@
 use serde::{Serialize, ser::SerializeMap};
 
-use crate::compiler::utilities::text_source::TextSource;
+use crate::compiler::utilities::{text_source::TextSource, range::Range};
 
-use super::statement::Statement;
+use super::{statement::Statement, Node};
 
 #[derive(Debug)]
 pub struct Script<'source> {
@@ -21,6 +21,16 @@ impl<'source> Script<'source> {
 
     pub fn source(&self) -> &'source TextSource {
         &self.source
+    }
+}
+
+impl<'source> Node<'source> for Script<'source> {
+    fn range(&self) -> Range {
+        self.source.range()
+    }
+
+    fn source(&self) -> &'source TextSource {
+        self.source
     }
 }
 

@@ -5,28 +5,31 @@ use crate::compiler::{
     utilities::{range::Range, text_source::TextSource},
 };
 
-pub trait Nodeable: Serialize {
-    fn range(&self) -> Range;
-}
-
 pub struct Node<'source, T>
 where
-    T: Nodeable,
+    T: Serialize,
 {
     instance: T,
     ts_type: TSType,
     source: &'source TextSource,
+    range: Range,
 }
 
 impl<'source, T> Node<'source, T>
 where
-    T: Nodeable,
+    T: Serialize,
 {
-    pub fn new(instance: T, ts_type: TSType, source: &'source TextSource) -> Node<'source, T> {
+    pub fn new(
+        instance: T,
+        ts_type: TSType,
+        source: &'source TextSource,
+        range: Range,
+    ) -> Node<'source, T> {
         Node {
             instance,
             ts_type,
             source,
+            range,
         }
     }
 
@@ -38,8 +41,8 @@ where
         &self.ts_type
     }
 
-    pub fn range(&self) -> Range {
-        self.instance.range()
+    pub fn range(&self) -> &Range {
+        &self.range
     }
 
     pub fn source(&self) -> &'source TextSource {
@@ -49,7 +52,7 @@ where
 
 impl<'source, T> Serialize for Node<'source, T>
 where
-    T: Nodeable,
+    T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -58,6 +61,7 @@ where
         let mut map = serializer.serialize_map(None)?;
 
         map.serialize_entry("source", self.source.name())?;
+        map.serialize_entry("range", &self.range)?;
         map.serialize_entry("instance", &self.instance)?;
         map.serialize_entry("ts_type", &self.ts_type)?;
 

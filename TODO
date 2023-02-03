@@ -5,5 +5,5 @@
 ☐ implement hello world
 ☐ fix parse errors
 ☐ remove unecessary lifetimes
-☐ Make TypecheckError an enum with ContextError as a variant
+☐ Make TypecheckError an enum with ContextError as a variant and change all .map_or_else in typechecker module
 ✔ Change reference in skip_whitespace to non-reference @done(23-01-29 09:38)

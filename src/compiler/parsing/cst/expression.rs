@@ -20,7 +20,7 @@ pub enum Expression<'source> {
     Call {
         head: Box<Expression<'source>>,
         open_parenthesis: Token<'source>,
-        arg: Box<Expression<'source>>,
+        args: Vec<Expression<'source>>,
         close_parenthesis: Token<'source>,
     },
     Unary {
@@ -44,12 +44,12 @@ impl<'source> Node<'source> for Expression<'source> {
         match self {
             Expression::IntegerLiteral(token) => token.range().clone(),
             Expression::StringLiteral(token) => token.range().clone(),
-            Expression::Identifier(_) => todo!(),
+            Expression::Identifier(token) => token.range().clone(),
             Expression::MemberAccess { head, dot: _, member } => Range::new(head.range().start(), member.range().end()),
             Expression::Call {
                 head,
                 open_parenthesis: _,
-                arg: _,
+                args: _,
                 close_parenthesis,
             } => Range::new(head.range().start(), close_parenthesis.range().end()),
             Expression::Unary { operand: _, op: _ } => todo!(),
@@ -76,7 +76,7 @@ impl<'source> Node<'source> for Expression<'source> {
             Expression::Call {
                 head,
                 open_parenthesis: _,
-                arg: _,
+                args: _,
                 close_parenthesis: _,
             } => head.source(),
             Expression::Unary { operand, op: _ } => operand.source(),

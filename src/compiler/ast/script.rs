@@ -1,8 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::utilities::range::Range;
-
-use super::{node::Nodeable, StatementNode};
+use super::{StatementNode};
 
 #[derive(Serialize)]
 pub struct Script<'source> {
@@ -16,11 +14,5 @@ impl<'source> Script<'source> {
 
     pub fn statements(&self) -> &[StatementNode<'source>] {
         &self.statements
-    }
-}
-
-impl<'source> Nodeable for Script<'source> {
-    fn range(&self) -> Range {
-        todo!()
     }
 }

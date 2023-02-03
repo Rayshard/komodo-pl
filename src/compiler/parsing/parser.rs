@@ -80,6 +80,27 @@ fn longest<'tokens, 'source, T>(
     }
 }
 
+fn separated<'tokens, 'source, V, D>(
+    state: ParseState<'tokens, 'source>,
+    value_parser: fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, V>,
+    delimiter_parser: fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, D>,
+) -> ParseResult<'tokens, 'source, Vec<V>> {
+    if let Ok((value, mut state)) = value_parser(state.clone()) {
+        let mut values = vec![value];
+
+        while let Ok((_, next_state)) = delimiter_parser(state.clone()) {
+            let (value, next_state) = value_parser(next_state)?;
+
+            values.push(value);
+            state = next_state;
+        }
+
+        Ok((values, state))
+    } else {
+        Ok((vec![], state))
+    }
+}
+
 fn expect_token<'tokens, 'source>(
     kind: TokenKind,
     state: ParseState<'tokens, 'source>,
@@ -188,14 +209,16 @@ pub fn parse_primary_expression<'tokens, 'source>(
                 state = next_state;
             }
             TokenKind::SymbolOpenParenthesis => {
-                let (arg, next_state) = parse_expression(state.next())?;
+                let (args, next_state) = separated(state.next(), parse_expression, |state| {
+                    expect_token(TokenKind::SymbolComma, state)
+                })?;
                 let (close_parenthesis, next_state) =
                     expect_token(TokenKind::SymbolCloseParenthesis, next_state)?;
 
                 expression = Expression::Call {
                     head: Box::new(expression),
                     open_parenthesis: token.clone(),
-                    arg: Box::new(arg),
+                    args,
                     close_parenthesis,
                 };
 
