@@ -19,13 +19,13 @@ use crate::compiler::{
 use super::context::Context;
 
 #[derive(Debug)]
-pub struct TypecheckError<'a> {
+pub struct TypecheckError<'source> {
     range: Range,
     message: String,
-    source: &'a TextSource,
+    source: &'source TextSource,
 }
 
-impl<'a> ToString for TypecheckError<'a> {
+impl<'source> ToString for TypecheckError<'source> {
     fn to_string(&self) -> String {
         format!(
             "ERROR ({}) {}",
@@ -35,12 +35,12 @@ impl<'a> ToString for TypecheckError<'a> {
     }
 }
 
-pub type TypecheckResult<'a, T> = Result<T, TypecheckError<'a>>;
+pub type TypecheckResult<'source, T> = Result<T, TypecheckError<'source>>;
 
-pub fn typecheck_expression<'a>(
-    expression: &CSTExpression<'a>,
+pub fn typecheck_expression<'source>(
+    expression: &CSTExpression<'source>,
     ctx: &mut Context,
-) -> TypecheckResult<'a, ExpressionNode<'a>> {
+) -> TypecheckResult<'source, ExpressionNode<'source>> {
     match expression {
         CSTExpression::IntegerLiteral(token) => match token.value().parse::<i64>() {
             Ok(value) => Ok(ExpressionNode::new(
@@ -125,10 +125,10 @@ pub fn typecheck_expression<'a>(
     }
 }
 
-pub fn typecheck_import_path<'a, 'b>(
-    path: &CSTImportPath<'a>,
-    ctx: &mut Context<'b>,
-) -> TypecheckResult<'a, ImportPathNode<'a>> {
+pub fn typecheck_import_path<'source>(
+    path: &CSTImportPath<'source>,
+    ctx: &mut Context,
+) -> TypecheckResult<'source, ImportPathNode<'source>> {
     match path {
         CSTImportPath::Simple(token) => {
             let name = token.value();
@@ -181,10 +181,10 @@ pub fn typecheck_import_path<'a, 'b>(
     }
 }
 
-pub fn typecheck_statement<'a>(
-    statement: &CSTStatement<'a>,
+pub fn typecheck_statement<'source>(
+    statement: &CSTStatement<'source>,
     ctx: &mut Context,
-) -> TypecheckResult<'a, StatementNode<'a>> {
+) -> TypecheckResult<'source, StatementNode<'source>> {
     match statement {
         CSTStatement::Import {
             keyword_import: _,
@@ -255,8 +255,11 @@ pub fn typecheck_statement<'a>(
     }
 }
 
-pub fn typecheck_script<'a>(script: CSTScript<'a>) -> TypecheckResult<'a, ScriptNode<'a>> {
-    let mut ctx = Context::new(None);
+pub fn typecheck_script<'source>(
+    script: CSTScript<'source>,
+    ctx: &Context,
+) -> TypecheckResult<'source, ScriptNode<'source>> {
+    let mut ctx = Context::new(Some(ctx));
     let mut statements = vec![];
 
     for statement in script.statements() {

@@ -12,13 +12,13 @@ pub enum LexErrorKind {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct LexError<'a> {
+pub struct LexError<'source> {
     range: Range,
     kind: LexErrorKind,
-    source: &'a TextSource,
+    source: &'source TextSource,
 }
 
-impl<'a> LexError<'a> {
+impl<'source> LexError<'source> {
     pub fn new(range: Range, kind: LexErrorKind, source: &TextSource) -> LexError {
         LexError { range, kind, source }
     }
@@ -31,12 +31,12 @@ impl<'a> LexError<'a> {
         &self.kind
     }
 
-    pub fn source(&self) -> &'a TextSource {
+    pub fn source(&self) -> &TextSource {
         &self.source
     }
 }
 
-impl<'a> ToString for LexError<'a> {
+impl<'source> ToString for LexError<'source> {
     fn to_string(&self) -> String {
         let message = match &self.kind {
             LexErrorKind::UnexpectedCharacter {

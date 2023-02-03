@@ -9,20 +9,20 @@ pub trait Nodeable: Serialize {
     fn range(&self) -> Range;
 }
 
-pub struct Node<'a, T>
+pub struct Node<'source, T>
 where
     T: Nodeable,
 {
     instance: T,
     ts_type: TSType,
-    source: &'a TextSource,
+    source: &'source TextSource,
 }
 
-impl<'a, T> Node<'a, T>
+impl<'source, T> Node<'source, T>
 where
     T: Nodeable,
 {
-    pub fn new(instance: T, ts_type: TSType, source: &'a TextSource) -> Node<'a, T> {
+    pub fn new(instance: T, ts_type: TSType, source: &'source TextSource) -> Node<'source, T> {
         Node {
             instance,
             ts_type,
@@ -42,12 +42,12 @@ where
         self.instance.range()
     }
 
-    pub fn source(&self) -> &'a TextSource {
+    pub fn source(&self) -> &'source TextSource {
         self.source
     }
 }
 
-impl<'a, T> Serialize for Node<'a, T>
+impl<'source, T> Serialize for Node<'source, T>
 where
     T: Nodeable,
 {

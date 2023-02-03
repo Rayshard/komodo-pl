@@ -8,16 +8,16 @@ use crate::compiler::{
 use super::{expression::Expression, Node};
 
 #[derive(Debug, Serialize)]
-pub enum ImportPath<'a> {
-    Simple(Token<'a>),
+pub enum ImportPath<'source> {
+    Simple(Token<'source>),
     Complex {
-        head: Box<ImportPath<'a>>,
-        dot: Token<'a>,
-        member: Token<'a>,
+        head: Box<ImportPath<'source>>,
+        dot: Token<'source>,
+        member: Token<'source>,
     },
 }
 
-impl<'a> Node<'a> for ImportPath<'a> {
+impl<'source> Node<'source> for ImportPath<'source> {
     fn range(&self) -> Range {
         match self {
             ImportPath::Simple(token) => token.range().clone(),
@@ -29,7 +29,7 @@ impl<'a> Node<'a> for ImportPath<'a> {
         }
     }
 
-    fn source(&self) -> &'a TextSource {
+    fn source(&self) -> &'source TextSource {
         match self {
             ImportPath::Simple(token) => token.source(),
             ImportPath::Complex {
@@ -42,20 +42,20 @@ impl<'a> Node<'a> for ImportPath<'a> {
 }
 
 #[derive(Debug, Serialize)]
-pub enum Statement<'a> {
+pub enum Statement<'source> {
     Import {
-        keyword_import: Token<'a>,
-        import_path: ImportPath<'a>,
-        from_path: Option<(Token<'a>, ImportPath<'a>)>,
-        semicolon: Token<'a>,
+        keyword_import: Token<'source>,
+        import_path: ImportPath<'source>,
+        from_path: Option<(Token<'source>, ImportPath<'source>)>,
+        semicolon: Token<'source>,
     },
     Expression {
-        expression: Expression<'a>,
-        semicolon: Token<'a>,
+        expression: Expression<'source>,
+        semicolon: Token<'source>,
     },
 }
 
-impl<'a> Node<'a> for Statement<'a> {
+impl<'source> Node<'source> for Statement<'source> {
     fn range(&self) -> Range {
         match self {
             Statement::Import {
@@ -71,7 +71,7 @@ impl<'a> Node<'a> for Statement<'a> {
         }
     }
 
-    fn source(&self) -> &'a TextSource {
+    fn source(&self) -> &'source TextSource {
         match self {
             Statement::Import {
                 keyword_import,

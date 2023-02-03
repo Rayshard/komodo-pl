@@ -4,13 +4,13 @@ use super::ts_type::TSType;
 
 pub type ContextError = String;
 
-pub struct Context<'a> {
-    parent: Option<&'a Context<'a>>,
+pub struct Context<'parent> {
+    parent: Option<&'parent Context<'parent>>,
     entries: HashMap<String, TSType>,
 }
 
-impl<'a> Context<'a> {
-    pub fn new(parent: Option<&'a Context<'a>>) -> Context<'a> {
+impl<'parent> Context<'parent> {
+    pub fn new(parent: Option<&'parent Context<'parent>>) -> Context<'parent> {
         Context {
             parent,
             entries: HashMap::new(),

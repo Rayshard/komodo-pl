@@ -24,14 +24,14 @@ pub enum TokenKind {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Token<'a> {
+pub struct Token<'source> {
     kind: TokenKind,
     range: Range,
-    source: &'a TextSource,
+    source: &'source TextSource,
 }
 
-impl<'a> Token<'a> {
-    pub fn new(kind: TokenKind, range: Range, source: &'a TextSource) -> Token<'a> {
+impl<'source> Token<'source> {
+    pub fn new(kind: TokenKind, range: Range, source: &'source TextSource) -> Token<'source> {
         Token {
             kind,
             range,
@@ -47,7 +47,7 @@ impl<'a> Token<'a> {
         &self.range
     }
 
-    pub fn source(&self) -> &'a TextSource {
+    pub fn source(&self) -> &'source TextSource {
         &self.source
     }
 
@@ -55,7 +55,7 @@ impl<'a> Token<'a> {
         self.value().chars().count()
     }
 
-    pub fn value(&self) -> &'a str {
+    pub fn value(&self) -> &'source str {
         self.source.text_from_range(&self.range)
     }
 
@@ -68,7 +68,7 @@ impl<'a> Token<'a> {
     }
 }
 
-impl<'a> Serialize for Token<'a> {
+impl<'source> Serialize for Token<'source> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

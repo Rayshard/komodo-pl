@@ -12,20 +12,23 @@ use komodo::{
             cst::script::Script as CSTScript,
             parser::{self, ParseError},
         },
-        typesystem::typechecker::{self, TypecheckError},
+        typesystem::{
+            context::Context,
+            typechecker::{self, TypecheckError},
+        },
         utilities::text_source::TextSource,
     },
     runtime::interpreter,
 };
 
-enum CompilationError<'a> {
+enum CompilationError<'source> {
     File(io::Error),
-    Lexer(Vec<LexError<'a>>),
-    Parser(ParseError<'a>),
-    Typechecker(TypecheckError<'a>),
+    Lexer(Vec<LexError<'source>>),
+    Parser(ParseError<'source>),
+    Typechecker(TypecheckError<'source>),
 }
 
-impl<'a> Display for CompilationError<'a> {
+impl<'source> Display for CompilationError<'source> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CompilationError::File(error) => write!(
@@ -48,9 +51,9 @@ impl<'a> Display for CompilationError<'a> {
     }
 }
 
-type CompilationResult<'a, T> = Result<T, CompilationError<'a>>;
+type CompilationResult<'source, T> = Result<T, CompilationError<'source>>;
 
-fn lex<'a>(source: &'a TextSource) -> CompilationResult<Vec<Token<'a>>> {
+fn lex<'source>(source: &'source TextSource) -> CompilationResult<Vec<Token<'source>>> {
     let (tokens, errors) = lexer::lex(source);
 
     // for token in tokens.iter() {
@@ -64,25 +67,32 @@ fn lex<'a>(source: &'a TextSource) -> CompilationResult<Vec<Token<'a>>> {
     }
 }
 
-fn parse<'a>(
-    source: &'a TextSource,
-    tokens: Vec<Token<'a>>,
-) -> CompilationResult<'a, CSTScript<'a>> {
+fn parse<'source>(
+    source: &'source TextSource,
+    tokens: Vec<Token<'source>>,
+) -> CompilationResult<'source, CSTScript<'source>> {
     parser::parse_script(source, &tokens).map_or_else(
         |error| Err(CompilationError::Parser(error)),
         |script| Ok(script),
     )
 }
 
-fn typecheck<'a>(script: CSTScript<'a>) -> CompilationResult<'a, ASTScriptNode<'a>> {
-    typechecker::typecheck_script(script).map_err(|error| CompilationError::Typechecker(error))
+fn typecheck<'source>(
+    script: CSTScript<'source>,
+    ctx: &Context,
+) -> CompilationResult<'source, ASTScriptNode<'source>> {
+    typechecker::typecheck_script(script, ctx).map_err(|error| CompilationError::Typechecker(error))
 }
 
-fn compile<'a>(source: &'a TextSource) -> CompilationResult<'a, ASTScriptNode<'a>> {
+fn compile<'source>(
+    source: &'source TextSource,
+) -> CompilationResult<'source, ASTScriptNode<'source>> {
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
-    typecheck(script)
+    let ctx = Context::new(None);
+
+    typecheck(script, &ctx)
 }
 
 fn main() {

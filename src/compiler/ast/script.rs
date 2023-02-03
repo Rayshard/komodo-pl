@@ -2,24 +2,24 @@ use serde::Serialize;
 
 use crate::compiler::utilities::range::Range;
 
-use super::{node::Nodeable, statement::Statement, Node};
+use super::{node::Nodeable, StatementNode};
 
 #[derive(Serialize)]
-pub struct Script<'a> {
-    statements: Vec<Node<'a, Statement<'a>>>,
+pub struct Script<'source> {
+    statements: Vec<StatementNode<'source>>,
 }
 
-impl<'a> Script<'a> {
-    pub fn new(statements: Vec<Node<'a, Statement<'a>>>) -> Script<'a> {
+impl<'source> Script<'source> {
+    pub fn new(statements: Vec<StatementNode<'source>>) -> Script<'source> {
         Script { statements }
     }
 
-    pub fn statements(&self) -> &[Node<'a, Statement<'a>>] {
+    pub fn statements(&self) -> &[StatementNode<'source>] {
         &self.statements
     }
 }
 
-impl<'a> Nodeable for Script<'a> {
+impl<'source> Nodeable for Script<'source> {
     fn range(&self) -> Range {
         todo!()
     }

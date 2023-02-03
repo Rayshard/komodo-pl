@@ -2,19 +2,18 @@ use serde::Serialize;
 
 use crate::compiler::utilities::range::Range;
 
-use super::node::{Nodeable, Node};
+use super::{node::Nodeable, ImportPathNode};
 
 #[derive(Serialize)]
-pub enum ImportPath<'a> {
+pub enum ImportPath<'source> {
     Simple(String),
     Complex {
-        head: Box<Node<'a, ImportPath<'a>>>,
+        head: Box<ImportPathNode<'source>>,
         member: String,
     },
 }
 
-
-impl<'a> Nodeable for ImportPath<'a> {
+impl<'source> Nodeable for ImportPath<'source> {
     fn range(&self) -> Range {
         todo!()
     }

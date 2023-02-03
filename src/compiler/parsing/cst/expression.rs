@@ -8,38 +8,38 @@ use crate::compiler::{
 use super::{binary_operator::BinaryOperator, unary_operator::UnaryOperator, Node};
 
 #[derive(Debug, Serialize)]
-pub enum Expression<'a> {
-    IntegerLiteral(Token<'a>),
-    StringLiteral(Token<'a>),
-    Identifier(Token<'a>),
+pub enum Expression<'source> {
+    IntegerLiteral(Token<'source>),
+    StringLiteral(Token<'source>),
+    Identifier(Token<'source>),
     MemberAccess {
-        head: Box<Expression<'a>>,
-        dot: Token<'a>,
-        member: Token<'a>,
+        head: Box<Expression<'source>>,
+        dot: Token<'source>,
+        member: Token<'source>,
     },
     Call {
-        head: Box<Expression<'a>>,
-        open_parenthesis: Token<'a>,
-        arg: Box<Expression<'a>>,
-        close_parenthesis: Token<'a>,
+        head: Box<Expression<'source>>,
+        open_parenthesis: Token<'source>,
+        arg: Box<Expression<'source>>,
+        close_parenthesis: Token<'source>,
     },
     Unary {
-        operand: Box<Expression<'a>>,
+        operand: Box<Expression<'source>>,
         op: UnaryOperator,
     },
     Binary {
-        left: Box<Expression<'a>>,
-        op: BinaryOperator<'a>,
-        right: Box<Expression<'a>>,
+        left: Box<Expression<'source>>,
+        op: BinaryOperator<'source>,
+        right: Box<Expression<'source>>,
     },
     Parenthesized {
-        open_parenthesis: Token<'a>,
-        expression: Box<Expression<'a>>,
-        close_parenthesis: Token<'a>,
+        open_parenthesis: Token<'source>,
+        expression: Box<Expression<'source>>,
+        close_parenthesis: Token<'source>,
     },
 }
 
-impl<'a> Node<'a> for Expression<'a> {
+impl<'source> Node<'source> for Expression<'source> {
     fn range(&self) -> Range {
         match self {
             Expression::IntegerLiteral(token) => token.range().clone(),
@@ -67,7 +67,7 @@ impl<'a> Node<'a> for Expression<'a> {
         }
     }
 
-    fn source(&self) -> &'a TextSource {
+    fn source(&self) -> &'source TextSource {
         match self {
             Expression::IntegerLiteral(token) => token.source(),
             Expression::StringLiteral(token) => token.source(),

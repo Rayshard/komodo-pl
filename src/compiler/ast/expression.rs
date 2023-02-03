@@ -2,19 +2,19 @@ use serde::Serialize;
 
 use crate::compiler::{parsing::cst::binary_operator::BinaryOperatorKind, utilities::range::Range};
 
-use super::{literal::Literal, Node, node::Nodeable};
+use super::{node::Nodeable, LiteralNode, ExpressionNode};
 
 #[derive(Serialize)]
-pub enum Expression<'a> {
-    Literal(Node<'a, Literal>),
+pub enum Expression<'source> {
+    Literal(LiteralNode<'source>),
     Binary {
-        left: Box<Node<'a, Expression<'a>>>,
+        left: Box<ExpressionNode<'source>>,
         op: BinaryOperatorKind,
-        right: Box<Node<'a, Expression<'a>>>,
+        right: Box<ExpressionNode<'source>>,
     },
 }
 
-impl<'a> Nodeable for Expression<'a> {
+impl<'source> Nodeable for Expression<'source> {
     fn range(&self) -> Range {
         todo!()
     }

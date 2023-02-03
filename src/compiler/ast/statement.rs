@@ -2,18 +2,18 @@ use serde::Serialize;
 
 use crate::compiler::utilities::range::Range;
 
-use super::{expression::Expression, import_path::ImportPath, node::Nodeable, Node};
+use super::{node::Nodeable, ImportPathNode, ExpressionNode};
 
 #[derive(Serialize)]
-pub enum Statement<'a> {
+pub enum Statement<'source> {
     Import {
-        import_path: Node<'a, ImportPath<'a>>,
-        from_path: Option<Node<'a, ImportPath<'a>>>,
+        import_path: ImportPathNode<'source>,
+        from_path: Option<ImportPathNode<'source>>,
     },
-    Expression(Node<'a, Expression<'a>>),
+    Expression(ExpressionNode<'source>),
 }
 
-impl<'a> Nodeable for Statement<'a> {
+impl<'source> Nodeable for Statement<'source> {
     fn range(&self) -> Range {
         todo!()
     }

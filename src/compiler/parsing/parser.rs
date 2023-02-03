@@ -3,58 +3,24 @@ use crate::compiler::{
     utilities::{range::Range, text_source::TextSource},
 };
 
-use super::cst::{
-    binary_operator::{BinaryOperator, BinaryOperatorKind},
-    expression::Expression,
-    script::Script,
-    statement::{ImportPath, Statement},
-    unary_operator::UnaryOperator,
+use super::{
+    cst::{
+        binary_operator::{BinaryOperator, BinaryOperatorKind},
+        expression::Expression,
+        script::Script,
+        statement::{ImportPath, Statement},
+        unary_operator::UnaryOperator,
+    },
+    parse_state::ParseState,
 };
 
-#[derive(Clone)]
-pub struct ParseState<'a, 'b> {
-    tokens: &'a [Token<'b>],
-    offset: usize,
-}
-
-impl<'a, 'b> ParseState<'a, 'b> {
-    fn new(tokens: &'a [Token<'b>]) -> ParseState<'a, 'b> {
-        if let Some(token) = tokens.last() {
-            if !token.is_eof() {
-                panic!("Invalid tokens. The last token of the input tokens should be an EOF token.")
-            }
-
-            return ParseState { tokens, offset: 0 };
-        } else {
-            panic!(
-                "Invalid tokens. Input tokens must have at least one token (which should be EOF)."
-            )
-        }
-    }
-
-    fn current_token(&self) -> &'a Token<'b> {
-        &self.tokens[self.offset]
-    }
-
-    fn next(&self) -> ParseState<'a, 'b> {
-        if self.offset == self.tokens.len() {
-            panic!("Unable to create new parser state because there are no more tokens to read.")
-        }
-
-        ParseState {
-            tokens: self.tokens,
-            offset: self.offset + 1,
-        }
-    }
-}
-
-pub struct ParseError<'a> {
+pub struct ParseError<'source> {
     range: Range,
     message: String,
-    source: &'a TextSource,
+    source: &'source TextSource,
 }
 
-impl<'a> ToString for ParseError<'a> {
+impl<'source> ToString for ParseError<'source> {
     fn to_string(&self) -> String {
         format!(
             "ERROR ({}) {}",
@@ -64,16 +30,17 @@ impl<'a> ToString for ParseError<'a> {
     }
 }
 
-pub type ParseResult<'a, 'b, T> =
-    Result<(T, ParseState<'a, 'b>), (ParseError<'b>, ParseState<'a, 'b>)>;
+pub type ParseResult<'tokens, 'source, T> =
+    Result<(T, ParseState<'tokens, 'source>), (ParseError<'source>, ParseState<'tokens, 'source>)>;
 
-type Parser<'a, 'b, T> = fn(ParseState<'a, 'b>) -> ParseResult<'a, 'b, T>;
+type Parser<'tokens, 'source, T> =
+    fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, T>;
 
-fn longest<'a, 'b, T>(
-    state: ParseState<'a, 'b>,
-    parsers: &[fn(ParseState<'a, 'b>) -> ParseResult<'a, 'b, T>],
+fn longest<'tokens, 'source, T>(
+    state: ParseState<'tokens, 'source>,
+    parsers: &[fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, T>],
     multi_error_message: String,
-) -> ParseResult<'a, 'b, T> {
+) -> ParseResult<'tokens, 'source, T> {
     let mut longest_success: Option<(T, ParseState)> = None;
     let mut longest_error: (ParseError, ParseState) = (
         ParseError {
@@ -88,12 +55,12 @@ fn longest<'a, 'b, T>(
         match parser(state.clone()) {
             Ok(result)
                 if longest_success.is_none()
-                    || result.1.offset > longest_success.as_ref().unwrap().1.offset =>
+                    || result.1.offset() > longest_success.as_ref().unwrap().1.offset() =>
             {
                 longest_success = Some(result);
             }
-            Err(result) if result.1.offset > longest_error.1.offset => longest_error = result,
-            Err(result) if result.1.offset == longest_error.1.offset => {
+            Err(result) if result.1.offset() > longest_error.1.offset() => longest_error = result,
+            Err(result) if result.1.offset() == longest_error.1.offset() => {
                 longest_error = (
                     ParseError {
                         range: longest_error.0.range,
@@ -108,15 +75,15 @@ fn longest<'a, 'b, T>(
     }
 
     match longest_success {
-        Some(success) if success.1.offset >= longest_error.1.offset => Ok(success),
+        Some(success) if success.1.offset() >= longest_error.1.offset() => Ok(success),
         _ => Err(longest_error),
     }
 }
 
-fn expect_token<'a, 'b>(
+fn expect_token<'tokens, 'source>(
     kind: TokenKind,
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Token<'b>> {
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Token<'source>> {
     let token = state.current_token();
 
     if token.kind() == &kind {
@@ -133,7 +100,9 @@ fn expect_token<'a, 'b>(
     }
 }
 
-pub fn skip_whitespace<'a, 'b>(state: ParseState<'a, 'b>) -> ParseState<'a, 'b> {
+pub fn skip_whitespace<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseState<'tokens, 'source> {
     let mut state = state;
 
     while state.current_token().is_whitespace() {
@@ -143,9 +112,9 @@ pub fn skip_whitespace<'a, 'b>(state: ParseState<'a, 'b>) -> ParseState<'a, 'b> 
     state
 }
 
-pub fn parse_binary_operator<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, BinaryOperator<'b>> {
+pub fn parse_binary_operator<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, BinaryOperator<'source>> {
     longest(
         state,
         &[
@@ -186,20 +155,20 @@ pub fn parse_binary_operator<'a, 'b>(
     )
 }
 
-pub fn parse_postfix_unary_operator<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, UnaryOperator> {
+pub fn parse_postfix_unary_operator<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, UnaryOperator> {
     longest(state, &[], "Expected a post-fix unary operator".to_string())
 }
 
-pub fn parse_primary_expression<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_primary_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let atoms = &[
-        parse_integer_literal_expression as Parser<'a, 'b, Expression<'b>>,
-        parse_string_literal_expression as Parser<'a, 'b, Expression<'b>>,
-        parse_parenthesized_expression as Parser<'a, 'b, Expression<'b>>,
-        parse_identifier_expression as Parser<'a, 'b, Expression<'b>>,
+        parse_integer_literal_expression as Parser<'tokens, 'source, Expression<'source>>,
+        parse_string_literal_expression as Parser<'tokens, 'source, Expression<'source>>,
+        parse_parenthesized_expression as Parser<'tokens, 'source, Expression<'source>>,
+        parse_identifier_expression as Parser<'tokens, 'source, Expression<'source>>,
     ];
 
     let (mut expression, mut state) = longest(state, atoms, "Expected an expression".to_string())?;
@@ -239,10 +208,10 @@ pub fn parse_primary_expression<'a, 'b>(
     Ok((expression, state))
 }
 
-pub fn parse_expression_at_precedence<'a, 'b>(
+pub fn parse_expression_at_precedence<'tokens, 'source>(
     minimum_precedence: u32,
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (mut expression, mut state) = parse_primary_expression(state)?;
 
     while let Ok((binop, next_state)) = parse_binary_operator(skip_whitespace(state.clone())) {
@@ -271,34 +240,36 @@ pub fn parse_expression_at_precedence<'a, 'b>(
     Ok((expression, state))
 }
 
-pub fn parse_expression<'a, 'b>(state: ParseState<'a, 'b>) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     parse_expression_at_precedence(0, state)
 }
 
-pub fn parse_integer_literal_expression<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_integer_literal_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (token, state) = expect_token(TokenKind::IntegerLiteral, state)?;
     Ok((Expression::IntegerLiteral(token), state))
 }
 
-pub fn parse_string_literal_expression<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_string_literal_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (token, state) = expect_token(TokenKind::StringLiteral, state)?;
     Ok((Expression::StringLiteral(token), state))
 }
 
-pub fn parse_identifier_expression<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_identifier_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (token, state) = expect_token(TokenKind::Identifier, state)?;
     Ok((Expression::Identifier(token), state))
 }
 
-pub fn parse_parenthesized_expression<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Expression<'b>> {
+pub fn parse_parenthesized_expression<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (open_parenthesis, state) = expect_token(TokenKind::SymbolOpenParenthesis, state)?;
     let (expression, state) = parse_expression(skip_whitespace(state))?;
     let (close_parenthesis, state) =
@@ -314,7 +285,9 @@ pub fn parse_parenthesized_expression<'a, 'b>(
     ))
 }
 
-pub fn parse_import_path<'a, 'b>(state: ParseState<'a, 'b>) -> ParseResult<'a, 'b, ImportPath<'b>> {
+pub fn parse_import_path<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
     let (mut path, mut state) = expect_token(TokenKind::Identifier, state)
         .map(|(token, state)| (ImportPath::Simple(token), state))?;
 
@@ -335,9 +308,9 @@ pub fn parse_import_path<'a, 'b>(state: ParseState<'a, 'b>) -> ParseResult<'a, '
     Ok((path, state))
 }
 
-pub fn parse_import_statement<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Statement<'b>> {
+pub fn parse_import_statement<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Statement<'source>> {
     let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
     let (import_path, state) = parse_import_path(skip_whitespace(state))?;
     let (from_path, state) = if let Ok((keyword_from, state)) =
@@ -361,9 +334,9 @@ pub fn parse_import_statement<'a, 'b>(
     ))
 }
 
-pub fn parse_expression_statement<'a, 'b>(
-    state: ParseState<'a, 'b>,
-) -> ParseResult<'a, 'b, Statement<'b>> {
+pub fn parse_expression_statement<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Statement<'source>> {
     let (expression, state) = parse_expression(state)?;
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
@@ -376,19 +349,23 @@ pub fn parse_expression_statement<'a, 'b>(
     ))
 }
 
-pub fn parse_statement<'a, 'b>(state: ParseState<'a, 'b>) -> ParseResult<'a, 'b, Statement<'b>> {
-    let parsers: &[fn(ParseState<'a, 'b>) -> ParseResult<'a, 'b, Statement<'b>>] = &[
-        parse_expression_statement as Parser<'a, 'b, Statement<'b>>,
-        parse_import_statement as Parser<'a, 'b, Statement<'b>>,
+pub fn parse_statement<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Statement<'source>> {
+    let parsers: &[fn(
+        ParseState<'tokens, 'source>,
+    ) -> ParseResult<'tokens, 'source, Statement<'source>>] = &[
+        parse_expression_statement as Parser<'tokens, 'source, Statement<'source>>,
+        parse_import_statement as Parser<'tokens, 'source, Statement<'source>>,
     ];
 
     longest(state, parsers, "Expected a statement".to_string())
 }
 
-pub fn parse_script<'a, 'b>(
-    source: &'a TextSource,
-    tokens: &'b [Token<'a>],
-) -> Result<Script<'a>, ParseError<'a>> {
+pub fn parse_script<'source, 'tokens>(
+    source: &'source TextSource,
+    tokens: &'tokens [Token<'source>],
+) -> Result<Script<'source>, ParseError<'source>> {
     let mut state = skip_whitespace(ParseState::new(&tokens));
     let mut statements = Vec::<Statement>::new();
 

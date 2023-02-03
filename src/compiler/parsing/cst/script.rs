@@ -5,26 +5,26 @@ use crate::compiler::utilities::text_source::TextSource;
 use super::statement::Statement;
 
 #[derive(Debug)]
-pub struct Script<'a> {
-    source: &'a TextSource,
-    statements: Vec<Statement<'a>>,
+pub struct Script<'source> {
+    source: &'source TextSource,
+    statements: Vec<Statement<'source>>,
 }
 
-impl<'a> Script<'a> {
-    pub fn new(source: &'a TextSource, statements: Vec<Statement<'a>>) -> Script<'a> {
+impl<'source> Script<'source> {
+    pub fn new(source: &'source TextSource, statements: Vec<Statement<'source>>) -> Script<'source> {
         Script { source, statements }
     }
 
-    pub fn statements(&self) -> &[Statement<'a>] {
+    pub fn statements(&self) -> &[Statement<'source>] {
         &self.statements
     }
 
-    pub fn source(&self) -> &'a TextSource {
+    pub fn source(&self) -> &'source TextSource {
         &self.source
     }
 }
 
-impl<'a> Serialize for Script<'a> {
+impl<'source> Serialize for Script<'source> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

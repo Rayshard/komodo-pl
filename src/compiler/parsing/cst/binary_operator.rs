@@ -11,13 +11,13 @@ pub enum BinaryOperatorKind {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BinaryOperator<'a> {
+pub struct BinaryOperator<'source> {
     kind: BinaryOperatorKind,
-    token: Token<'a>,
+    token: Token<'source>,
 }
 
-impl<'a> BinaryOperator<'a> {
-    pub fn new(kind: BinaryOperatorKind, token: Token<'a>) -> BinaryOperator {
+impl<'source> BinaryOperator<'source> {
+    pub fn new(kind: BinaryOperatorKind, token: Token<'source>) -> BinaryOperator {
         BinaryOperator { kind, token }
     }
 
