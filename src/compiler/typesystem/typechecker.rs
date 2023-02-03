@@ -1,5 +1,3 @@
-use std::result;
-
 use crate::compiler::{
     ast::{
         expression::Expression as ASTExpression, import_path::ImportPath as ASTImportPath,

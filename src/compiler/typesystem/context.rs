@@ -44,21 +44,24 @@ impl<'parent> Context<'parent> {
         }
     }
 
-    pub fn from(ts_type: &TSType, parent: Option<&'parent Context<'parent>>) -> ContextResult<Context<'parent>> {
+    pub fn from(
+        ts_type: &TSType,
+        parent: Option<&'parent Context<'parent>>,
+    ) -> ContextResult<Context<'parent>> {
         let mut ctx = Context::new(parent);
 
         match ts_type {
-            TSType::Object { name, members } => {
+            TSType::Object { name: _, members } => {
                 for (member_name, member_ts_type) in members {
                     ctx.set(&member_name, member_ts_type.clone())?;
                 }
-            },
+            }
             TSType::Function {
-                name,
-                parameters,
-                return_type,
+                name: _,
+                parameters: _,
+                return_type: _,
             } => todo!(),
-            TSType::Module { name, members } => {
+            TSType::Module { name: _, members } => {
                 for (member_name, member_ts_type) in members {
                     ctx.set(&member_name, member_ts_type.clone())?;
                 }
