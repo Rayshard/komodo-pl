@@ -3,7 +3,7 @@ use crate::compiler::{
         import_path::ImportPath as ASTImportPath, statement::Statement as ASTStatement,
         StatementNode,
     },
-    parsing::cst::{statement::Statement as CSTStatement, Node},
+    cst::{statement::Statement as CSTStatement, Node},
     typesystem::{context::Context, ts_type::TSType},
 };
 

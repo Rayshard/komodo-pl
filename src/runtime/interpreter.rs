@@ -5,7 +5,7 @@ use crate::compiler::{
         expression::Expression, import_path::ImportPath, literal::Literal, statement::Statement,
         ExpressionNode, ImportPathNode, LiteralNode, ScriptNode, StatementNode,
     },
-    parsing::cst::binary_operator::BinaryOperatorKind,
+    cst::binary_operator::BinaryOperatorKind,
 };
 
 #[derive(Debug, Clone)]

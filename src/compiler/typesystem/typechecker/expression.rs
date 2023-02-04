@@ -1,5 +1,5 @@
 use crate::compiler::{
-    parsing::cst::{expression::Expression as CSTExpression, Node, binary_operator::BinaryOperatorKind},
+    cst::{expression::Expression as CSTExpression, Node, binary_operator::BinaryOperatorKind},
     typesystem::{context::Context, ts_type::TSType}, ast::{expression::Expression as ASTExpression, literal::Literal as ASTLiteral, ExpressionNode, LiteralNode}, utilities::range::Range,
 };
 

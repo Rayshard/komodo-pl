@@ -1,18 +1,17 @@
 use crate::compiler::{
+    cst::{
+        binary_operator::{BinaryOperator, BinaryOperatorKind},
+        expression::Expression,
+        import_path::ImportPath,
+        script::Script,
+        statement::Statement,
+        unary_operator::UnaryOperator,
+    },
     lexing::token::{Token, TokenKind},
     utilities::{range::Range, text_source::TextSource},
 };
 
-use super::{
-    cst::{
-        binary_operator::{BinaryOperator, BinaryOperatorKind},
-        expression::Expression,
-        script::Script,
-        statement::{Statement},
-        unary_operator::UnaryOperator, import_path::ImportPath,
-    },
-    parse_state::ParseState,
-};
+use super::parse_state::ParseState;
 
 pub struct ParseError<'source> {
     range: Range,

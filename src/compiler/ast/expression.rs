@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{parsing::cst::binary_operator::BinaryOperatorKind};
+use crate::compiler::{cst::binary_operator::BinaryOperatorKind};
 
 use super::{ExpressionNode, LiteralNode};
 

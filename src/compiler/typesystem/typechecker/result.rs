@@ -1,4 +1,4 @@
-use crate::compiler::{typesystem::{context::ContextError, ts_type::TSType}, parsing::cst::binary_operator::BinaryOperatorKind, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{typesystem::{context::ContextError, ts_type::TSType}, cst::binary_operator::BinaryOperatorKind, utilities::{range::Range, text_source::TextSource}};
 
 pub enum TypecheckErrorKind {
     Context(ContextError),

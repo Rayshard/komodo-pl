@@ -1,6 +1,6 @@
 use crate::compiler::{
     ast::{script::Script as ASTScript, ScriptNode},
-    parsing::cst::{script::Script as CSTScript, Node as CSTNode},
+    cst::{script::Script as CSTScript, Node as CSTNode},
     typesystem::{context::Context, ts_type::TSType},
 };
 
