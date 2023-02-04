@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::compiler::{
-    lexing::token::Token,
+    lexer::token::Token,
     utilities::{range::Range, text_source::TextSource},
 };
 

@@ -1,4 +1,4 @@
-use crate::compiler::lexing::token::Token;
+use crate::compiler::lexer::token::Token;
 
 #[derive(Clone)]
 pub struct ParseState<'tokens, 'source> {

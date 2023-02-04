@@ -1,4 +1,4 @@
-use crate::compiler::{utilities::{range::Range, text_source::TextSource}, lexing::token::Token};
+use crate::compiler::{utilities::{range::Range, text_source::TextSource}, lexer::token::Token};
 
 pub mod script;
 pub mod expression;

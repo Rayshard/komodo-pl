@@ -1,8 +1,10 @@
+pub mod token;
+
 use crate::compiler::utilities::{range::Range, text_source::TextSource};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-use super::token::{Token, TokenKind};
+use token::{Token, TokenKind};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum LexErrorKind {
@@ -20,7 +22,11 @@ pub struct LexError<'source> {
 
 impl<'source> LexError<'source> {
     pub fn new(range: Range, kind: LexErrorKind, source: &TextSource) -> LexError {
-        LexError { range, kind, source }
+        LexError {
+            range,
+            kind,
+            source,
+        }
     }
 
     pub fn range(&self) -> &Range {
@@ -237,8 +243,9 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
             match lexer(&source.text()[parse_offset..]) {
                 Ok((kind, length)) => {
                     if let Some(longest) = &longest {
-                        let token_char_count =
-                            source.text()[parse_offset..parse_offset + length].chars().count();
+                        let token_char_count = source.text()[parse_offset..parse_offset + length]
+                            .chars()
+                            .count();
 
                         if token_char_count <= longest.value_char_length() {
                             continue;
@@ -257,7 +264,7 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
                     longest_error = Some(LexError {
                         kind,
                         range: Range::new(parse_offset, length),
-                        source
+                        source,
                     });
                 }
             }
@@ -281,7 +288,11 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
     }
 
     // Add EOF token at the end of the input
-    tokens.push(Token::new(TokenKind::EOF, Range::new(parse_offset, 0), source));
+    tokens.push(Token::new(
+        TokenKind::EOF,
+        Range::new(parse_offset, 0),
+        source,
+    ));
 
     (tokens, errors)
 }

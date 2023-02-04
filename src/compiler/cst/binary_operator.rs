@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{lexing::token::Token, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{lexer::token::Token, utilities::{range::Range, text_source::TextSource}};
 
 use super::Node;
 

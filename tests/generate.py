@@ -5,7 +5,7 @@ import pathlib
 
 def generate_lexer_tests():
     with open("tests/lexer_tests.rs", "w") as file:
-        file.write("use komodo::compiler::{lexing::{lexer::*, token::{TokenKind, Token}}, utilities::{range::Range, text_source::TextSource}};\n")
+        file.write("use komodo::compiler::{utilities::{range::Range, text_source::TextSource}, lexer::{lex, token::{TokenKind, Token}}};\n")
 
         for test_file_path in glob.glob("tests/lexer/*.json"):
             with open(test_file_path) as test_file:

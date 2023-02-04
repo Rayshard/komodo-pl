@@ -5,11 +5,8 @@ use komodo::{
     compiler::{
         ast::ScriptNode as ASTScriptNode,
         cst::script::Script as CSTScript,
-        lexing::{
-            lexer::{self, LexError},
-            token::Token,
-        },
-        parsing::parser::{self, ParseError},
+        lexer::{self, token::Token, LexError},
+        parser::{self, ParseError},
         typesystem::{
             context::Context,
             ts_type::TSType,

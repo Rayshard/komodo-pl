@@ -1,3 +1,5 @@
+pub mod parse_state;
+
 use crate::compiler::{
     cst::{
         binary_operator::{BinaryOperator, BinaryOperatorKind},
@@ -7,11 +9,11 @@ use crate::compiler::{
         statement::Statement,
         unary_operator::UnaryOperator,
     },
-    lexing::token::{Token, TokenKind},
+    lexer::token::{Token, TokenKind},
     utilities::{range::Range, text_source::TextSource},
 };
 
-use super::parse_state::ParseState;
+use parse_state::ParseState;
 
 pub struct ParseError<'source> {
     range: Range,
