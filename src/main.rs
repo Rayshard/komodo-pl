@@ -15,7 +15,7 @@ use komodo::{
         typesystem::{
             context::Context,
             ts_type::TSType,
-            typechecker::{self, TypecheckError},
+            typechecker::{self, result::TypecheckError},
         },
         utilities::text_source::TextSource,
     },
@@ -82,7 +82,7 @@ fn typecheck<'source>(
     script: CSTScript<'source>,
     ctx: &Context,
 ) -> CompilationResult<'source, ASTScriptNode<'source>> {
-    typechecker::typecheck_script(script, ctx).map_err(|error| CompilationError::Typechecker(error))
+    typechecker::script::typecheck(script, ctx).map_err(|error| CompilationError::Typechecker(error))
 }
 
 fn compile<'source>(
