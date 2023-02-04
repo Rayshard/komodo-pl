@@ -12,7 +12,7 @@ pub enum BinaryOperatorKind {
     Divide,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct BinaryOperator<'source> {
     kind: BinaryOperatorKind,
     token: Token<'source>,

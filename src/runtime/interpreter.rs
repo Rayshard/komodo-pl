@@ -2,10 +2,17 @@ use std::collections::HashMap;
 
 use crate::compiler::{
     ast::{
-        expression::Expression, import_path::ImportPath, literal::Literal, statement::Statement,
-        ExpressionNode, ImportPathNode, LiteralNode, ScriptNode, StatementNode,
+        expression::{
+            binary::Binary,
+            call::Call,
+            identifier::Identifier,
+            literal::{Literal, LiteralKind},
+            member_access::MemberAccess,
+            Expression,
+        },
+        statement::{import::Import, import_path::ImportPath, Statement}, script::Script,
     },
-    cst::binary_operator::BinaryOperatorKind,
+    cst::expression::binary_operator::BinaryOperatorKind,
 };
 
 #[derive(Debug, Clone)]
@@ -44,134 +51,125 @@ pub fn interpret_consecutive<TIn, TOut>(
     Ok(results)
 }
 
-fn interpret_literal(literal: &LiteralNode) -> InterpretResult<Value> {
-    match literal.instance() {
-        Literal::Int64(value) => Ok(Value::I64(value.clone())),
-        Literal::String(value) => Ok(Value::String(value.clone())),
+fn interpret_literal(node: &Literal) -> InterpretResult<Value> {
+    match node.kind() {
+        LiteralKind::Int64(value) => Ok(Value::I64(value.clone())),
+        LiteralKind::String(value) => Ok(Value::String(value.clone())),
     }
 }
 
-fn interpret_expression(expression: &ExpressionNode, ctx: &Context) -> InterpretResult<Value> {
-    match expression.instance() {
-        Expression::Literal(literal) => interpret_literal(literal),
-        Expression::Binary { left, op, right } => {
-            let left = interpret_expression(left.as_ref(), ctx)?;
-            let right = interpret_expression(right.as_ref(), ctx)?;
+fn interpret_binary(node: &Binary, ctx: &Context) -> InterpretResult<Value> {
+    let left = interpret_expression(node.left(), ctx)?;
+    let right = interpret_expression(node.right(), ctx)?;
 
-            match (left, op, right) {
-                (Value::I64(left), BinaryOperatorKind::Add, Value::I64(right)) => {
-                    Ok(Value::I64(left + right))
-                }
-                (Value::I64(left), BinaryOperatorKind::Subtract, Value::I64(right)) => {
-                    Ok(Value::I64(left - right))
-                }
-                (Value::I64(left), BinaryOperatorKind::Multiply, Value::I64(right)) => {
-                    Ok(Value::I64(left * right))
-                }
-                (Value::I64(left), BinaryOperatorKind::Divide, Value::I64(right)) => {
-                    Ok(Value::I64(left / right))
-                }
-                (Value::String(left), BinaryOperatorKind::Add, Value::String(right)) => {
-                    Ok(Value::String(left + &right))
-                }
-                (left, op, right) => Err(format!(
-                    "Unable to perform operation '{op:?}' on {left:?} and {right:?}"
-                )),
-            }
+    match (left, node.op(), right) {
+        (Value::I64(left), BinaryOperatorKind::Add, Value::I64(right)) => {
+            Ok(Value::I64(left + right))
         }
-        Expression::Call { head, args } => {
-            let head = interpret_expression(head.as_ref(), ctx)?;
-            let args = interpret_consecutive(args, interpret_expression, ctx)?;
+        (Value::I64(left), BinaryOperatorKind::Subtract, Value::I64(right)) => {
+            Ok(Value::I64(left - right))
+        }
+        (Value::I64(left), BinaryOperatorKind::Multiply, Value::I64(right)) => {
+            Ok(Value::I64(left * right))
+        }
+        (Value::I64(left), BinaryOperatorKind::Divide, Value::I64(right)) => {
+            Ok(Value::I64(left / right))
+        }
+        (Value::String(left), BinaryOperatorKind::Add, Value::String(right)) => {
+            Ok(Value::String(left + &right))
+        }
+        (left, op, right) => Err(format!(
+            "Unable to perform operation '{op:?}' on {left:?} and {right:?}"
+        )),
+    }
+}
 
-            match (head, &args[..]) {
-                (Value::Function(function_name), [Value::String(arg)])
-                    if function_name == "std.io.stdout.print_line" =>
-                {
-                    println!("{arg}");
-                    Ok(Value::Unit)
-                }
-                head => Err(format!("Unable to perform call operation on {head:?}")),
-            }
-        }
-        Expression::MemberAccess { head, member } => {
-            let head = interpret_expression(head.as_ref(), ctx)?;
+fn interpret_call(node: &Call, ctx: &Context) -> InterpretResult<Value> {
+    let head = interpret_expression(node.head(), ctx)?;
+    let args = interpret_consecutive(node.args(), interpret_expression, ctx)?;
 
-            match head {
-                Value::Object { name, members } => match members.get(member) {
-                    Some(member) => Ok(member.clone()),
-                    None => Err(format!("No member with name {member} exists in {name}")),
-                },
-                Value::Module { name, members } => match members.get(member) {
-                    Some(member) => Ok(member.clone()),
-                    None => Err(format!("No member with name {member} exists in {name}")),
-                },
-                head => Err(format!("Value has not accessable members: {head:?}")),
-            }
+    match (head, &args[..]) {
+        (Value::Function(function_name), [Value::String(arg)])
+            if function_name == "std.io.stdout.print_line" =>
+        {
+            println!("{arg}");
+            Ok(Value::Unit)
         }
-        Expression::Identifier(id) => Ok(ctx.get(id).unwrap().clone()),
+        head => Err(format!("Unable to perform call operation on {head:?}")),
+    }
+}
+
+fn interpret_member_access<'value>(node: &MemberAccess, ctx: &'value Context) -> InterpretResult<&'value Value> {
+    let head = interpret_expression(node.root(), ctx)?;
+
+    match head {
+        Value::Object { name, members } => interpret_identifier(node.member(), &members),
+        Value::Module { name, members } => interpret_identifier(node.member(), &members),
+        head => Err(format!("Value has not accessable members: {head:?}")),
+    }
+}
+
+fn interpret_identifier<'value>(node: &Identifier, ctx: &'value Context) -> InterpretResult<&'value Value> {
+    Ok(ctx.get(node.value()).unwrap())
+}
+
+fn interpret_expression(expression: &Expression, ctx: &Context) -> InterpretResult<Value> {
+    match expression {
+        Expression::Literal(node) => interpret_literal(node),
+        Expression::Binary(node) => interpret_binary(node, ctx),
+        Expression::Call(node) => interpret_call(node, ctx),
+        Expression::MemberAccess(node) => Ok(interpret_member_access(node, ctx)?.clone()),
+        Expression::Identifier(node) => Ok(interpret_identifier(node, ctx)?.clone()),
     }
 }
 
 fn interpret_import_path<'value>(
-    node: &ImportPathNode,
+    node: &ImportPath,
     ctx: &'value Context,
 ) -> InterpretResult<(String, &'value Value)> {
-    match node.instance() {
-        ImportPath::Simple(name) => Ok((name.to_string(), ctx.get(name).unwrap())),
-        ImportPath::Complex { head, member } => {
-            let (head_name, head_value) = interpret_import_path(head, ctx)?;
-
-            match head_value {
-                Value::Object { name, members } => match members.get(member) {
-                    Some(member_value) => Ok((format!("{head_name}.{member}"), member_value)),
-                    None => Err(format!("No member with name {member} exists in {name}")),
-                },
-                Value::Module { name, members } => match members.get(member) {
-                    Some(member_value) => Ok((format!("{head_name}.{member}"), member_value)),
-                    None => Err(format!("No member with name {member} exists in {name}")),
-                },
-                head => Err(format!("Value has not accessable members: {head:?}")),
-            }
+    match node {
+        ImportPath::Simple(node) => {
+            Ok((node.value().to_string(), interpret_identifier(node, ctx)?))
         }
+        ImportPath::Complex(node) => Ok((
+            node.member().value().to_string(),
+            interpret_member_access(node, ctx)?,
+        )),
     }
 }
 
-fn interpret_statement(node: &StatementNode, ctx: &mut Context) -> InterpretResult<Value> {
-    match node.instance() {
-        Statement::Expression(expression) => interpret_expression(expression, ctx),
-        Statement::Import {
-            import_path,
-            from_path: None,
-        } => {
-            let (path, value) = interpret_import_path(import_path, ctx)?;
-            ctx.insert(path, value.clone());
-
-            Ok(Value::Unit)
+fn interpret_import(node: &Import, ctx: &mut Context) -> InterpretResult<Value> {
+    if let Some(from_path) = node.from() {
+        let (_, from_value) = interpret_import_path(from_path, ctx)?;
+        let (name, value) = match from_value {
+            Value::Object { name: _, members } => interpret_import_path(node.path(), members),
+            Value::Module { name: _, members } => interpret_import_path(node.path(), members),
+            head => Err(format!("Value has not accessable members: {head:?}")),
         }
-        Statement::Import {
-            import_path,
-            from_path: Some(from_path),
-        } => {
-            let (_, from_value) = interpret_import_path(from_path, ctx)?;
+        .map(|(name, value)| (name, value.clone()))?;
 
-            let (name, value) = match from_value {
-                Value::Object { name: _, members } => interpret_import_path(import_path, members),
-                Value::Module { name: _, members } => interpret_import_path(import_path, members),
-                head => Err(format!("Value has not accessable members: {head:?}")),
-            }
-            .map(|(name, value)| (name, value.clone()))?;
+        ctx.insert(name, value.clone());
+        Ok(value)
+    } else {
+        let (path, value) = interpret_import_path(node.path(), ctx)?;
+        ctx.insert(path, value.clone());
 
-            ctx.insert(name, value.clone());
-            Ok(value.clone())
-        }
+        Ok(Value::Unit)
     }
 }
 
-pub fn interpret_script(script: &ScriptNode, ctx: &Context) -> InterpretResult<Value> {
+fn interpret_statement(node: &Statement, ctx: &mut Context) -> InterpretResult<Value> {
+    match node {
+        Statement::Expression(node) => interpret_expression(node, ctx),
+        Statement::Import(node) => interpret_import(node, ctx),
+    }
+}
+
+pub fn interpret_script(script: &Script, ctx: &Context) -> InterpretResult<Value> {
     let mut last = Value::Unit;
     let mut ctx = ctx.clone();
 
-    for statement in script.instance().statements() {
+    for statement in script.statements() {
         last = interpret_statement(statement, &mut ctx)?;
     }
 

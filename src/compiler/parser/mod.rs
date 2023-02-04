@@ -1,19 +1,26 @@
 pub mod parse_state;
 
 use crate::compiler::{
-    cst::{
-        binary_operator::{BinaryOperator, BinaryOperatorKind},
-        expression::Expression,
-        import_path::ImportPath,
-        script::Script,
-        statement::Statement,
-        unary_operator::UnaryOperator,
-    },
+    cst::{expression::Expression, script::Script, statement::Statement},
     lexer::token::{Token, TokenKind},
     utilities::{range::Range, text_source::TextSource},
 };
 
 use parse_state::ParseState;
+
+use super::cst::{
+    expression::{
+        binary::Binary,
+        binary_operator::{BinaryOperator, BinaryOperatorKind},
+        call::Call,
+        identifier::Identifier,
+        literal::{Literal, LiteralKind},
+        member_access::MemberAccess,
+        parenthesized::Parenthesized,
+        unary_operator::UnaryOperator,
+    },
+    statement::{import::Import, import_path::ImportPath, StatementKind},
+};
 
 pub struct ParseError<'source> {
     range: Range,
@@ -186,11 +193,15 @@ pub fn parse_postfix_unary_operator<'tokens, 'source>(
 pub fn parse_primary_expression<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Expression<'source>> {
+    // TODO: make this static
     let atoms = &[
         parse_integer_literal_expression as Parser<'tokens, 'source, Expression<'source>>,
         parse_string_literal_expression as Parser<'tokens, 'source, Expression<'source>>,
         parse_parenthesized_expression as Parser<'tokens, 'source, Expression<'source>>,
-        parse_identifier_expression as Parser<'tokens, 'source, Expression<'source>>,
+        |state| {
+            parse_identifier(state)
+                .map(|(identifier, state)| (Expression::Identifier(identifier), state))
+        },
     ];
 
     let (mut expression, mut state) = longest(state, atoms, "Expected an expression".to_string())?;
@@ -201,11 +212,11 @@ pub fn parse_primary_expression<'tokens, 'source>(
         match token.kind() {
             TokenKind::SymbolPeriod => {
                 let (member, next_state) = expect_token(TokenKind::Identifier, state.next())?;
-                expression = Expression::MemberAccess {
-                    head: Box::new(expression),
+                expression = Expression::MemberAccess(MemberAccess {
+                    root: Box::new(expression),
                     dot: token.clone(),
                     member,
-                };
+                });
 
                 state = next_state;
             }
@@ -216,12 +227,12 @@ pub fn parse_primary_expression<'tokens, 'source>(
                 let (close_parenthesis, next_state) =
                     expect_token(TokenKind::SymbolCloseParenthesis, next_state)?;
 
-                expression = Expression::Call {
+                expression = Expression::Call(Call {
                     head: Box::new(expression),
                     open_parenthesis: token.clone(),
                     args,
                     close_parenthesis,
-                };
+                });
 
                 state = next_state;
             }
@@ -252,11 +263,11 @@ pub fn parse_expression_at_precedence<'tokens, 'source>(
         let (rhs, next_state) =
             parse_expression_at_precedence(next_minimum_precedence, skip_whitespace(next_state))?;
 
-        expression = Expression::Binary {
+        expression = Expression::Binary(Binary {
             left: Box::new(expression),
             op: binop,
             right: Box::new(rhs),
-        };
+        });
 
         state = next_state;
     }
@@ -274,21 +285,27 @@ pub fn parse_integer_literal_expression<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (token, state) = expect_token(TokenKind::IntegerLiteral, state)?;
-    Ok((Expression::IntegerLiteral(token), state))
+    Ok((
+        Expression::Literal(Literal::new(LiteralKind::Integer, token)),
+        state,
+    ))
 }
 
 pub fn parse_string_literal_expression<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Expression<'source>> {
     let (token, state) = expect_token(TokenKind::StringLiteral, state)?;
-    Ok((Expression::StringLiteral(token), state))
+    Ok((
+        Expression::Literal(Literal::new(LiteralKind::String, token)),
+        state,
+    ))
 }
 
-pub fn parse_identifier_expression<'tokens, 'source>(
+pub fn parse_identifier<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
-) -> ParseResult<'tokens, 'source, Expression<'source>> {
+) -> ParseResult<'tokens, 'source, Identifier<'source>> {
     let (token, state) = expect_token(TokenKind::Identifier, state)?;
-    Ok((Expression::Identifier(token), state))
+    Ok((token, state))
 }
 
 pub fn parse_parenthesized_expression<'tokens, 'source>(
@@ -300,20 +317,29 @@ pub fn parse_parenthesized_expression<'tokens, 'source>(
         expect_token(TokenKind::SymbolCloseParenthesis, skip_whitespace(state))?;
 
     Ok((
-        Expression::Parenthesized {
+        Expression::Parenthesized(Parenthesized {
             open_parenthesis,
             expression: Box::new(expression),
             close_parenthesis,
-        },
+        }),
         state,
     ))
 }
 
-pub fn parse_import_path<'tokens, 'source>(
+pub fn parse_member_access<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
-) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
-    let (mut path, mut state) = expect_token(TokenKind::Identifier, state)
-        .map(|(token, state)| (ImportPath::Simple(token), state))?;
+) -> ParseResult<'tokens, 'source, MemberAccess<'source>> {
+    let (root, state) = parse_primary_expression(state)?;
+    let (dot, state) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(state))?;
+    let (member, state) = parse_identifier(state)?;
+    let (mut member_access, mut state) = (
+        MemberAccess {
+            root: Box::new(root),
+            dot,
+            member,
+        },
+        state,
+    );
 
     while let Ok((dot, next_state)) =
         expect_token(TokenKind::SymbolPeriod, skip_whitespace(state.clone()))
@@ -321,20 +347,38 @@ pub fn parse_import_path<'tokens, 'source>(
         let (member, next_state) =
             expect_token(TokenKind::Identifier, skip_whitespace(next_state))?;
 
-        path = ImportPath::Complex {
-            head: Box::new(path),
+        member_access = MemberAccess {
+            root: Box::new(Expression::MemberAccess(member_access)),
             dot,
             member,
         };
         state = next_state;
     }
 
-    Ok((path, state))
+    Ok((member_access, state))
 }
 
-pub fn parse_import_statement<'tokens, 'source>(
+pub fn parse_import_path<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
-) -> ParseResult<'tokens, 'source, Statement<'source>> {
+) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
+    // TODO: make static
+    let kinds = &[
+        |state| {
+            parse_identifier(state)
+                .map(|(identifier, state)| (ImportPath::Simple(identifier), state))
+        },
+        |state| {
+            parse_member_access(state)
+                .map(|(member_access, state)| (ImportPath::Complex(member_access), state))
+        },
+    ];
+
+    longest(state, kinds, "Expected an import path".to_string())
+}
+
+pub fn parse_import<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Import<'source>> {
     let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
     let (import_path, state) = parse_import_path(skip_whitespace(state))?;
     let (from_path, state) = if let Ok((keyword_from, state)) =
@@ -348,10 +392,24 @@ pub fn parse_import_statement<'tokens, 'source>(
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     Ok((
-        Statement::Import {
+        Import {
             keyword_import,
             import_path,
             from_path,
+        },
+        state,
+    ))
+}
+
+pub fn parse_import_statement<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, Statement<'source>> {
+    let (import, state) = parse_import(state)?;
+    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
+
+    ParseResult::Ok((
+        Statement {
+            kind: StatementKind::Import(import),
             semicolon,
         },
         state,
@@ -365,8 +423,8 @@ pub fn parse_expression_statement<'tokens, 'source>(
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     ParseResult::Ok((
-        Statement::Expression {
-            expression,
+        Statement {
+            kind: StatementKind::Expression(expression),
             semicolon,
         },
         state,
@@ -376,6 +434,7 @@ pub fn parse_expression_statement<'tokens, 'source>(
 pub fn parse_statement<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Statement<'source>> {
+    // TODO: make static
     let parsers: &[fn(
         ParseState<'tokens, 'source>,
     ) -> ParseResult<'tokens, 'source, Statement<'source>>] = &[

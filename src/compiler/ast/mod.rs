@@ -1,14 +1,13 @@
-use self::{script::Script, statement::{Statement}, expression::Expression, literal::Literal, import_path::ImportPath, node::Node};
+use serde::Serialize;
 
-pub mod node;
+use super::{utilities::{range::Range, text_source::TextSource}, typesystem::ts_type::TSType};
+
 pub mod expression;
-pub mod literal;
 pub mod script;
 pub mod statement;
-pub mod import_path;
 
-pub type ScriptNode<'source> = Node<'source, Script<'source>>;
-pub type StatementNode<'source> = Node<'source, Statement<'source>>;
-pub type ImportPathNode<'source> = Node<'source, ImportPath<'source>>;
-pub type ExpressionNode<'source> = Node<'source, Expression<'source>>;
-pub type LiteralNode<'source> = Node<'source, Literal>;
+pub trait Node : Serialize {
+    fn ts_type(&self) -> &TSType;
+    fn range(&self) -> &Range;
+    fn source(&self) -> &TextSource;
+}

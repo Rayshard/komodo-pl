@@ -1,5 +1,4 @@
 pub mod expression;
-pub mod import_path;
 pub mod result;
 pub mod script;
 pub mod statement;

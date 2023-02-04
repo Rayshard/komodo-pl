@@ -2,10 +2,7 @@ use crate::compiler::{utilities::{range::Range, text_source::TextSource}, lexer:
 
 pub mod script;
 pub mod expression;
-pub mod binary_operator;
 pub mod statement;
-pub mod unary_operator;
-pub mod import_path;
 
 pub trait Node<'source> {
     fn range(&self) -> Range;

@@ -1,95 +1,102 @@
 use crate::compiler::{
     ast::{
-        import_path::ImportPath as ASTImportPath, statement::Statement as ASTStatement,
-        StatementNode,
+        statement::{
+            import::Import as ASTImport, import_path::ImportPath as ASTImportPath,
+            Statement as ASTStatement,
+        },
+        Node,
     },
-    cst::{statement::Statement as CSTStatement, Node},
+    cst::statement::{
+        import::Import as CSTImport, import_path::ImportPath as CSTImportPath,
+        Statement as CSTStatement, StatementKind as CSTStatementKind,
+    },
     typesystem::{context::Context, ts_type::TSType},
 };
 
 use super::{
-    expression, import_path,
+    expression::{self, typecheck_identifier, typecheck_member_access},
     result::{TypecheckError, TypecheckErrorKind, TypecheckResult},
 };
+
+pub fn typecheck_import_path<'source>(
+    node: &CSTImportPath<'source>,
+    ctx: &mut Context,
+) -> TypecheckResult<'source, ASTImportPath<'source>> {
+    match node {
+        CSTImportPath::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
+            identifier, ctx,
+        )?)),
+        CSTImportPath::Complex(member_access) => Ok(ASTImportPath::Complex(
+            typecheck_member_access(member_access, ctx)?,
+        )),
+    }
+}
+
+pub fn typecheck_import<'source>(
+    node: &CSTImport<'source>,
+    ctx: &mut Context,
+) -> TypecheckResult<'source, ASTImport<'source>> {
+    let (import_path, from_path) = if let Some((_, from_path)) = node.from_path() {
+        let from_path = typecheck_import_path(from_path, ctx)?;
+
+        match from_path.ts_type() {
+            TSType::Module {
+                name: _,
+                members: _,
+            } => {
+                let mut import_ctx = Context::from(from_path.ts_type(), None).map_err(|error| {
+                    TypecheckError::new(
+                        TypecheckErrorKind::Context(error),
+                        from_path.range().clone(),
+                        from_path.source(),
+                    )
+                })?;
+
+                Ok((
+                    typecheck_import_path(node.import_path(), &mut import_ctx)?,
+                    Some(from_path),
+                ))
+            }
+            ts_type => Err(TypecheckError::new(
+                TypecheckErrorKind::ImportFromNonModule(ts_type.clone()),
+                from_path.range().clone(),
+                from_path.source(),
+            )),
+        }
+    } else {
+        Ok((typecheck_import_path(node.import_path(), ctx)?, None))
+    }?;
+
+    let name = match import_path {
+        ASTImportPath::Simple(identifier) => identifier.value(),
+        ASTImportPath::Complex(member_access) => member_access.member().value(),
+    };
+
+    ctx.set(name, import_path.ts_type().clone())
+        .map_err(|error| {
+            TypecheckError::new(
+                TypecheckErrorKind::Context(error),
+                import_path.range().clone(),
+                import_path.source(),
+            )
+        })?;
+
+    Ok(ASTImport {
+        path: import_path,
+        from: from_path,
+    })
+}
 
 pub fn typecheck<'source>(
     statement: &CSTStatement<'source>,
     ctx: &mut Context,
-) -> TypecheckResult<'source, StatementNode<'source>> {
-    match statement {
-        CSTStatement::Import {
-            keyword_import: _,
-            import_path,
-            from_path,
-            semicolon: _,
-        } => {
-            let (import_path, from_path) = if let Some((_, from_path)) = from_path {
-                let from_path = import_path::typecheck(from_path, ctx)?;
-
-                match from_path.ts_type() {
-                    TSType::Module {
-                        name: _,
-                        members: _,
-                    } => {
-                        let mut import_ctx =
-                            Context::from(from_path.ts_type(), None).map_err(|error| {
-                                TypecheckError::new(
-                                    TypecheckErrorKind::Context(error),
-                                    from_path.range().clone(),
-                                    from_path.source(),
-                                )
-                            })?;
-
-                        Ok((
-                            import_path::typecheck(import_path, &mut import_ctx)?,
-                            Some(from_path),
-                        ))
-                    }
-                    ts_type => Err(TypecheckError::new(
-                        TypecheckErrorKind::ImportFromNonModule(ts_type.clone()),
-                        from_path.range().clone(),
-                        from_path.source(),
-                    )),
-                }
-            } else {
-                Ok((import_path::typecheck(import_path, ctx)?, None))
-            }?;
-
-            let name = match import_path.instance() {
-                ASTImportPath::Simple(name) => name,
-                ASTImportPath::Complex { head: _, member } => member,
-            };
-
-            ctx.set(name, import_path.ts_type().clone())
-                .map_err(|error| {
-                    TypecheckError::new(
-                        TypecheckErrorKind::Context(error),
-                        import_path.range().clone(),
-                        import_path.source(),
-                    )
-                })?;
-
-            Ok(StatementNode::new(
-                ASTStatement::Import {
-                    import_path,
-                    from_path,
-                },
-                TSType::Unit,
-                statement.source(),
-                statement.range().clone(),
-            ))
+) -> TypecheckResult<'source, ASTStatement<'source>> {
+    match statement.kind() {
+        CSTStatementKind::Import(node) => {
+            Ok(ASTStatement::Import(typecheck_import(node, ctx)?))
         }
-        CSTStatement::Expression {
-            expression,
-            semicolon: _,
-        } => {
-            let expression = expression::typecheck(expression, ctx)?;
-            Ok(StatementNode::new(
-                ASTStatement::Expression(expression),
-                TSType::Unit,
-                statement.source(),
-                statement.range().clone(),
-            ))
+        CSTStatementKind::Expression(node) => {
+            Ok(ASTStatement::Expression(expression::typecheck(node, ctx)?))
         }
     }
 }

@@ -4,7 +4,6 @@ use crate::compiler::utilities::{text_source::TextSource, range::Range};
 
 use super::{statement::Statement, Node};
 
-#[derive(Debug)]
 pub struct Script<'source> {
     source: &'source TextSource,
     statements: Vec<Statement<'source>>,

@@ -24,7 +24,7 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Token<'source> {
     kind: TokenKind,
     range: Range,

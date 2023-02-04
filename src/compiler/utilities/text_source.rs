@@ -1,5 +1,7 @@
 use std::{fs, io};
 
+use serde::Serialize;
+
 use super::{position::Position, range::Range};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -73,6 +75,15 @@ impl TextSource {
     pub fn from_file(path: &str) -> io::Result<TextSource> {
         let text = fs::read_to_string(path)?;
         Ok(TextSource::new(path.to_string(), text))
+    }
+}
+
+impl Serialize for TextSource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.name())
     }
 }
 
