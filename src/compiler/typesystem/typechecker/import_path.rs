@@ -1,6 +1,6 @@
 use crate::compiler::{
     ast::{import_path::ImportPath as ASTImportPath, ImportPathNode},
-    parsing::cst::{statement::ImportPath as CSTImportPath, Node},
+    parsing::cst::{import_path::ImportPath as CSTImportPath, Node},
     typesystem::context::Context,
 };
 

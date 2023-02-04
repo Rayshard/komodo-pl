@@ -8,8 +8,8 @@ use super::{
         binary_operator::{BinaryOperator, BinaryOperatorKind},
         expression::Expression,
         script::Script,
-        statement::{ImportPath, Statement},
-        unary_operator::UnaryOperator,
+        statement::{Statement},
+        unary_operator::UnaryOperator, import_path::ImportPath,
     },
     parse_state::ParseState,
 };
@@ -82,8 +82,8 @@ fn longest<'tokens, 'source, T>(
 
 fn separated<'tokens, 'source, V, D>(
     state: ParseState<'tokens, 'source>,
-    value_parser: fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, V>,
-    delimiter_parser: fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, D>,
+    value_parser: Parser<'tokens, 'source, V>,
+    delimiter_parser: Parser<'tokens, 'source, D>,
 ) -> ParseResult<'tokens, 'source, Vec<V>> {
     if let Ok((value, mut state)) = value_parser(state.clone()) {
         let mut values = vec![value];

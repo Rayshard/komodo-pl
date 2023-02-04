@@ -2,6 +2,7 @@ use crate::compiler::{utilities::{range::Range, text_source::TextSource}, lexing
 
 pub mod script;
 pub mod statement;
+pub mod import_path;
 pub mod expression;
 pub mod binary_operator;
 pub mod unary_operator;
