@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
 #[derive(Serialize)]
 pub enum LiteralKind {
@@ -12,26 +12,29 @@ pub enum LiteralKind {
 pub struct Literal<'source> {
     kind: LiteralKind,
     ts_type: TSType,
-    range:Range,
-    source: &'source TextSource,
+    location: Location<'source>,
 }
 
 impl<'source> Literal<'source> {
+    pub fn new(kind: LiteralKind, ts_type: TSType, location: Location<'source>) -> Self {
+        Self {
+            kind,
+            ts_type,
+            location,
+        }
+    }
+
     pub fn kind(&self) -> &LiteralKind {
         &self.kind
     }
 }
 
-impl<'source> Node for Literal<'source> {
+impl<'source> Node<'source> for Literal<'source> {
     fn ts_type(&self) -> &TSType {
         &self.ts_type
     }
 
-    fn range(&self) -> &Range {
-        &self.range
-    }
-
-    fn source(&self) -> &TextSource {
-        self.source
+    fn location(&self) -> Location<'source> {
+        self.location.clone()
     }
 }

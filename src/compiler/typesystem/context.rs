@@ -4,13 +4,14 @@ use crate::compiler::utilities::location::Location;
 
 use super::ts_type::TSType;
 
+#[derive(Debug, Clone)]
 pub struct ContextError<'source> {
     message: String,
     location: Location<'source>,
 }
 
 impl<'source> ContextError<'source> {
-    pub fn new(message: String, location: Location) -> Self {
+    pub fn new(message: String, location: Location<'source>) -> Self {
         Self { message, location }
     }
 
@@ -18,7 +19,7 @@ impl<'source> ContextError<'source> {
         &self.message
     }
 
-    pub fn location(&self) -> &Location {
+    pub fn location(&self) -> &Location<'source> {
         &self.location
     }
 }
@@ -38,7 +39,11 @@ impl<'parent> Context<'parent> {
         }
     }
 
-    pub fn get(&self, name: &str, location: Location) -> ContextResult<&TSType> {
+    pub fn get<'source>(
+        &self,
+        name: &str,
+        location: Location<'source>,
+    ) -> ContextResult<'source, &TSType> {
         self.entries.get(name).map_or_else(
             || {
                 if let Some(parent) = self.parent {
@@ -54,12 +59,15 @@ impl<'parent> Context<'parent> {
         )
     }
 
-    pub fn set(&mut self, name: &str, ts_type: TSType, location: Location) -> ContextResult<()> {
+    pub fn set<'source>(
+        &mut self,
+        name: &str,
+        ts_type: TSType,
+        location: Location<'source>,
+    ) -> ContextResult<'source, ()> {
         if self.entries.contains_key(name) {
             Err(ContextError::new(
-                format!(
-                    "Name '{name}' already exists in the current context."
-                ),
+                format!("Name '{name}' already exists in the current context."),
                 location,
             ))
         } else {
@@ -71,14 +79,14 @@ impl<'parent> Context<'parent> {
     pub fn from<'source>(
         ts_type: &TSType,
         parent: Option<&'parent Context<'parent>>,
-        location: Location<'source>
+        location: Location<'source>,
     ) -> ContextResult<'source, Context<'parent>> {
         let mut ctx = Context::new(parent);
 
         match ts_type {
             TSType::Object { name: _, members } => {
                 for (member_name, member_ts_type) in members {
-                    ctx.set(&member_name, member_ts_type.clone(), location)?;
+                    ctx.set(&member_name, member_ts_type.clone(), location.clone())?;
                 }
             }
             TSType::Function {
@@ -88,7 +96,7 @@ impl<'parent> Context<'parent> {
             } => todo!(),
             TSType::Module { name: _, members } => {
                 for (member_name, member_ts_type) in members {
-                    ctx.set(&member_name, member_ts_type.clone(), location)?;
+                    ctx.set(&member_name, member_ts_type.clone(), location.clone())?;
                 }
             }
             ts_type => panic!("Cannot create a context from {ts_type:?}"),

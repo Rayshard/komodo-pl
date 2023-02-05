@@ -1,10 +1,8 @@
 use serde::Serialize;
 
 use crate::compiler::{
-    ast::Node,
-    cst::expression::binary_operator::BinaryOperatorKind,
-    typesystem::ts_type::TSType,
-    utilities::{range::Range, text_source::TextSource},
+    ast::Node, cst::expression::binary_operator::BinaryOperatorKind, typesystem::ts_type::TSType,
+    utilities::location::Location,
 };
 
 use super::Expression;
@@ -17,6 +15,18 @@ pub struct Binary<'source> {
 }
 
 impl<'source> Binary<'source> {
+    pub fn new(
+        left: Expression<'source>,
+        op: BinaryOperatorKind,
+        right: Expression<'source>,
+    ) -> Self {
+        Self {
+            left: Box::new(left),
+            op,
+            right: Box::new(right),
+        }
+    }
+
     pub fn left(&self) -> &Expression<'source> {
         self.left.as_ref()
     }
@@ -30,16 +40,12 @@ impl<'source> Binary<'source> {
     }
 }
 
-impl<'source> Node for Binary<'source> {
+impl<'source> Node<'source> for Binary<'source> {
     fn ts_type(&self) -> &TSType {
         todo!()
     }
 
-    fn range(&self) -> &Range {
-        todo!()
-    }
-
-    fn source(&self) -> &TextSource {
+    fn location(&self) -> Location<'source> {
         todo!()
     }
 }

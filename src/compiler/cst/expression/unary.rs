@@ -1,24 +1,17 @@
 use serde::Serialize;
 
-use crate::compiler::{
-    cst::Node,
-    utilities::{range::Range, text_source::TextSource},
-};
+use crate::compiler::{cst::Node, utilities::location::Location};
 
 use super::{unary_operator::UnaryOperator, Expression};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Unary<'source> {
     operand: Box<Expression<'source>>,
     op: UnaryOperator,
 }
 
 impl<'source> Node<'source> for Unary<'source> {
-    fn range(&self) -> Range {
+    fn location(&self) -> &Location<'source> {
         todo!()
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.operand.source()
     }
 }

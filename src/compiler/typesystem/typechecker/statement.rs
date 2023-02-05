@@ -44,13 +44,11 @@ pub fn typecheck_import<'source>(
                 name: _,
                 members: _,
             } => {
-                let mut import_ctx = Context::from(from_path.ts_type(), None).map_err(|error| {
-                    TypecheckError::new(
-                        TypecheckErrorKind::Context(error),
-                        from_path.range().clone(),
-                        from_path.source(),
-                    )
-                })?;
+                let mut import_ctx = Context::from(from_path.ts_type(), None, from_path.location())
+                    .map_err(|error| {
+                        let location = error.location().clone();
+                        TypecheckError::new(TypecheckErrorKind::Context(error), location)
+                    })?;
 
                 Ok((
                     typecheck_import_path(node.import_path(), &mut import_ctx)?,
@@ -59,42 +57,33 @@ pub fn typecheck_import<'source>(
             }
             ts_type => Err(TypecheckError::new(
                 TypecheckErrorKind::ImportFromNonModule(ts_type.clone()),
-                from_path.range().clone(),
-                from_path.source(),
+                from_path.location().clone(),
             )),
         }
     } else {
         Ok((typecheck_import_path(node.import_path(), ctx)?, None))
     }?;
 
-    let name = match import_path {
-        ASTImportPath::Simple(identifier) => identifier.value(),
-        ASTImportPath::Complex(member_access) => member_access.member().value(),
+    let name = match &import_path {
+        ASTImportPath::Simple(node) => node.value(),
+        ASTImportPath::Complex(node) => node.member().value(),
     };
 
-    ctx.set(name, import_path.ts_type().clone())
+    ctx.set(name, import_path.ts_type().clone(), import_path.location())
         .map_err(|error| {
-            TypecheckError::new(
-                TypecheckErrorKind::Context(error),
-                import_path.range().clone(),
-                import_path.source(),
-            )
+            let location = error.location().clone();
+            TypecheckError::new(TypecheckErrorKind::Context(error), location)
         })?;
 
-    Ok(ASTImport {
-        path: import_path,
-        from: from_path,
-    })
+    Ok(ASTImport::new(import_path, from_path))
 }
 
 pub fn typecheck<'source>(
-    statement: &CSTStatement<'source>,
+    statement: &'source CSTStatement<'source>,
     ctx: &mut Context,
 ) -> TypecheckResult<'source, ASTStatement<'source>> {
     match statement.kind() {
-        CSTStatementKind::Import(node) => {
-            Ok(ASTStatement::Import(typecheck_import(node, ctx)?))
-        }
+        CSTStatementKind::Import(node) => Ok(ASTStatement::Import(typecheck_import(node, ctx)?)),
         CSTStatementKind::Expression(node) => {
             Ok(ASTStatement::Expression(expression::typecheck(node, ctx)?))
         }

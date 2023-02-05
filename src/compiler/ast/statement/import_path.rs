@@ -6,7 +6,7 @@ use crate::compiler::{
         Node,
     },
     typesystem::ts_type::TSType,
-    utilities::{range::Range, text_source::TextSource},
+    utilities::location::Location,
 };
 
 #[derive(Serialize)]
@@ -15,25 +15,18 @@ pub enum ImportPath<'source> {
     Complex(MemberAccess<'source>),
 }
 
-impl<'source> Node for ImportPath<'source> {
+impl<'source> Node<'source> for ImportPath<'source> {
     fn ts_type(&self) -> &TSType {
         match self {
-            ImportPath::Simple(identifier) => identifier.ts_type(),
-            ImportPath::Complex(member_access) => member_access.ts_type(),
+            ImportPath::Simple(node) => node.ts_type(),
+            ImportPath::Complex(node) => node.ts_type(),
         }
     }
 
-    fn range(&self) -> &Range {
+    fn location(&self) -> Location<'source> {
         match self {
-            ImportPath::Simple(identifier) => identifier.range(),
-            ImportPath::Complex(member_access) => member_access.range(),
-        }
-    }
-
-    fn source(&self) -> &TextSource {
-        match self {
-            ImportPath::Simple(identifier) => identifier.source(),
-            ImportPath::Complex(member_access) => member_access.source(),
+            ImportPath::Simple(node) => node.location(),
+            ImportPath::Complex(node) => node.location(),
         }
     }
 }

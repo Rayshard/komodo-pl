@@ -3,19 +3,44 @@ use serde::Serialize;
 use crate::compiler::{
     cst::Node,
     lexer::token::Token,
-    utilities::{range::Range, text_source::TextSource},
+    utilities::{location::Location, range::Range},
 };
 
 use super::import_path::ImportPath;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Import<'source> {
     keyword_import: Token<'source>,
     import_path: ImportPath<'source>,
     from_path: Option<(Token<'source>, ImportPath<'source>)>,
+    location: Location<'source>,
 }
 
 impl<'source> Import<'source> {
+    pub fn new(
+        keyword_import: Token<'source>,
+        import_path: ImportPath<'source>,
+        from_path: Option<(Token<'source>, ImportPath<'source>)>,
+    ) -> Self {
+        let location = Location::new(
+            keyword_import.location().source(),
+            Range::new(
+                keyword_import.location().range().start(),
+                match &from_path {
+                    Some((_, path)) => path.location().range().end(),
+                    None => import_path.location().range().end(),
+                },
+            ),
+        );
+
+        Self {
+            keyword_import,
+            import_path,
+            from_path,
+            location,
+        }
+    }
+
     pub fn keyword_import(&self) -> &Token<'source> {
         &self.keyword_import
     }
@@ -30,17 +55,7 @@ impl<'source> Import<'source> {
 }
 
 impl<'source> Node<'source> for Import<'source> {
-    fn range(&self) -> Range {
-        Range::new(
-            self.keyword_import.range().start(),
-            match &self.from_path {
-                Some((_, path)) => path.range().end(),
-                None => self.import_path.range().end(),
-            },
-        )
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.import_path.source()
+    fn location(&self) -> &Location<'source> {
+        &self.location
     }
 }

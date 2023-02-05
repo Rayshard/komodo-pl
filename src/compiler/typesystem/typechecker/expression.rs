@@ -1,12 +1,15 @@
 use crate::compiler::{
-    ast::{expression::{
-        binary::Binary as ASTBinary,
-        call::Call as ASTCall,
-        identifier::Identifier as ASTIdentifier,
-        literal::{Literal as ASTLiteral, LiteralKind as ASTLiteralKind},
-        member_access::MemberAccess as ASTMemberAccess,
-        Expression as ASTExpression,
-    }, Node},
+    ast::{
+        expression::{
+            binary::Binary as ASTBinary,
+            call::Call as ASTCall,
+            identifier::Identifier as ASTIdentifier,
+            literal::{Literal as ASTLiteral, LiteralKind as ASTLiteralKind},
+            member_access::MemberAccess as ASTMemberAccess,
+            Expression as ASTExpression,
+        },
+        Node,
+    },
     cst::{
         expression::{
             binary::Binary as CSTBinary,
@@ -16,9 +19,10 @@ use crate::compiler::{
             member_access::MemberAccess as CSTMemberAccess,
             parenthesized::Parenthesized,
             Expression as CSTExpression,
-        }, Node as CSTNode,
+        },
+        Node as CSTNode,
     },
-    typesystem::{context::Context, ts_type::TSType}
+    typesystem::{context::Context, ts_type::TSType},
 };
 
 use super::result::{TypecheckError, TypecheckErrorKind, TypecheckResult};
@@ -28,19 +32,16 @@ pub fn typecheck_identifier<'source>(
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTIdentifier<'source>> {
     let name = node.value();
-    let ts_type = ctx.get(name, node.location()).map_err(|error| {
-        TypecheckError::new(
-            TypecheckErrorKind::Context(error),
-            error.location().clone()
-        )
+    let ts_type = ctx.get(name, node.location().clone()).map_err(|error| {
+        let location = error.location().clone();
+        TypecheckError::new(TypecheckErrorKind::Context(error), location)
     })?;
 
-    Ok(ASTIdentifier {
-        value: name.to_string(),
-        ts_type: ts_type.clone(),
-        source: node.source(),
-        range: node.range().clone(),
-    })
+    Ok(ASTIdentifier::new(
+        name.to_string(),
+        ts_type.clone(),
+        node.location().clone(),
+    ))
 }
 
 pub fn typecheck_member_access<'source>(
@@ -49,48 +50,40 @@ pub fn typecheck_member_access<'source>(
 ) -> TypecheckResult<'source, ASTMemberAccess<'source>> {
     let root = typecheck(node.root(), ctx)?;
     let root_ctx = Context::from(root.ts_type(), None, root.location()).map_err(|error| {
-        TypecheckError::new(
-            TypecheckErrorKind::Context(error),
-            error.location().clone()
-        )
+        let location = error.location().clone();
+        TypecheckError::new(TypecheckErrorKind::Context(error), location)
     })?;
     let member = typecheck_identifier(node.member(), &root_ctx)?;
 
-    Ok(ASTMemberAccess {
-        root: Box::new(root),
-        member,
-    })
+    Ok(ASTMemberAccess::new(root, member))
 }
 
 pub fn typecheck_literal<'source>(
     node: &CSTLiteral<'source>,
-    ctx: &Context,
+    _ctx: &Context,
 ) -> TypecheckResult<'source, ASTLiteral<'source>> {
     match node.kind() {
         CSTLiteralKind::Integer => match node.token().value().parse::<i64>() {
-            Ok(value) => Ok(ASTLiteral {
-                kind: ASTLiteralKind::Int64(value),
-                ts_type: TSType::Int64,
-                range: node.range().clone(),
-                source: node.source(),
-            }),
+            Ok(value) => Ok(ASTLiteral::new(
+                ASTLiteralKind::Int64(value),
+                TSType::Int64,
+                node.location().clone(),
+            )),
             Err(error) => Err(match error.kind() {
                 std::num::IntErrorKind::PosOverflow | std::num::IntErrorKind::NegOverflow => {
                     TypecheckError::new(
                         TypecheckErrorKind::IntegerOverflow,
-                        node.range().clone(),
-                        node.source(),
+                        node.location().clone(),
                     )
                 }
                 error => panic!("Unexcpected error on {}: {error:?}", node.token().value()),
             }),
         },
-        CSTLiteralKind::String => Ok(ASTLiteral {
-            kind: ASTLiteralKind::String(node.token().value().trim_matches('"').to_string()),
-            ts_type: TSType::String,
-            range: node.range().clone(),
-            source: node.source(),
-        }),
+        CSTLiteralKind::String => Ok(ASTLiteral::new(
+            ASTLiteralKind::String(node.token().value().trim_matches('"').to_string()),
+            TSType::String,
+            node.location().clone(),
+        )),
     }
 }
 

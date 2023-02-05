@@ -3,10 +3,7 @@ pub mod import_path;
 
 use serde::Serialize;
 
-use crate::compiler::{
-    typesystem::ts_type::TSType,
-    utilities::{range::Range, text_source::TextSource},
-};
+use crate::compiler::{typesystem::ts_type::TSType, utilities::location::Location};
 
 use self::import::Import;
 
@@ -18,22 +15,15 @@ pub enum Statement<'source> {
     Expression(Expression<'source>),
 }
 
-impl<'source> Node for Statement<'source> {
+impl<'source> Node<'source> for Statement<'source> {
     fn ts_type(&self) -> &TSType {
         &TSType::Unit
     }
 
-    fn range(&self) -> &Range {
+    fn location(&self) -> Location<'source> {
         match self {
-            Statement::Import(import) => import.range(),
-            Statement::Expression(expression) => expression.range(),
-        }
-    }
-
-    fn source(&self) -> &TextSource {
-        match self {
-            Statement::Import(import) => import.source(),
-            Statement::Expression(expression) => expression.source(),
+            Statement::Import(import) => import.location(),
+            Statement::Expression(expression) => expression.location(),
         }
     }
 }

@@ -1,17 +1,22 @@
-use serde::{Serialize, ser::SerializeMap};
+use serde::{ser::SerializeMap, Serialize};
 
-use crate::compiler::utilities::{text_source::TextSource, range::Range};
+use crate::compiler::utilities::{location::Location, text_source::TextSource};
 
 use super::{statement::Statement, Node};
 
 pub struct Script<'source> {
     source: &'source TextSource,
     statements: Vec<Statement<'source>>,
+    location: Location<'source>,
 }
 
 impl<'source> Script<'source> {
-    pub fn new(source: &'source TextSource, statements: Vec<Statement<'source>>) -> Script<'source> {
-        Script { source, statements }
+    pub fn new(source: &'source TextSource, statements: Vec<Statement<'source>>) -> Self {
+        Self {
+            source,
+            statements,
+            location: source.as_location(),
+        }
     }
 
     pub fn statements(&self) -> &[Statement<'source>] {
@@ -24,12 +29,8 @@ impl<'source> Script<'source> {
 }
 
 impl<'source> Node<'source> for Script<'source> {
-    fn range(&self) -> Range {
-        self.source.range()
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.source
+    fn location(&self) -> &Location<'source> {
+        &self.location
     }
 }
 

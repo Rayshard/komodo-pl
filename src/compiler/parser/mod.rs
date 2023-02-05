@@ -1,14 +1,16 @@
-pub mod parse_state;
+pub mod error;
+pub mod state;
 
 use crate::compiler::{
     cst::{expression::Expression, script::Script, statement::Statement},
     lexer::token::{Token, TokenKind},
-    utilities::{range::Range, text_source::TextSource},
+    utilities::text_source::TextSource,
 };
 
-use parse_state::ParseState;
+use error::ParseError;
+use state::ParseState;
 
-use super::{cst::{
+use super::cst::{
     expression::{
         binary::Binary,
         binary_operator::{BinaryOperator, BinaryOperatorKind},
@@ -20,22 +22,7 @@ use super::{cst::{
         unary_operator::UnaryOperator,
     },
     statement::{import::Import, import_path::ImportPath, StatementKind},
-}, utilities::location::Location};
-
-pub struct ParseError<'source> {
-    message: String,
-    location: Location<'source>,
-}
-
-impl<'source> ToString for ParseError<'source> {
-    fn to_string(&self) -> String {
-        format!(
-            "ERROR ({}) {}",
-            self.location.start_terminal_link(),
-            self.message
-        )
-    }
-}
+};
 
 pub type ParseResult<'tokens, 'source, T> =
     Result<(T, ParseState<'tokens, 'source>), (ParseError<'source>, ParseState<'tokens, 'source>)>;
@@ -50,11 +37,10 @@ fn longest<'tokens, 'source, T>(
 ) -> ParseResult<'tokens, 'source, T> {
     let mut longest_success: Option<(T, ParseState)> = None;
     let mut longest_error: (ParseError, ParseState) = (
-        ParseError {
-            range: state.current_token().range().clone(),
-            message: multi_error_message.clone(),
-            source: state.current_token().source(),
-        },
+        ParseError::new(
+            multi_error_message.clone(),
+            state.current_token().location().clone(),
+        ),
         state.clone(),
     );
 
@@ -68,14 +54,14 @@ fn longest<'tokens, 'source, T>(
             }
             Err(result) if result.1.offset() > longest_error.1.offset() => longest_error = result,
             Err(result) if result.1.offset() == longest_error.1.offset() => {
-                longest_error = (
-                    ParseError {
-                        range: longest_error.0.range,
-                        message: multi_error_message.clone(),
-                        source: longest_error.0.source,
-                    },
-                    longest_error.1,
-                )
+                // longest_error = (
+                //     ParseError::new(
+                //         multi_error_message.clone(),
+                //         longest_error.0.location().clone(),
+                //     ),
+                //     longest_error.1,
+                // )
+                todo!()
             }
             _ => continue,
         }
@@ -118,11 +104,10 @@ fn expect_token<'tokens, 'source>(
         Ok((token.clone(), state.next()))
     } else {
         Err((
-            ParseError {
-                range: token.range().clone(),
-                message: format!("Expected {kind:?}, but found {:?}", token.kind()),
-                source: token.source(),
-            },
+            ParseError::new(
+                format!("Expected {kind:?}, but found {:?}", token.kind()),
+                token.location().clone(),
+            ),
             state,
         ))
     }
@@ -211,12 +196,8 @@ pub fn parse_primary_expression<'tokens, 'source>(
         match token.kind() {
             TokenKind::SymbolPeriod => {
                 let (member, next_state) = expect_token(TokenKind::Identifier, state.next())?;
-                expression = Expression::MemberAccess(MemberAccess {
-                    root: Box::new(expression),
-                    dot: token.clone(),
-                    member,
-                });
-
+                expression =
+                    Expression::MemberAccess(MemberAccess::new(expression, token.clone(), member));
                 state = next_state;
             }
             TokenKind::SymbolOpenParenthesis => {
@@ -226,12 +207,12 @@ pub fn parse_primary_expression<'tokens, 'source>(
                 let (close_parenthesis, next_state) =
                     expect_token(TokenKind::SymbolCloseParenthesis, next_state)?;
 
-                expression = Expression::Call(Call {
-                    head: Box::new(expression),
-                    open_parenthesis: token.clone(),
+                expression = Expression::Call(Call::new(
+                    expression,
+                    token.clone(),
                     args,
                     close_parenthesis,
-                });
+                ));
 
                 state = next_state;
             }
@@ -262,12 +243,7 @@ pub fn parse_expression_at_precedence<'tokens, 'source>(
         let (rhs, next_state) =
             parse_expression_at_precedence(next_minimum_precedence, skip_whitespace(next_state))?;
 
-        expression = Expression::Binary(Binary {
-            left: Box::new(expression),
-            op: binop,
-            right: Box::new(rhs),
-        });
-
+        expression = Expression::Binary(Binary::new(expression, binop, rhs));
         state = next_state;
     }
 
@@ -316,11 +292,11 @@ pub fn parse_parenthesized_expression<'tokens, 'source>(
         expect_token(TokenKind::SymbolCloseParenthesis, skip_whitespace(state))?;
 
     Ok((
-        Expression::Parenthesized(Parenthesized {
+        Expression::Parenthesized(Parenthesized::new(
             open_parenthesis,
-            expression: Box::new(expression),
+            expression,
             close_parenthesis,
-        }),
+        )),
         state,
     ))
 }
@@ -331,14 +307,7 @@ pub fn parse_member_access<'tokens, 'source>(
     let (root, state) = parse_primary_expression(state)?;
     let (dot, state) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(state))?;
     let (member, state) = parse_identifier(state)?;
-    let (mut member_access, mut state) = (
-        MemberAccess {
-            root: Box::new(root),
-            dot,
-            member,
-        },
-        state,
-    );
+    let (mut member_access, mut state) = (MemberAccess::new(root, dot, member), state);
 
     while let Ok((dot, next_state)) =
         expect_token(TokenKind::SymbolPeriod, skip_whitespace(state.clone()))
@@ -346,11 +315,7 @@ pub fn parse_member_access<'tokens, 'source>(
         let (member, next_state) =
             expect_token(TokenKind::Identifier, skip_whitespace(next_state))?;
 
-        member_access = MemberAccess {
-            root: Box::new(Expression::MemberAccess(member_access)),
-            dot,
-            member,
-        };
+        member_access = MemberAccess::new(Expression::MemberAccess(member_access), dot, member);
         state = next_state;
     }
 
@@ -389,14 +354,7 @@ pub fn parse_import<'tokens, 'source>(
         (None, state)
     };
 
-    Ok((
-        Import {
-            keyword_import,
-            import_path,
-            from_path,
-        },
-        state,
-    ))
+    Ok((Import::new(keyword_import, import_path, from_path), state))
 }
 
 pub fn parse_import_statement<'tokens, 'source>(
@@ -406,10 +364,7 @@ pub fn parse_import_statement<'tokens, 'source>(
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     ParseResult::Ok((
-        Statement {
-            kind: StatementKind::Import(import),
-            semicolon,
-        },
+        Statement::new(StatementKind::Import(import), semicolon),
         state,
     ))
 }
@@ -421,10 +376,7 @@ pub fn parse_expression_statement<'tokens, 'source>(
     let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     ParseResult::Ok((
-        Statement {
-            kind: StatementKind::Expression(expression),
-            semicolon,
-        },
+        Statement::new(StatementKind::Expression(expression), semicolon),
         state,
     ))
 }

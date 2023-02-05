@@ -1,31 +1,34 @@
 use serde::Serialize;
 
-use crate::compiler::{utilities::{text_source::TextSource, range::Range}, typesystem::ts_type::TSType, ast::Node};
+use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
 #[derive(Serialize)]
 pub struct Identifier<'source> {
     value: String,
     ts_type: TSType,
-    source: &'source TextSource,
-    range: Range
+    location: Location<'source>,
 }
 
 impl<'source> Identifier<'source> {
+    pub fn new(value: String, ts_type: TSType, location: Location<'source>) -> Self {
+        Self {
+            value,
+            ts_type,
+            location,
+        }
+    }
+
     pub fn value(&self) -> &str {
         &self.value
     }
 }
 
-impl<'source> Node for Identifier<'source> {
+impl<'source> Node<'source> for Identifier<'source> {
     fn ts_type(&self) -> &TSType {
         &self.ts_type
     }
 
-    fn range(&self) -> &Range {
-        &self.range
-    }
-
-    fn source(&self) -> &TextSource {
-        self.source
+    fn location(&self) -> Location<'source> {
+        self.location.clone()
     }
 }

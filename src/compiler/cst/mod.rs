@@ -1,20 +1,15 @@
-use crate::compiler::{utilities::{range::Range, text_source::TextSource}, lexer::token::Token};
+use super::{lexer::token::Token, utilities::location::Location};
 
-pub mod script;
 pub mod expression;
+pub mod script;
 pub mod statement;
 
 pub trait Node<'source> {
-    fn range(&self) -> Range;
-    fn source(&self) -> &'source TextSource;
+    fn location(&self) -> &Location<'source>;
 }
 
 impl<'source> Node<'source> for Token<'source> {
-    fn range(&self) -> Range {
-        self.range().clone()
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.source()
+    fn location(&self) -> &Location<'source> {
+        self.location()
     }
 }

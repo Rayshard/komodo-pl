@@ -1,18 +1,14 @@
 use serde::Serialize;
 
-use crate::compiler::utilities::{range::Range, text_source::TextSource};
+use crate::compiler::utilities::location::Location;
 
 use super::Node;
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Clone)]
 pub enum UnaryOperator {}
 
 impl<'source> Node<'source> for UnaryOperator {
-    fn range(&self) -> Range {
-        todo!()
-    }
-
-    fn source(&self) -> &'source TextSource {
+    fn location(&self) -> &Location<'source> {
         todo!()
     }
 }

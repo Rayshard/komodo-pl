@@ -2,24 +2,44 @@ use serde::Serialize;
 
 use crate::compiler::{
     cst::Node,
-    utilities::{range::Range, text_source::TextSource},
+    utilities::{location::Location, range::Range},
 };
 
 use super::{binary_operator::BinaryOperator, Expression};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Binary<'source> {
     left: Box<Expression<'source>>,
     op: BinaryOperator<'source>,
     right: Box<Expression<'source>>,
+    location: Location<'source>,
+}
+
+impl<'source> Binary<'source> {
+    pub fn new(
+        left: Expression<'source>,
+        op: BinaryOperator<'source>,
+        right: Expression<'source>,
+    ) ->Self {
+        let location = Location::new(
+            op.location().source(),
+            Range::new(
+                left.location().range().start(),
+                right.location().range().end(),
+            ),
+        );
+
+        Self {
+            left: Box::new(left),
+            op: op,
+            right: Box::new(right),
+            location,
+        }
+    }
 }
 
 impl<'source> Node<'source> for Binary<'source> {
-    fn range(&self) -> Range {
-        Range::new(self.left.range().start(), self.right.range().end())
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.op.source()
+    fn location(&self) -> &Location<'source> {
+        &self.location
     }
 }

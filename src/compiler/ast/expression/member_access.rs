@@ -1,8 +1,8 @@
 use serde::Serialize;
 
-use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
-use super::{Expression, identifier::Identifier};
+use super::{identifier::Identifier, Expression};
 
 #[derive(Serialize)]
 pub struct MemberAccess<'source> {
@@ -11,6 +11,13 @@ pub struct MemberAccess<'source> {
 }
 
 impl<'source> MemberAccess<'source> {
+    pub fn new(root: Expression<'source>, member: Identifier<'source>) -> Self {
+        Self {
+            root: Box::new(root),
+            member,
+        }
+    }
+
     pub fn root(&self) -> &Expression<'source> {
         self.root.as_ref()
     }
@@ -20,16 +27,12 @@ impl<'source> MemberAccess<'source> {
     }
 }
 
-impl<'source> Node for MemberAccess<'source> {
+impl<'source> Node<'source> for MemberAccess<'source> {
     fn ts_type(&self) -> &TSType {
         self.member.ts_type()
     }
 
-    fn range(&self) -> &Range {
-        todo!()
-    }
-
-    fn source(&self) -> &TextSource {
+    fn location(&self) -> Location<'source> {
         todo!()
     }
 }

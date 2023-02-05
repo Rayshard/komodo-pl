@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
 use super::Expression;
 
@@ -11,6 +11,13 @@ pub struct Call<'source> {
 }
 
 impl<'source> Call<'source> {
+    pub fn new(head: Expression<'source>, args: Vec<Expression<'source>>) -> Self {
+        Self {
+            head: Box::new(head),
+            args,
+        }
+    }
+
     pub fn head(&self) -> &Expression<'source> {
         &self.head
     }
@@ -20,16 +27,12 @@ impl<'source> Call<'source> {
     }
 }
 
-impl<'source> Node for Call<'source> {
+impl<'source> Node<'source> for Call<'source> {
     fn ts_type(&self) -> &TSType {
         todo!()
     }
 
-    fn range(&self) -> &Range {
-        todo!()
-    }
-
-    fn source(&self) -> &TextSource {
+    fn location(&self) -> Location<'source> {
         todo!()
     }
 }

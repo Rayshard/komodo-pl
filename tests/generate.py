@@ -24,8 +24,7 @@ def generate_lexer_tests():
                 test_expected_tokens.append(
                      "Token::new("
                     f"TokenKind::{et['kind']}, "
-                    f"Range::new({et_range_start}, {et_range_length}), "
-                     "&source"
+                    f"source.get_location(Range::new({et_range_start}, {et_range_length})).unwrap()"
                     ")"
                 )
             

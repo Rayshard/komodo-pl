@@ -70,8 +70,7 @@ impl TextSource {
     pub fn get_location(&self, range: Range) -> Option<Location> {
         if self.is_valid_range(&range) {
             Some(Location::new(self, range))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -83,6 +82,10 @@ impl TextSource {
 
     pub fn text_from_range(&self, range: &Range) -> &str {
         &self.text[range.start()..range.end()]
+    }
+
+    pub fn as_location(&self) -> Location {
+        self.get_location(self.range()).unwrap()
     }
 
     pub fn from_file(path: &str) -> io::Result<TextSource> {

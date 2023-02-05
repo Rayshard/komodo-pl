@@ -1,6 +1,6 @@
-use serde::{Serialize, ser::SerializeMap};
+use serde::{ser::SerializeMap, Serialize};
 
-use crate::compiler::utilities::{range::Range, text_source::TextSource, location::Location};
+use crate::compiler::utilities::location::Location;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub enum TokenKind {
@@ -24,25 +24,22 @@ pub enum TokenKind {
     EOF,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token<'source> {
     kind: TokenKind,
-    location: Location<'source>
+    location: Location<'source>,
 }
 
 impl<'source> Token<'source> {
     pub fn new(kind: TokenKind, location: Location<'source>) -> Token<'source> {
-        Token {
-            kind,
-            location
-        }
+        Token { kind, location }
     }
 
     pub fn kind(&self) -> &TokenKind {
         &self.kind
     }
 
-    pub fn location(&self) -> &Location {
+    pub fn location(&self) -> &Location<'source> {
         &self.location
     }
 

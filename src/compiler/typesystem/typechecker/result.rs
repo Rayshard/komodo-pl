@@ -1,4 +1,8 @@
-use crate::compiler::{typesystem::{context::ContextError, ts_type::TSType},  utilities::{range::Range, text_source::TextSource}, cst::expression::binary_operator::BinaryOperatorKind};
+use crate::compiler::{
+    cst::expression::binary_operator::BinaryOperatorKind,
+    typesystem::{context::ContextError, ts_type::TSType},
+    utilities::location::Location,
+};
 
 pub enum TypecheckErrorKind<'source> {
     Context(ContextError<'source>),
@@ -22,21 +26,12 @@ pub enum TypecheckErrorKind<'source> {
 
 pub struct TypecheckError<'source> {
     kind: TypecheckErrorKind<'source>,
-    range: Range,
-    source: &'source TextSource,
+    location: Location<'source>,
 }
 
 impl<'source> TypecheckError<'source> {
-    pub fn new(
-        kind: TypecheckErrorKind,
-        range: Range,
-        source: &'source TextSource,
-    ) -> TypecheckError<'source> {
-        TypecheckError {
-            kind,
-            range,
-            source,
-        }
+    pub fn new(kind: TypecheckErrorKind<'source>, location: Location<'source>) -> Self {
+        Self { kind, location }
     }
 }
 
@@ -44,7 +39,7 @@ impl<'source> ToString for TypecheckError<'source> {
     fn to_string(&self) -> String {
         format!(
             "ERROR ({}) {}",
-            self.source.get_terminal_link(self.range.start()).unwrap(),
+            self.location.start_terminal_link(),
             match &self.kind {
                 TypecheckErrorKind::Context(error) => error.message().to_string(),
                 TypecheckErrorKind::IntegerOverflow =>

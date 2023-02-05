@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{lexer::token::Token, utilities::{range::Range, text_source::TextSource}};
+use crate::compiler::{lexer::token::Token, utilities::location::Location};
 
 use super::Node;
 
@@ -12,7 +12,7 @@ pub enum BinaryOperatorKind {
     Divide,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct BinaryOperator<'source> {
     kind: BinaryOperatorKind,
     token: Token<'source>,
@@ -70,11 +70,7 @@ impl BinaryOperatorKind {
 }
 
 impl<'source> Node<'source> for BinaryOperator<'source> {
-    fn range(&self) -> Range {
-        self.token.range().clone()
-    }
-
-    fn source(&self) -> &'source TextSource {
-        self.token.source()
+    fn location(&self) -> &Location<'source> {
+        self.token.location()
     }
 }

@@ -3,16 +3,15 @@ use std::{collections::HashMap, fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
-        ast::ScriptNode as ASTScriptNode,
         cst::script::Script as CSTScript,
         lexer::{self, token::Token, LexError},
-        parser::{self, ParseError},
+        parser::{self, error::ParseError},
         typesystem::{
             context::Context,
             ts_type::TSType,
             typechecker::{self, result::TypecheckError},
         },
-        utilities::text_source::TextSource,
+        utilities::{range::Range, text_source::TextSource}, ast::script::Script as ASTScript,
     },
     runtime::interpreter::{self, Value},
 };
@@ -76,14 +75,14 @@ fn parse<'source>(
 fn typecheck<'source>(
     script: CSTScript<'source>,
     ctx: &Context,
-) -> CompilationResult<'source, ASTScriptNode<'source>> {
+) -> CompilationResult<'source, ASTScript<'source>> {
     typechecker::script::typecheck(script, ctx)
         .map_err(|error| CompilationError::Typechecker(error))
 }
 
 fn compile<'source>(
     source: &'source TextSource,
-) -> CompilationResult<'source, ASTScriptNode<'source>> {
+) -> CompilationResult<'source, ASTScript<'source>> {
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
@@ -113,6 +112,7 @@ fn compile<'source>(
                 },
             )]),
         },
+        source.get_location(Range::new(0, 0)).unwrap(),
     )
     .unwrap();
 

@@ -15,7 +15,7 @@ impl<'source> Location<'source> {
         Self { source, range }
     }
 
-    pub fn source(&self) -> &TextSource {
+    pub fn source(&self) -> &'source TextSource {
         self.source
     }
 

@@ -5,12 +5,12 @@ pub mod identifier;
 pub mod literal;
 pub mod member_access;
 pub mod parenthesized;
-pub mod unary_operator;
 pub mod unary;
+pub mod unary_operator;
 
 use serde::Serialize;
 
-use crate::compiler::utilities::{range::Range, text_source::TextSource};
+use crate::compiler::utilities::location::Location;
 
 use self::{
     binary::Binary, call::Call, identifier::Identifier, literal::Literal,
@@ -19,7 +19,7 @@ use self::{
 
 use super::Node;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub enum Expression<'source> {
     Literal(Literal<'source>),
     Identifier(Identifier<'source>),
@@ -31,27 +31,15 @@ pub enum Expression<'source> {
 }
 
 impl<'source> Node<'source> for Expression<'source> {
-    fn range(&self) -> Range {
+    fn location(&self) -> &Location<'source> {
         match self {
-            Expression::Literal(literal) => literal.range(),
-            Expression::Identifier(identifier) => identifier.range().clone(),
-            Expression::MemberAccess(member_access) => member_access.range(),
-            Expression::Call(call) => call.range(),
-            Expression::Unary(unary) => unary.range(),
-            Expression::Binary(binary) => binary.range(),
-            Expression::Parenthesized(parenthesized) => parenthesized.range(),
-        }
-    }
-
-    fn source(&self) -> &'source TextSource {
-        match self {
-            Expression::Literal(literal) => literal.source(),
-            Expression::Identifier(token) => token.source(),
-            Expression::MemberAccess(member_access) => member_access.source(),
-            Expression::Call(call) => call.source(),
-            Expression::Unary(unary) => unary.source(),
-            Expression::Binary(binary) => binary.source(),
-            Expression::Parenthesized(parenthesized) => parenthesized.source(),
+            Expression::Literal(literal) => literal.location(),
+            Expression::Identifier(identifier) => identifier.location(),
+            Expression::MemberAccess(member_access) => member_access.location(),
+            Expression::Call(call) => call.location(),
+            Expression::Unary(unary) => unary.location(),
+            Expression::Binary(binary) => binary.location(),
+            Expression::Parenthesized(parenthesized) => parenthesized.location(),
         }
     }
 }
