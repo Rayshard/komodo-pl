@@ -18,7 +18,7 @@ use crate::compiler::{
             Expression as CSTExpression,
         }, Node as CSTNode,
     },
-    typesystem::{context::Context, ts_type::TSType},
+    typesystem::{context::Context, ts_type::TSType}
 };
 
 use super::result::{TypecheckError, TypecheckErrorKind, TypecheckResult};
@@ -28,11 +28,10 @@ pub fn typecheck_identifier<'source>(
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTIdentifier<'source>> {
     let name = node.value();
-    let ts_type = ctx.get(name).map_err(|error| {
+    let ts_type = ctx.get(name, node.location()).map_err(|error| {
         TypecheckError::new(
             TypecheckErrorKind::Context(error),
-            node.range().clone(),
-            node.source(),
+            error.location().clone()
         )
     })?;
 
@@ -49,11 +48,10 @@ pub fn typecheck_member_access<'source>(
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTMemberAccess<'source>> {
     let root = typecheck(node.root(), ctx)?;
-    let root_ctx = Context::from(root.ts_type(), None).map_err(|error| {
+    let root_ctx = Context::from(root.ts_type(), None, root.location()).map_err(|error| {
         TypecheckError::new(
             TypecheckErrorKind::Context(error),
-            root.range().clone(),
-            root.source(),
+            error.location().clone()
         )
     })?;
     let member = typecheck_identifier(node.member(), &root_ctx)?;

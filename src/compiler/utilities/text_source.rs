@@ -2,7 +2,7 @@ use std::{fs, io};
 
 use serde::Serialize;
 
-use super::{position::Position, range::Range};
+use super::{location::Location, position::Position, range::Range};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextSource {
@@ -42,6 +42,10 @@ impl TextSource {
         Range::new(0, self.len())
     }
 
+    pub fn is_valid_range(&self, range: &Range) -> bool {
+        range.end() <= self.len() && range.start() <= range.end()
+    }
+
     pub fn get_position(&self, offset: usize) -> Option<Position> {
         if offset > self.text.len() {
             return None;
@@ -61,6 +65,15 @@ impl TextSource {
         }
 
         Some(Position::new(line, column))
+    }
+
+    pub fn get_location(&self, range: Range) -> Option<Location> {
+        if self.is_valid_range(&range) {
+            Some(Location::new(self, range))
+        }
+        else {
+            None
+        }
     }
 
     pub fn get_terminal_link(&self, offset: usize) -> Option<String> {

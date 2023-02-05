@@ -1,7 +1,7 @@
 use crate::compiler::{typesystem::{context::ContextError, ts_type::TSType},  utilities::{range::Range, text_source::TextSource}, cst::expression::binary_operator::BinaryOperatorKind};
 
-pub enum TypecheckErrorKind {
-    Context(ContextError),
+pub enum TypecheckErrorKind<'source> {
+    Context(ContextError<'source>),
     IntegerOverflow,
     IncompatibleOperandsForBinaryOperator {
         left: TSType,
@@ -21,7 +21,7 @@ pub enum TypecheckErrorKind {
 }
 
 pub struct TypecheckError<'source> {
-    kind: TypecheckErrorKind,
+    kind: TypecheckErrorKind<'source>,
     range: Range,
     source: &'source TextSource,
 }
@@ -46,7 +46,7 @@ impl<'source> ToString for TypecheckError<'source> {
             "ERROR ({}) {}",
             self.source.get_terminal_link(self.range.start()).unwrap(),
             match &self.kind {
-                TypecheckErrorKind::Context(error) => error.clone(),
+                TypecheckErrorKind::Context(error) => error.message().to_string(),
                 TypecheckErrorKind::IntegerOverflow =>
                     "Value outside of range for Int64".to_string(),
                 TypecheckErrorKind::IncompatibleOperandsForBinaryOperator { left, op, right } =>

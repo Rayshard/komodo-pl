@@ -8,7 +8,7 @@ use crate::compiler::{
 
 use parse_state::ParseState;
 
-use super::cst::{
+use super::{cst::{
     expression::{
         binary::Binary,
         binary_operator::{BinaryOperator, BinaryOperatorKind},
@@ -20,19 +20,18 @@ use super::cst::{
         unary_operator::UnaryOperator,
     },
     statement::{import::Import, import_path::ImportPath, StatementKind},
-};
+}, utilities::location::Location};
 
 pub struct ParseError<'source> {
-    range: Range,
     message: String,
-    source: &'source TextSource,
+    location: Location<'source>,
 }
 
 impl<'source> ToString for ParseError<'source> {
     fn to_string(&self) -> String {
         format!(
             "ERROR ({}) {}",
-            self.source.get_terminal_link(self.range.start()).unwrap(),
+            self.location.start_terminal_link(),
             self.message
         )
     }
@@ -389,7 +388,6 @@ pub fn parse_import<'tokens, 'source>(
     } else {
         (None, state)
     };
-    let (semicolon, state) = expect_token(TokenKind::SymbolSemicolon, skip_whitespace(state))?;
 
     Ok((
         Import {

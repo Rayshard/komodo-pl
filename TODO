@@ -1,13 +1,6 @@
-✔ Add EOF token @done(23-01-12 07:33)
-✔ Make lex return a result with LexError as Error @done(23-01-12 08:51)
-✔ Remove value field from Token since value can be computed as needed @done(23-01-26 10:10)
-✔ Fix parser error handling with longest parser. If there are multiple longest, then return all of them? @done(23-01-27 10:13)
-✔ implement hello world @done(23-02-04 07:55)
 ☐ Replace source and range with TextLocation
 ☐ fix parse errors
 ☐ remove unecessary lifetimes
 ☐ Only single items can be imported in import ... from ...
-✔ Make TypecheckError an enum with ContextError as a variant and change all .map_or_else in typechecker module @done(23-02-04 07:57)
-✔ Change reference in skip_whitespace to non-reference @done(23-01-29 09:38)
 ☐ Make op of ast::expression::Binary a Node that has type Function
 ☐ Consider removing the 'source from cst::Node

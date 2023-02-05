@@ -99,7 +99,7 @@ fn interpret_call(node: &Call, ctx: &Context) -> InterpretResult<Value> {
     }
 }
 
-fn interpret_member_access<'value>(node: &MemberAccess, ctx: &'value Context) -> InterpretResult<&'value Value> {
+fn interpret_member_access(node: &MemberAccess, ctx: &Context) -> InterpretResult<Value> {
     let head = interpret_expression(node.root(), ctx)?;
 
     match head {
@@ -109,8 +109,8 @@ fn interpret_member_access<'value>(node: &MemberAccess, ctx: &'value Context) ->
     }
 }
 
-fn interpret_identifier<'value>(node: &Identifier, ctx: &'value Context) -> InterpretResult<&'value Value> {
-    Ok(ctx.get(node.value()).unwrap())
+fn interpret_identifier(node: &Identifier, ctx: &Context) -> InterpretResult<Value> {
+    Ok(ctx.get(node.value()).unwrap().clone())
 }
 
 fn interpret_expression(expression: &Expression, ctx: &Context) -> InterpretResult<Value> {
@@ -118,15 +118,15 @@ fn interpret_expression(expression: &Expression, ctx: &Context) -> InterpretResu
         Expression::Literal(node) => interpret_literal(node),
         Expression::Binary(node) => interpret_binary(node, ctx),
         Expression::Call(node) => interpret_call(node, ctx),
-        Expression::MemberAccess(node) => Ok(interpret_member_access(node, ctx)?.clone()),
-        Expression::Identifier(node) => Ok(interpret_identifier(node, ctx)?.clone()),
+        Expression::MemberAccess(node) => interpret_member_access(node, ctx),
+        Expression::Identifier(node) => interpret_identifier(node, ctx),
     }
 }
 
-fn interpret_import_path<'value>(
+fn interpret_import_path(
     node: &ImportPath,
-    ctx: &'value Context,
-) -> InterpretResult<(String, &'value Value)> {
+    ctx: &Context,
+) -> InterpretResult<(String, Value)> {
     match node {
         ImportPath::Simple(node) => {
             Ok((node.value().to_string(), interpret_identifier(node, ctx)?))
@@ -142,17 +142,17 @@ fn interpret_import(node: &Import, ctx: &mut Context) -> InterpretResult<Value> 
     if let Some(from_path) = node.from() {
         let (_, from_value) = interpret_import_path(from_path, ctx)?;
         let (name, value) = match from_value {
-            Value::Object { name: _, members } => interpret_import_path(node.path(), members),
-            Value::Module { name: _, members } => interpret_import_path(node.path(), members),
+            Value::Object { name: _, members } => interpret_import_path(node.path(), &members),
+            Value::Module { name: _, members } => interpret_import_path(node.path(), &members),
             head => Err(format!("Value has not accessable members: {head:?}")),
-        }
-        .map(|(name, value)| (name, value.clone()))?;
+        }?;
+        
 
         ctx.insert(name, value.clone());
         Ok(value)
     } else {
         let (path, value) = interpret_import_path(node.path(), ctx)?;
-        ctx.insert(path, value.clone());
+        ctx.insert(path, value);
 
         Ok(Value::Unit)
     }

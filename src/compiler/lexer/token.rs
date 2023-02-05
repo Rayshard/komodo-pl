@@ -1,6 +1,6 @@
 use serde::{Serialize, ser::SerializeMap};
 
-use crate::compiler::utilities::{range::Range, text_source::TextSource};
+use crate::compiler::utilities::{range::Range, text_source::TextSource, location::Location};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub enum TokenKind {
@@ -27,16 +27,14 @@ pub enum TokenKind {
 #[derive(PartialEq, Clone)]
 pub struct Token<'source> {
     kind: TokenKind,
-    range: Range,
-    source: &'source TextSource,
+    location: Location<'source>
 }
 
 impl<'source> Token<'source> {
-    pub fn new(kind: TokenKind, range: Range, source: &'source TextSource) -> Token<'source> {
+    pub fn new(kind: TokenKind, location: Location<'source>) -> Token<'source> {
         Token {
             kind,
-            range,
-            source,
+            location
         }
     }
 
@@ -44,12 +42,8 @@ impl<'source> Token<'source> {
         &self.kind
     }
 
-    pub fn range(&self) -> &Range {
-        &self.range
-    }
-
-    pub fn source(&self) -> &'source TextSource {
-        &self.source
+    pub fn location(&self) -> &Location {
+        &self.location
     }
 
     pub fn value_char_length(&self) -> usize {
@@ -57,7 +51,7 @@ impl<'source> Token<'source> {
     }
 
     pub fn value(&self) -> &'source str {
-        self.source.text_from_range(&self.range)
+        self.location.text()
     }
 
     pub fn is_eof(&self) -> bool {
@@ -77,7 +71,7 @@ impl<'source> Serialize for Token<'source> {
         let mut map = serializer.serialize_map(None)?;
 
         map.serialize_entry("kind", &self.kind)?;
-        map.serialize_entry("range", &self.range)?;
+        map.serialize_entry("location", &self.location)?;
         map.serialize_entry("value", &self.value())?;
 
         map.end()
