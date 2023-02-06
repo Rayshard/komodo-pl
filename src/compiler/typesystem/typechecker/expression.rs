@@ -2,6 +2,7 @@ use crate::compiler::{
     ast::{
         expression::{
             binary::Binary as ASTBinary,
+            binary_operator::BinaryOperator,
             call::Call as ASTCall,
             identifier::Identifier as ASTIdentifier,
             literal::{Literal as ASTLiteral, LiteralKind as ASTLiteralKind},
@@ -22,7 +23,10 @@ use crate::compiler::{
         },
         Node as CSTNode,
     },
-    typesystem::{context::Context, ts_type::TSType},
+    typesystem::{
+        context::Context,
+        ts_type::{Function as TSFunction, FunctionOverload, TSType},
+    },
     utilities::{location::Location, range::Range},
 };
 
@@ -91,6 +95,56 @@ pub fn typecheck_literal<'source>(
     }
 }
 
+pub fn typecheck_args_against_overload<'source>(
+    args: &[ASTExpression<'source>],
+    overload: &FunctionOverload,
+    location: Location<'source>,
+) -> TypecheckResult<'source, ()> {
+    if args.len() != overload.parameters().len() {
+        return Err(TypecheckError::new(
+            TypecheckErrorKind::NotEnoughArguments {
+                expected: overload.parameters().len(),
+                found: args.len(),
+            },
+            location,
+        ));
+    }
+
+    for (arg, (_, parameter)) in args.iter().zip(overload.parameters()) {
+        if arg.ts_type() != parameter {
+            return Err(TypecheckError::new(
+                TypecheckErrorKind::Unexpected {
+                    expected: parameter.clone(),
+                    found: arg.ts_type().clone(),
+                },
+                arg.location().clone(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn typecheck_args_against_function<'source>(
+    args: &[ASTExpression<'source>],
+    function: &TSFunction,
+    args_location: Location<'source>,
+) -> TypecheckResult<'source, TSType> {
+    for overload in function.overloads() {
+        if let Ok(()) = typecheck_args_against_overload(args, &overload, args_location.clone()) {
+            return Ok(overload.return_type().clone());
+        }
+    }
+
+    Err(TypecheckError::new(
+        TypecheckErrorKind::NoOverloadMatchesArguments {
+            function: function.clone(),
+            args: args.iter().map(|arg| arg.ts_type().clone()).collect(),
+        },
+        args_location,
+    ))
+}
+
 pub fn typecheck_call<'source>(
     node: &CSTCall<'source>,
     ctx: &Context,
@@ -99,40 +153,44 @@ pub fn typecheck_call<'source>(
     let args = typecheck_consecutive(&node.args(), typecheck, ctx)?;
 
     let return_type = match head.ts_type() {
-        TSType::Function {
-            name: _,
-            parameters,
-            return_type,
-        } => {
-            if args.len() != parameters.len() {
-                return Err(TypecheckError::new(
-                    TypecheckErrorKind::NotEnoughArguments {
-                        expected: parameters.len(),
-                        found: args.len(),
-                    },
-                    Location::new(
-                        node.location().source(),
-                        Range::new(
-                            node.open_parenthesis().location().range().start(),
-                            node.close_parenthesis().location().range().end(),
-                        ),
-                    ),
-                ));
-            }
+        TSType::Function(function) => {
+            let args_location = Location::new(
+                node.location().source(),
+                Range::new(
+                    node.open_parenthesis().location().range().start(),
+                    node.close_parenthesis().location().range().end(),
+                ),
+            );
 
-            for (arg, (_, parameter)) in args.iter().zip(parameters) {
-                if arg.ts_type() != parameter {
-                    return Err(TypecheckError::new(
-                        TypecheckErrorKind::Unexpected {
-                            expected: parameter.clone(),
-                            found: arg.ts_type().clone(),
-                        },
-                        arg.location().clone(),
-                    ));
+            if let [overload] = function.overloads() {
+                typecheck_args_against_overload(&args, &overload, args_location)?;
+
+                overload.return_type().clone()
+            } else {
+                let mut return_type = None;
+
+                for overload in function.overloads() {
+                    if let Ok(()) =
+                        typecheck_args_against_overload(&args, &overload, args_location.clone())
+                    {
+                        return_type = Some(overload.return_type().clone());
+                        break;
+                    }
+                }
+
+                match return_type {
+                    Some(return_type) => return_type,
+                    None => {
+                        return Err(TypecheckError::new(
+                            TypecheckErrorKind::NoOverloadMatchesArguments {
+                                function: function.clone(),
+                                args: args.iter().map(|arg| arg.ts_type().clone()).collect(),
+                            },
+                            args_location,
+                        ))
+                    }
                 }
             }
-
-            return_type.as_ref().clone()
         }
         ts_type => {
             return Err(TypecheckError::new(
@@ -146,27 +204,31 @@ pub fn typecheck_call<'source>(
 }
 
 pub fn typecheck_binary<'source>(
-    _node: &CSTBinary<'source>,
-    _ctx: &Context,
+    node: &CSTBinary<'source>,
+    ctx: &Context,
 ) -> TypecheckResult<'source, ASTBinary<'source>> {
-    // let left = typecheck(node.left(), ctx)?;
-    // let right = typecheck(node.right(), ctx)?;
+    let left = typecheck(node.left(), ctx)?;
+    let right = typecheck(node.right(), ctx)?;
+    let op = ctx.get_operator_function(node.op()).map_err(|error| {
+        let location = error.location().clone();
+        TypecheckError::new(TypecheckErrorKind::Context(error), location)
+    })?;
+    let return_type = typecheck_args_against_function(
+        &[left.clone(), right.clone()],
+        op,
+        node.location().clone(),
+    )?;
 
-    // let ts_type = match (left.ts_type(), node.op().kind(), right.ts_type()) {
-    //     (TSType::Int64, BinaryOperatorKind::Add, TSType::Int64) => TSType::Int64,
-    //     (TSType::String, BinaryOperatorKind::Add, TSType::String) => TSType::String,
-    //     (left, op, right) => return Err(TypecheckError::new(
-    //         TypecheckErrorKind::IncompatibleOperandsForBinaryOperator {
-    //             left: left.clone(),
-    //             op: op.clone(),
-    //             right: right.clone(),
-    //         },
-    //         node.location().clone()
-    //     )),
-    // };
-
-    // Ok(ASTBinary::new(left, node.op().clone(), right, ts_type))
-    todo!()
+    Ok(ASTBinary::new(
+        left,
+        BinaryOperator::new(
+            node.op().kind().clone(),
+            TSType::Function(op.clone()),
+            node.op().location().clone(),
+        ),
+        right,
+        return_type,
+    ))
 }
 
 pub fn typecheck_parenthesized<'source>(

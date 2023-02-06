@@ -6,7 +6,7 @@ use crate::compiler::{
     utilities::{location::Location, range::Range},
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub enum ImportPath<'source> {
     Simple(Identifier<'source>),
     Complex {

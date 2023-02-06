@@ -7,6 +7,7 @@ pub mod member_access;
 pub mod parenthesized;
 pub mod unary;
 pub mod unary_operator;
+pub mod operator;
 
 use serde::Serialize;
 

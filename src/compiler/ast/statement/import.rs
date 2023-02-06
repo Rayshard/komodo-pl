@@ -6,7 +6,7 @@ use crate::compiler::{
     utilities::location::Location,
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Import<'source> {
     path: ImportPath<'source>,
     from: Option<ImportPath<'source>>,

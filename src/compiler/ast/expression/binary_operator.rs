@@ -32,3 +32,4 @@ impl<'source> Node<'source> for BinaryOperator<'source> {
         self.location.clone()
     }
 }
+

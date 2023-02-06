@@ -8,7 +8,7 @@ use crate::compiler::{
 
 use super::{binary_operator::BinaryOperator, Expression};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Binary<'source> {
     left: Box<Expression<'source>>,
     op: BinaryOperator<'source>,

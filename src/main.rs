@@ -3,15 +3,16 @@ use std::{collections::HashMap, fmt::Display, io};
 use colored::Colorize;
 use komodo::{
     compiler::{
+        ast::script::Script as ASTScript,
         cst::script::Script as CSTScript,
         lexer::{self, token::Token, LexError},
         parser::{self, error::ParseError},
         typesystem::{
-            context::Context,
-            ts_type::TSType,
+            context::{Context, ContextError},
+            ts_type::{Function as TSFunction, FunctionOverload as TSFunctionOverload, TSType},
             typechecker::{self, result::TypecheckError},
         },
-        utilities::{range::Range, text_source::TextSource}, ast::script::Script as ASTScript,
+        utilities::{range::Range, text_source::TextSource},
     },
     runtime::interpreter::{self, Value},
 };
@@ -21,6 +22,7 @@ enum CompilationError<'source> {
     Lexer(Vec<LexError<'source>>),
     Parser(ParseError<'source>),
     Typechecker(TypecheckError<'source>),
+    Context(ContextError<'source>),
 }
 
 impl<'source> Display for CompilationError<'source> {
@@ -42,6 +44,7 @@ impl<'source> Display for CompilationError<'source> {
             }
             CompilationError::Parser(error) => write!(f, "{}", error.to_string().red()),
             CompilationError::Typechecker(error) => write!(f, "{}", error.to_string().red()),
+            CompilationError::Context(error) => write!(f, "{}", error.to_string().red()),
         }
     }
 }
@@ -80,9 +83,7 @@ fn typecheck<'source>(
         .map_err(|error| CompilationError::Typechecker(error))
 }
 
-fn compile<'source>(
-    source: &'source TextSource,
-) -> CompilationResult<'source, ASTScript<'source>> {
+fn compile<'source>(source: &'source TextSource) -> CompilationResult<'source, ASTScript<'source>> {
     let tokens = lex(source)?;
     let script = parse(source, tokens)?;
 
@@ -101,11 +102,16 @@ fn compile<'source>(
                             name: "stdout".to_string(),
                             members: HashMap::from([(
                                 "print_line".to_string(),
-                                TSType::Function {
-                                    name: "print_line".to_string(),
-                                    parameters: vec![("value".to_string(), TSType::String)],
-                                    return_type: Box::new(TSType::Unit),
-                                },
+                                TSType::Function(TSFunction::new(
+                                    "print_line".to_string(),
+                                    vec![TSFunctionOverload::new(
+                                        vec![("value".to_string(), TSType::String)],
+                                        TSType::Unit,
+                                    ), TSFunctionOverload::new(
+                                        vec![("value".to_string(), TSType::Int64)],
+                                        TSType::Unit,
+                                    )],
+                                )),
                             )]),
                         },
                     )]),
@@ -114,7 +120,23 @@ fn compile<'source>(
         },
         source.get_location(Range::new(0, 0)).unwrap(),
     )
-    .unwrap();
+    .map_err(|error| CompilationError::Context(error))?;
+
+    ctx.add_binary_operator_overload(
+        "binop::+",
+        (TSType::Int64, TSType::Int64),
+        TSType::Int64,
+        source.get_location(Range::new(0, 0)).unwrap(),
+    )
+    .map_err(|error| CompilationError::Context(error))?;
+
+    ctx.add_binary_operator_overload(
+        "binop::+",
+        (TSType::String, TSType::String),
+        TSType::String,
+        source.get_location(Range::new(0, 0)).unwrap(),
+    )
+    .map_err(|error| CompilationError::Context(error))?;
 
     typecheck(script, &ctx)
 }

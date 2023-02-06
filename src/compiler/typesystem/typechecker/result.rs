@@ -1,6 +1,9 @@
 use crate::compiler::{
     cst::expression::binary_operator::BinaryOperatorKind,
-    typesystem::{context::ContextError, ts_type::TSType},
+    typesystem::{
+        context::ContextError,
+        ts_type::{Function as TSFunction, TSType},
+    },
     utilities::location::Location,
 };
 
@@ -21,6 +24,10 @@ pub enum TypecheckErrorKind<'source> {
     NotEnoughArguments {
         expected: usize,
         found: usize,
+    },
+    NoOverloadMatchesArguments {
+        function: TSFunction,
+        args: Vec<TSType>,
     },
 }
 
@@ -54,6 +61,9 @@ impl<'source> ToString for TypecheckError<'source> {
                     format!("Expected {expected:?} but found {found:?}"),
                 TypecheckErrorKind::NotEnoughArguments { expected, found } =>
                     format!("Expected {expected} arguments but found {found}."),
+                TypecheckErrorKind::NoOverloadMatchesArguments { function, args } =>
+                //TODO make prettier
+                    format!("No overload for {} accepts the supplied argument list ({:?}). Available overloads are: {:?}", function.name(), args, function.overloads()),
             }
         )
     }

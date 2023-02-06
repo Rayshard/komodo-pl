@@ -14,7 +14,7 @@ use super::Node;
 use crate::compiler::{typesystem::ts_type::TSType, utilities::location::Location};
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub enum Expression<'source> {
     Literal(Literal<'source>),
     Binary(Binary<'source>),

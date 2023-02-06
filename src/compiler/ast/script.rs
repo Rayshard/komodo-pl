@@ -4,7 +4,7 @@ use crate::compiler::{typesystem::ts_type::TSType, utilities::location::Location
 
 use super::{statement::Statement, Node};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Script<'source> {
     statements: Vec<Statement<'source>>,
 }

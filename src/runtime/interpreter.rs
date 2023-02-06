@@ -90,7 +90,13 @@ fn interpret_call(node: &Call, ctx: &Context) -> InterpretResult<Value> {
     let args = interpret_consecutive(node.args(), interpret_expression, ctx)?;
 
     match (head, &args[..]) {
-        (Value::Function(function_name), [Value::String(arg)])
+        (Value::Function(function_name), [Value::String(arg)]) 
+            if function_name == "std.io.stdout.print_line" =>
+        {
+            println!("{arg}");
+            Ok(Value::Unit)
+        }
+        (Value::Function(function_name), [Value::I64(arg)]) 
             if function_name == "std.io.stdout.print_line" =>
         {
             println!("{arg}");

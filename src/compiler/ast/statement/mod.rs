@@ -9,7 +9,7 @@ use self::import::Import;
 
 use super::{expression::Expression, Node};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub enum Statement<'source> {
     Import(Import<'source>),
     Expression(Expression<'source>),

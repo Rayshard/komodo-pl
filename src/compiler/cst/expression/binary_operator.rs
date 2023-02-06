@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::compiler::{lexer::token::Token, utilities::location::Location};
 
-use super::Node;
+use super::{Node, operator::Operator};
 
 #[derive(Debug, Serialize, Clone)]
 pub enum BinaryOperatorKind {
@@ -72,5 +72,17 @@ impl BinaryOperatorKind {
 impl<'source> Node<'source> for BinaryOperator<'source> {
     fn location(&self) -> &Location<'source> {
         self.token.location()
+    }
+}
+
+
+impl<'source> Operator<'source> for BinaryOperator<'source> {
+    fn context_id(&self) -> &str {
+        match self.kind {
+            BinaryOperatorKind::Add => "binop::+",
+            BinaryOperatorKind::Subtract => "binop::-",
+            BinaryOperatorKind::Multiply => "binop::*",
+            BinaryOperatorKind::Divide => "binop::/",
+        }
     }
 }

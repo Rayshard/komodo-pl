@@ -4,7 +4,7 @@ use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::locatio
 
 use super::Expression;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Call<'source> {
     head: Box<Expression<'source>>,
     args: Vec<Expression<'source>>,

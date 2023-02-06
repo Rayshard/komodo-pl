@@ -4,7 +4,7 @@ use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::locatio
 
 use super::{identifier::Identifier, Expression};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct MemberAccess<'source> {
     root: Box<Expression<'source>>,
     member: Identifier<'source>,

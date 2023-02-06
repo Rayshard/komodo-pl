@@ -2,13 +2,13 @@ use serde::Serialize;
 
 use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub enum LiteralKind {
     Int64(i64),
     String(String),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Literal<'source> {
     kind: LiteralKind,
     ts_type: TSType,

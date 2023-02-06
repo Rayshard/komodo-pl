@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Identifier<'source> {
     value: String,
     ts_type: TSType,
