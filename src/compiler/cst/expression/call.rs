@@ -40,6 +40,22 @@ impl<'source> Call<'source> {
             location,
         }
     }
+
+    pub fn head(&self) -> &Expression<'source> {
+        self.head.as_ref()
+    }
+
+    pub fn open_parenthesis(&self) -> &Token<'source> {
+        &self.open_parenthesis
+    }
+
+    pub fn args(&self) -> &[Expression<'source>] {
+        &self.args
+    }
+
+    pub fn close_parenthesis(&self) -> &Token<'source> {
+        &self.close_parenthesis
+    }
 }
 
 impl<'source> Node<'source> for Call<'source> {

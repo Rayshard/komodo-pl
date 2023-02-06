@@ -45,7 +45,7 @@ impl<'source> Statement<'source> {
         }
     }
 
-    pub fn kind(&self) -> &StatementKind {
+    pub fn kind(&self) -> &StatementKind<'source> {
         &self.kind
     }
 

@@ -7,7 +7,8 @@ use crate::compiler::{
         Node,
     },
     cst::statement::{
-        import::Import as CSTImport, import_path::ImportPath as CSTImportPath,
+        import::Import as CSTImport,
+        import_path::{ImportPath as CSTImportPath, ImportPathKind as CSTImportPathKind},
         Statement as CSTStatement, StatementKind as CSTStatementKind,
     },
     typesystem::{context::Context, ts_type::TSType},
@@ -22,13 +23,24 @@ pub fn typecheck_import_path<'source>(
     node: &CSTImportPath<'source>,
     ctx: &mut Context,
 ) -> TypecheckResult<'source, ASTImportPath<'source>> {
-    match node {
-        CSTImportPath::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
+    match node.kind() {
+        CSTImportPathKind::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
             identifier, ctx,
         )?)),
-        CSTImportPath::Complex(member_access) => Ok(ASTImportPath::Complex(
-            typecheck_member_access(member_access, ctx)?,
-        )),
+        CSTImportPathKind::Complex { root, dot, member } => {
+            let root = typecheck_import_path(root.as_ref(), ctx)?;
+            let root_ctx =
+                Context::from(root.ts_type(), None, root.location()).map_err(|error| {
+                    let location = error.location().clone();
+                    TypecheckError::new(TypecheckErrorKind::Context(error), location)
+                })?;
+            let member = typecheck_identifier(member, &root_ctx)?;
+
+            Ok(ASTImportPath::Complex {
+                root: Box::new(root),
+                member,
+            })
+        }
     }
 }
 
@@ -66,7 +78,7 @@ pub fn typecheck_import<'source>(
 
     let name = match &import_path {
         ASTImportPath::Simple(node) => node.value(),
-        ASTImportPath::Complex(node) => node.member().value(),
+        ASTImportPath::Complex { root: _, member } => member.value(),
     };
 
     ctx.set(name, import_path.ts_type().clone(), import_path.location())
@@ -79,7 +91,7 @@ pub fn typecheck_import<'source>(
 }
 
 pub fn typecheck<'source>(
-    statement: &'source CSTStatement<'source>,
+    statement: &CSTStatement<'source>,
     ctx: &mut Context,
 ) -> TypecheckResult<'source, ASTStatement<'source>> {
     match statement.kind() {

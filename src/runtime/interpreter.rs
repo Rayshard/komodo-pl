@@ -10,7 +10,8 @@ use crate::compiler::{
             member_access::MemberAccess,
             Expression,
         },
-        statement::{import::Import, import_path::ImportPath, Statement}, script::Script,
+        script::Script,
+        statement::{import::Import, import_path::ImportPath, Statement},
     },
     cst::expression::binary_operator::BinaryOperatorKind,
 };
@@ -123,18 +124,23 @@ fn interpret_expression(expression: &Expression, ctx: &Context) -> InterpretResu
     }
 }
 
-fn interpret_import_path(
-    node: &ImportPath,
-    ctx: &Context,
-) -> InterpretResult<(String, Value)> {
+fn interpret_import_path(node: &ImportPath, ctx: &Context) -> InterpretResult<(String, Value)> {
     match node {
         ImportPath::Simple(node) => {
             Ok((node.value().to_string(), interpret_identifier(node, ctx)?))
         }
-        ImportPath::Complex(node) => Ok((
-            node.member().value().to_string(),
-            interpret_member_access(node, ctx)?,
-        )),
+        ImportPath::Complex { root, member } => {
+            let (root_name, root_value) = interpret_import_path(root, ctx)?;
+
+            Ok((
+                format!("{root_name}.{}", member.value().to_string()),
+                match root_value {
+                    Value::Object { name, members } => interpret_identifier(member, &members),
+                    Value::Module { name, members } => interpret_identifier(member, &members),
+                    root_value => Err(format!("Value has not accessable members: {root_value:?}")),
+                }?,
+            ))
+        }
     }
 }
 
@@ -146,7 +152,6 @@ fn interpret_import(node: &Import, ctx: &mut Context) -> InterpretResult<Value> 
             Value::Module { name: _, members } => interpret_import_path(node.path(), &members),
             head => Err(format!("Value has not accessable members: {head:?}")),
         }?;
-        
 
         ctx.insert(name, value.clone());
         Ok(value)

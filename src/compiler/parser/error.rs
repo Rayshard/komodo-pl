@@ -1,5 +1,6 @@
 use crate::compiler::utilities::location::Location;
 
+#[derive(Clone)]
 pub struct ParseError<'source> {
     message: String,
     location: Location<'source>,

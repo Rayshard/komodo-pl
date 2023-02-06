@@ -23,9 +23,13 @@ use crate::compiler::{
         Node as CSTNode,
     },
     typesystem::{context::Context, ts_type::TSType},
+    utilities::{location::Location, range::Range},
 };
 
-use super::result::{TypecheckError, TypecheckErrorKind, TypecheckResult};
+use super::{
+    result::{TypecheckError, TypecheckErrorKind, TypecheckResult},
+    typecheck_consecutive,
+};
 
 pub fn typecheck_identifier<'source>(
     node: &CSTIdentifier<'source>,
@@ -91,63 +95,54 @@ pub fn typecheck_call<'source>(
     node: &CSTCall<'source>,
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTCall<'source>> {
-    // let head = typecheck(head, ctx)?;
-    //         let args = typecheck_consecutive(&args[..], typecheck, ctx)?;
+    let head = typecheck(node.head(), ctx)?;
+    let args = typecheck_consecutive(&node.args(), typecheck, ctx)?;
 
-    //         let return_type = match head.ts_type() {
-    //             TSType::Function {
-    //                 name: _,
-    //                 parameters,
-    //                 return_type,
-    //             } => {
-    //                 if args.len() != parameters.len() {
-    //                     return Err(TypecheckError::new(
-    //                         TypecheckErrorKind::NotEnoughArguments {
-    //                             expected: parameters.len(),
-    //                             found: args.len(),
-    //                         },
-    //                         Range::new(
-    //                             open_parenthesis.range().start(),
-    //                             close_parenthesis.range().end(),
-    //                         ),
-    //                         expression.source(),
-    //                     ));
-    //                 }
+    let return_type = match head.ts_type() {
+        TSType::Function {
+            name: _,
+            parameters,
+            return_type,
+        } => {
+            if args.len() != parameters.len() {
+                return Err(TypecheckError::new(
+                    TypecheckErrorKind::NotEnoughArguments {
+                        expected: parameters.len(),
+                        found: args.len(),
+                    },
+                    Location::new(
+                        node.location().source(),
+                        Range::new(
+                            node.open_parenthesis().location().range().start(),
+                            node.close_parenthesis().location().range().end(),
+                        ),
+                    ),
+                ));
+            }
 
-    //                 for (arg, (_, parameter)) in args.iter().zip(parameters) {
-    //                     if arg.ts_type() != parameter {
-    //                         return Err(TypecheckError::new(
-    //                             TypecheckErrorKind::Unexpected {
-    //                                 expected: parameter.clone(),
-    //                                 found: arg.ts_type().clone(),
-    //                             },
-    //                             arg.range().clone(),
-    //                             arg.source(),
-    //                         ));
-    //                     }
-    //                 }
+            for (arg, (_, parameter)) in args.iter().zip(parameters) {
+                if arg.ts_type() != parameter {
+                    return Err(TypecheckError::new(
+                        TypecheckErrorKind::Unexpected {
+                            expected: parameter.clone(),
+                            found: arg.ts_type().clone(),
+                        },
+                        arg.location().clone(),
+                    ));
+                }
+            }
 
-    //                 return_type.as_ref().clone()
-    //             }
-    //             ts_type => {
-    //                 return Err(TypecheckError::new(
-    //                     TypecheckErrorKind::TypeIsNotCallable(ts_type.clone()),
-    //                     head.range().clone(),
-    //                     head.source(),
-    //                 ))
-    //             }
-    //         };
+            return_type.as_ref().clone()
+        }
+        ts_type => {
+            return Err(TypecheckError::new(
+                TypecheckErrorKind::TypeIsNotCallable(ts_type.clone()),
+                head.location().clone(),
+            ))
+        }
+    };
 
-    //         Ok(ExpressionNode::new(
-    //             ASTExpression::Call {
-    //                 head: Box::new(head),
-    //                 args,
-    //             },
-    //             return_type,
-    //             expression.source(),
-    //             expression.range(),
-    //         ))
-    todo!()
+    Ok(ASTCall::new(head, args, return_type))
 }
 
 pub fn typecheck_binary<'source>(

@@ -10,18 +10,25 @@ use crate::compiler::{
 use error::ParseError;
 use state::ParseState;
 
-use super::cst::{
-    expression::{
-        binary::Binary,
-        binary_operator::{BinaryOperator, BinaryOperatorKind},
-        call::Call,
-        identifier::Identifier,
-        literal::{Literal, LiteralKind},
-        member_access::MemberAccess,
-        parenthesized::Parenthesized,
-        unary_operator::UnaryOperator,
+use super::{
+    cst::{
+        expression::{
+            binary::Binary,
+            binary_operator::{BinaryOperator, BinaryOperatorKind},
+            call::Call,
+            identifier::Identifier,
+            literal::{Literal, LiteralKind},
+            member_access::MemberAccess,
+            parenthesized::Parenthesized,
+            unary_operator::UnaryOperator,
+        },
+        statement::{
+            import::Import,
+            import_path::{ImportPath, ImportPathKind},
+            StatementKind,
+        },
     },
-    statement::{import::Import, import_path::ImportPath, StatementKind},
+    utilities::range::Range,
 };
 
 pub type ParseResult<'tokens, 'source, T> =
@@ -32,9 +39,10 @@ type Parser<'tokens, 'source, T> =
 
 fn longest<'tokens, 'source, T>(
     state: ParseState<'tokens, 'source>,
-    parsers: &[fn(ParseState<'tokens, 'source>) -> ParseResult<'tokens, 'source, T>],
+    parsers: &[Parser<'tokens, 'source, T>],
     multi_error_message: String,
 ) -> ParseResult<'tokens, 'source, T> {
+    let start = state.offset();
     let mut longest_success: Option<(T, ParseState)> = None;
     let mut longest_error: (ParseError, ParseState) = (
         ParseError::new(
@@ -54,22 +62,27 @@ fn longest<'tokens, 'source, T>(
             }
             Err(result) if result.1.offset() > longest_error.1.offset() => longest_error = result,
             Err(result) if result.1.offset() == longest_error.1.offset() => {
-                // longest_error = (
-                //     ParseError::new(
-                //         multi_error_message.clone(),
-                //         longest_error.0.location().clone(),
-                //     ),
-                //     longest_error.1,
-                // )
-                todo!()
+                longest_error = (
+                    ParseError::new(
+                        multi_error_message.clone(),
+                        result
+                            .1
+                            .current_token()
+                            .location()
+                            .source()
+                            .get_location(Range::new(start, result.1.offset()))
+                            .unwrap(),
+                    ),
+                    longest_error.1,
+                )
             }
             _ => continue,
         }
     }
 
     match longest_success {
-        Some(success) if success.1.offset() >= longest_error.1.offset() => Ok(success),
-        _ => Err(longest_error),
+        Some(success) => Ok(success),
+        None => Err(longest_error),
     }
 }
 
@@ -301,43 +314,26 @@ pub fn parse_parenthesized_expression<'tokens, 'source>(
     ))
 }
 
-pub fn parse_member_access<'tokens, 'source>(
+pub fn parse_import_path<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
-) -> ParseResult<'tokens, 'source, MemberAccess<'source>> {
-    let (root, state) = parse_primary_expression(state)?;
-    let (dot, state) = expect_token(TokenKind::SymbolPeriod, skip_whitespace(state))?;
-    let (member, state) = parse_identifier(state)?;
-    let (mut member_access, mut state) = (MemberAccess::new(root, dot, member), state);
+) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
+    let (mut path, mut state) = parse_identifier(state)
+        .map(|(identifier, state)| (ImportPath::new(ImportPathKind::Simple(identifier)), state))?;
 
     while let Ok((dot, next_state)) =
         expect_token(TokenKind::SymbolPeriod, skip_whitespace(state.clone()))
     {
-        let (member, next_state) =
-            expect_token(TokenKind::Identifier, skip_whitespace(next_state))?;
+        let (member, next_state) = parse_identifier(skip_whitespace(next_state))?;
 
-        member_access = MemberAccess::new(Expression::MemberAccess(member_access), dot, member);
+        path = ImportPath::new(ImportPathKind::Complex {
+            root: Box::new(path),
+            dot,
+            member,
+        });
         state = next_state;
     }
 
-    Ok((member_access, state))
-}
-
-pub fn parse_import_path<'tokens, 'source>(
-    state: ParseState<'tokens, 'source>,
-) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
-    // TODO: make static
-    let kinds = &[
-        |state| {
-            parse_identifier(state)
-                .map(|(identifier, state)| (ImportPath::Simple(identifier), state))
-        },
-        |state| {
-            parse_member_access(state)
-                .map(|(member_access, state)| (ImportPath::Complex(member_access), state))
-        },
-    ];
-
-    longest(state, kinds, "Expected an import path".to_string())
+    Ok((path, state))
 }
 
 pub fn parse_import<'tokens, 'source>(

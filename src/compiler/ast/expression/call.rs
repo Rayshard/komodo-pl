@@ -8,13 +8,15 @@ use super::Expression;
 pub struct Call<'source> {
     head: Box<Expression<'source>>,
     args: Vec<Expression<'source>>,
+    ts_type: TSType,
 }
 
 impl<'source> Call<'source> {
-    pub fn new(head: Expression<'source>, args: Vec<Expression<'source>>) -> Self {
+    pub fn new(head: Expression<'source>, args: Vec<Expression<'source>>, ts_type: TSType) -> Self {
         Self {
             head: Box::new(head),
             args,
+            ts_type,
         }
     }
 
@@ -29,7 +31,7 @@ impl<'source> Call<'source> {
 
 impl<'source> Node<'source> for Call<'source> {
     fn ts_type(&self) -> &TSType {
-        todo!()
+        &self.ts_type
     }
 
     fn location(&self) -> Location<'source> {
