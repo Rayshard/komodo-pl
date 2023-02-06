@@ -1,29 +1,34 @@
 use serde::Serialize;
 
 use crate::compiler::{
-    ast::Node, cst::expression::binary_operator::BinaryOperatorKind, typesystem::ts_type::TSType,
-    utilities::location::Location,
+    ast::Node,
+    cst::expression::binary_operator::BinaryOperatorKind,
+    typesystem::ts_type::TSType,
+    utilities::{location::Location, range::Range},
 };
 
-use super::Expression;
+use super::{binary_operator::BinaryOperator, Expression};
 
 #[derive(Serialize)]
 pub struct Binary<'source> {
     left: Box<Expression<'source>>,
-    op: BinaryOperatorKind,
+    op: BinaryOperator<'source>,
     right: Box<Expression<'source>>,
+    ts_type: TSType,
 }
 
 impl<'source> Binary<'source> {
     pub fn new(
         left: Expression<'source>,
-        op: BinaryOperatorKind,
+        op: BinaryOperator<'source>,
         right: Expression<'source>,
+        ts_type: TSType,
     ) -> Self {
         Self {
             left: Box::new(left),
             op,
             right: Box::new(right),
+            ts_type,
         }
     }
 
@@ -31,7 +36,7 @@ impl<'source> Binary<'source> {
         self.left.as_ref()
     }
 
-    pub fn op(&self) -> &BinaryOperatorKind {
+    pub fn op(&self) -> &BinaryOperator<'source> {
         &self.op
     }
 
@@ -42,10 +47,16 @@ impl<'source> Binary<'source> {
 
 impl<'source> Node<'source> for Binary<'source> {
     fn ts_type(&self) -> &TSType {
-        todo!()
+        &self.ts_type
     }
 
     fn location(&self) -> Location<'source> {
-        todo!()
+        Location::new(
+            self.op.location().source(),
+            Range::new(
+                self.left.location().range().start(),
+                self.right.location().range().end(),
+            ),
+        )
     }
 }

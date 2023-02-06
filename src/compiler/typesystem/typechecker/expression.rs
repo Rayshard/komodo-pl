@@ -18,7 +18,7 @@ use crate::compiler::{
             literal::{Literal as CSTLiteral, LiteralKind as CSTLiteralKind},
             member_access::MemberAccess as CSTMemberAccess,
             parenthesized::Parenthesized,
-            Expression as CSTExpression,
+            Expression as CSTExpression, binary_operator::BinaryOperatorKind,
         },
         Node as CSTNode,
     },
@@ -149,42 +149,23 @@ pub fn typecheck_binary<'source>(
     node: &CSTBinary<'source>,
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTBinary<'source>> {
-    // let left = typecheck(left.as_ref(), ctx)?;
-    //         let right = typecheck(right.as_ref(), ctx)?;
+    // let left = typecheck(node.left(), ctx)?;
+    // let right = typecheck(node.right(), ctx)?;
 
-    //         match (left.ts_type(), op.kind(), right.ts_type()) {
-    //             (TSType::Int64, op, TSType::Int64) => Ok(ExpressionNode::new(
-    //                 ASTExpression::Binary {
-    //                     left: Box::new(left),
-    //                     op: op.clone(),
-    //                     right: Box::new(right),
-    //                 },
-    //                 TSType::Int64,
-    //                 expression.source(),
-    //                 expression.range().clone(),
-    //             )),
-    //             (TSType::String, BinaryOperatorKind::Add, TSType::String) => {
-    //                 Ok(ExpressionNode::new(
-    //                     ASTExpression::Binary {
-    //                         left: Box::new(left),
-    //                         op: BinaryOperatorKind::Add,
-    //                         right: Box::new(right),
-    //                     },
-    //                     TSType::String,
-    //                     expression.source(),
-    //                     expression.range().clone(),
-    //                 ))
-    //             }
-    //             (left, op, right) => Err(TypecheckError::new(
-    //                 TypecheckErrorKind::IncompatibleOperandsForBinaryOperator {
-    //                     left: left.clone(),
-    //                     op: op.clone(),
-    //                     right: right.clone(),
-    //                 },
-    //                 expression.range(),
-    //                 expression.source(),
-    //             )),
-    //         }
+    // let ts_type = match (left.ts_type(), node.op().kind(), right.ts_type()) {
+    //     (TSType::Int64, BinaryOperatorKind::Add, TSType::Int64) => TSType::Int64,
+    //     (TSType::String, BinaryOperatorKind::Add, TSType::String) => TSType::String,
+    //     (left, op, right) => return Err(TypecheckError::new(
+    //         TypecheckErrorKind::IncompatibleOperandsForBinaryOperator {
+    //             left: left.clone(),
+    //             op: op.clone(),
+    //             right: right.clone(),
+    //         },
+    //         node.location().clone()
+    //     )),
+    // };
+
+    // Ok(ASTBinary::new(left, node.op().clone(), right, ts_type))
     todo!()
 }
 

@@ -20,7 +20,7 @@ impl<'source> Binary<'source> {
         left: Expression<'source>,
         op: BinaryOperator<'source>,
         right: Expression<'source>,
-    ) ->Self {
+    ) -> Self {
         let location = Location::new(
             op.location().source(),
             Range::new(
@@ -35,6 +35,18 @@ impl<'source> Binary<'source> {
             right: Box::new(right),
             location,
         }
+    }
+
+    pub fn left(&self) -> &Expression<'source> {
+        self.left.as_ref()
+    }
+
+    pub fn op(&self) -> &BinaryOperator<'source> {
+        &self.op
+    }
+
+    pub fn right(&self) -> &Expression<'source> {
+        self.right.as_ref()
     }
 }
 

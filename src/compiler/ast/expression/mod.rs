@@ -3,6 +3,7 @@ pub mod call;
 pub mod identifier;
 pub mod literal;
 pub mod member_access;
+pub mod binary_operator;
 
 use self::{
     binary::Binary, call::Call, identifier::Identifier, literal::Literal,

@@ -63,7 +63,7 @@ fn interpret_binary(node: &Binary, ctx: &Context) -> InterpretResult<Value> {
     let left = interpret_expression(node.left(), ctx)?;
     let right = interpret_expression(node.right(), ctx)?;
 
-    match (left, node.op(), right) {
+    match (left, node.op().kind(), right) {
         (Value::I64(left), BinaryOperatorKind::Add, Value::I64(right)) => {
             Ok(Value::I64(left + right))
         }
