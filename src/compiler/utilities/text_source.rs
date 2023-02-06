@@ -19,7 +19,7 @@ impl TextSource {
         for line in text.split('\n') {
             let line_length = line.len() + '\n'.len_utf8();
 
-            lines.push(Range::new(offset, line_length));
+            lines.push(Range::new(offset, offset + line_length));
             offset += line_length;
         }
 

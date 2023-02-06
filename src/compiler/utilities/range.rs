@@ -5,12 +5,13 @@ use serde::Serialize;
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub struct Range {
     start: usize,
-    length: usize,
+    end: usize,
 }
 
 impl Range {
-    pub fn new(start: usize, length: usize) -> Self {
-        Self { start, length }
+    pub fn new(start: usize, end: usize) -> Self {
+        assert!(end >= start, "end must be >= start");
+        Self { start, end }
     }
 
     pub fn start(&self) -> usize {
@@ -18,11 +19,11 @@ impl Range {
     }
 
     pub fn end(&self) -> usize {
-        self.start + self.length
+        self.end
     }
 
     pub fn length(&self) -> usize {
-        self.length
+        self.end - self.start
     }
 }
 

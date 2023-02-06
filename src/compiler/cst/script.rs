@@ -1,9 +1,10 @@
-use serde::{ser::SerializeMap, Serialize};
+use serde::Serialize;
 
 use crate::compiler::utilities::{location::Location, text_source::TextSource};
 
 use super::{statement::Statement, Node};
 
+#[derive(Serialize)]
 pub struct Script<'source> {
     source: &'source TextSource,
     statements: Vec<Statement<'source>>,
@@ -31,19 +32,5 @@ impl<'source> Script<'source> {
 impl<'source> Node<'source> for Script<'source> {
     fn location(&self) -> &Location<'source> {
         &self.location
-    }
-}
-
-impl<'source> Serialize for Script<'source> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut map = serializer.serialize_map(None)?;
-
-        map.serialize_entry("source", self.source.name())?;
-        map.serialize_entry("statements", &self.statements)?;
-
-        map.end()
     }
 }

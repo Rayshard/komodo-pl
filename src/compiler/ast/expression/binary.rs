@@ -2,7 +2,6 @@ use serde::Serialize;
 
 use crate::compiler::{
     ast::Node,
-    cst::expression::binary_operator::BinaryOperatorKind,
     typesystem::ts_type::TSType,
     utilities::{location::Location, range::Range},
 };

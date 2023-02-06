@@ -15,7 +15,7 @@ use crate::compiler::{
 };
 
 use super::{
-    expression::{self, typecheck_identifier, typecheck_member_access},
+    expression::{self, typecheck_identifier},
     result::{TypecheckError, TypecheckErrorKind, TypecheckResult},
 };
 
@@ -27,7 +27,11 @@ pub fn typecheck_import_path<'source>(
         CSTImportPathKind::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
             identifier, ctx,
         )?)),
-        CSTImportPathKind::Complex { root, dot, member } => {
+        CSTImportPathKind::Complex {
+            root,
+            dot: _,
+            member,
+        } => {
             let root = typecheck_import_path(root.as_ref(), ctx)?;
             let root_ctx =
                 Context::from(root.ts_type(), None, root.location()).map_err(|error| {

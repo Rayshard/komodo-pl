@@ -1,6 +1,4 @@
-☐ Replace source and range with TextLocation
+☐ try changing Location for CST nodes to be values instead of references
 ☐ fix parse errors
 ☐ remove unecessary lifetimes
-☐ Only single items can be imported in import ... from ...
 ☐ Make op of ast::expression::Binary a Node that has type Function
-☐ Consider removing the 'source from cst::Node

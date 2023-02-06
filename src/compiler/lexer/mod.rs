@@ -255,7 +255,7 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
                     longest = Some(Token::new(
                         kind,
                         source
-                            .get_location(Range::new(parse_offset, length))
+                            .get_location(Range::new(parse_offset, parse_offset + length))
                             .unwrap(),
                     ));
                 }
@@ -268,7 +268,7 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
 
                     longest_error = Some(LexError {
                         kind,
-                        range: Range::new(parse_offset, length),
+                        range: Range::new(parse_offset, parse_offset + length),
                         source,
                     });
                 }
@@ -295,7 +295,7 @@ pub fn lex(source: &TextSource) -> (Vec<Token>, Vec<LexError>) {
     // Add EOF token at the end of the input
     tokens.push(Token::new(
         TokenKind::EOF,
-        source.get_location(Range::new(parse_offset, 0)).unwrap(),
+        source.get_location(Range::new(parse_offset, parse_offset)).unwrap(),
     ));
 
     (tokens, errors)

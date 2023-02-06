@@ -24,7 +24,7 @@ def generate_lexer_tests():
                 test_expected_tokens.append(
                      "Token::new("
                     f"TokenKind::{et['kind']}, "
-                    f"source.get_location(Range::new({et_range_start}, {et_range_length})).unwrap()"
+                    f"source.get_location(Range::new({et_range_start}, {et_range_start + et_range_length})).unwrap()"
                     ")"
                 )
             
@@ -46,7 +46,7 @@ def generate_lexer_tests():
                 
                 test_expected_errors.append(
                     f"LexError::new("
-                    f"Range::new({ee_range_start}, {ee_range_length}), "
+                    f"Range::new({ee_range_start}, {ee_range_start + ee_range_length}), "
                     f"LexErrorKind::{ee_kind}"
                     ")"
                 )

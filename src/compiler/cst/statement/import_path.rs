@@ -1,10 +1,7 @@
 use serde::Serialize;
 
 use crate::compiler::{
-    cst::{
-        expression::{identifier::Identifier, member_access::MemberAccess},
-        Node,
-    },
+    cst::{expression::identifier::Identifier, Node},
     lexer::token::Token,
     utilities::{location::Location, range::Range},
 };

@@ -18,7 +18,7 @@ use crate::compiler::{
             literal::{Literal as CSTLiteral, LiteralKind as CSTLiteralKind},
             member_access::MemberAccess as CSTMemberAccess,
             parenthesized::Parenthesized,
-            Expression as CSTExpression, binary_operator::BinaryOperatorKind,
+            Expression as CSTExpression,
         },
         Node as CSTNode,
     },
@@ -146,8 +146,8 @@ pub fn typecheck_call<'source>(
 }
 
 pub fn typecheck_binary<'source>(
-    node: &CSTBinary<'source>,
-    ctx: &Context,
+    _node: &CSTBinary<'source>,
+    _ctx: &Context,
 ) -> TypecheckResult<'source, ASTBinary<'source>> {
     // let left = typecheck(node.left(), ctx)?;
     // let right = typecheck(node.right(), ctx)?;
@@ -191,7 +191,7 @@ pub fn typecheck<'source>(
             typecheck_member_access(member_access, ctx)?,
         )),
         CSTExpression::Call(call) => Ok(ASTExpression::Call(typecheck_call(call, ctx)?)),
-        CSTExpression::Unary(unary) => todo!(),
+        CSTExpression::Unary(_) => todo!(),
         CSTExpression::Binary(binary) => Ok(ASTExpression::Binary(typecheck_binary(binary, ctx)?)),
         CSTExpression::Parenthesized(parenthesized) => typecheck_parenthesized(parenthesized, ctx),
     }

@@ -104,8 +104,8 @@ fn interpret_member_access(node: &MemberAccess, ctx: &Context) -> InterpretResul
     let head = interpret_expression(node.root(), ctx)?;
 
     match head {
-        Value::Object { name, members } => interpret_identifier(node.member(), &members),
-        Value::Module { name, members } => interpret_identifier(node.member(), &members),
+        Value::Object { name:_, members } => interpret_identifier(node.member(), &members),
+        Value::Module { name:_, members } => interpret_identifier(node.member(), &members),
         head => Err(format!("Value has not accessable members: {head:?}")),
     }
 }
@@ -135,8 +135,8 @@ fn interpret_import_path(node: &ImportPath, ctx: &Context) -> InterpretResult<(S
             Ok((
                 format!("{root_name}.{}", member.value().to_string()),
                 match root_value {
-                    Value::Object { name, members } => interpret_identifier(member, &members),
-                    Value::Module { name, members } => interpret_identifier(member, &members),
+                    Value::Object { name: _, members } => interpret_identifier(member, &members),
+                    Value::Module { name: _, members } => interpret_identifier(member, &members),
                     root_value => Err(format!("Value has not accessable members: {root_value:?}")),
                 }?,
             ))
