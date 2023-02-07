@@ -13,7 +13,6 @@ pub struct MemberAccess<'source> {
     root: Box<Expression<'source>>,
     dot: Token<'source>,
     member: Identifier<'source>,
-    location: Location<'source>,
 }
 
 impl<'source> MemberAccess<'source> {
@@ -22,19 +21,10 @@ impl<'source> MemberAccess<'source> {
         dot: Token<'source>,
         member: Identifier<'source>,
     ) -> Self {
-        let location = Location::new(
-            dot.location().source(),
-            Range::new(
-                root.location().range().start(),
-                member.location().range().end(),
-            ),
-        );
-
         Self {
             root: Box::new(root),
             dot,
             member,
-            location,
         }
     }
 
@@ -52,7 +42,13 @@ impl<'source> MemberAccess<'source> {
 }
 
 impl<'source> Node<'source> for MemberAccess<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.dot.location().source(),
+            Range::new(
+                self.root.location().range().start(),
+                self.member.location().range().end(),
+            ),
+        )
     }
 }

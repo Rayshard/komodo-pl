@@ -40,7 +40,7 @@ pub fn typecheck_identifier<'source>(
     ctx: &Context,
 ) -> TypecheckResult<'source, ASTIdentifier<'source>> {
     let name = node.value();
-    let ts_type = ctx.get(name, node.location().clone()).map_err(|error| {
+    let ts_type = ctx.get(name, node.location()).map_err(|error| {
         let location = error.location().clone();
         TypecheckError::new(TypecheckErrorKind::Context(error), location)
     })?;
@@ -48,7 +48,7 @@ pub fn typecheck_identifier<'source>(
     Ok(ASTIdentifier::new(
         name.to_string(),
         ts_type.clone(),
-        node.location().clone(),
+        node.location(),
     ))
 }
 
@@ -75,14 +75,11 @@ pub fn typecheck_literal<'source>(
             Ok(value) => Ok(ASTLiteral::new(
                 ASTLiteralKind::Int64(value),
                 TSType::Int64,
-                node.location().clone(),
+                node.location(),
             )),
             Err(error) => Err(match error.kind() {
                 std::num::IntErrorKind::PosOverflow | std::num::IntErrorKind::NegOverflow => {
-                    TypecheckError::new(
-                        TypecheckErrorKind::IntegerOverflow,
-                        node.location().clone(),
-                    )
+                    TypecheckError::new(TypecheckErrorKind::IntegerOverflow, node.location())
                 }
                 error => panic!("Unexcpected error on {}: {error:?}", node.token().value()),
             }),
@@ -90,7 +87,7 @@ pub fn typecheck_literal<'source>(
         CSTLiteralKind::String => Ok(ASTLiteral::new(
             ASTLiteralKind::String(node.token().value().trim_matches('"').to_string()),
             TSType::String,
-            node.location().clone(),
+            node.location(),
         )),
     }
 }
@@ -117,7 +114,7 @@ pub fn typecheck_args_against_overload<'source>(
                     expected: parameter.clone(),
                     found: arg.ts_type().clone(),
                 },
-                arg.location().clone(),
+                arg.location(),
             ));
         }
     }
@@ -195,7 +192,7 @@ pub fn typecheck_call<'source>(
         ts_type => {
             return Err(TypecheckError::new(
                 TypecheckErrorKind::TypeIsNotCallable(ts_type.clone()),
-                head.location().clone(),
+                head.location(),
             ))
         }
     };
@@ -213,18 +210,15 @@ pub fn typecheck_binary<'source>(
         let location = error.location().clone();
         TypecheckError::new(TypecheckErrorKind::Context(error), location)
     })?;
-    let return_type = typecheck_args_against_function(
-        &[left.clone(), right.clone()],
-        op,
-        node.location().clone(),
-    )?;
+    let return_type =
+        typecheck_args_against_function(&[left.clone(), right.clone()], op, node.location())?;
 
     Ok(ASTBinary::new(
         left,
         BinaryOperator::new(
             node.op().kind().clone(),
             TSType::Function(op.clone()),
-            node.op().location().clone(),
+            node.op().location(),
         ),
         right,
         return_type,

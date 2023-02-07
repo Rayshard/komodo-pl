@@ -13,7 +13,6 @@ pub struct Import<'source> {
     keyword_import: Token<'source>,
     import_path: ImportPath<'source>,
     from_path: Option<(Token<'source>, ImportPath<'source>)>,
-    location: Location<'source>,
 }
 
 impl<'source> Import<'source> {
@@ -22,22 +21,10 @@ impl<'source> Import<'source> {
         import_path: ImportPath<'source>,
         from_path: Option<(Token<'source>, ImportPath<'source>)>,
     ) -> Self {
-        let location = Location::new(
-            keyword_import.location().source(),
-            Range::new(
-                keyword_import.location().range().start(),
-                match &from_path {
-                    Some((_, path)) => path.location().range().end(),
-                    None => import_path.location().range().end(),
-                },
-            ),
-        );
-
         Self {
             keyword_import,
             import_path,
             from_path,
-            location,
         }
     }
 
@@ -55,7 +42,16 @@ impl<'source> Import<'source> {
 }
 
 impl<'source> Node<'source> for Import<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.keyword_import.location().source(),
+            Range::new(
+                self.keyword_import.location().range().start(),
+                match &self.from_path {
+                    Some((_, path)) => path.location().range().end(),
+                    None => self.import_path.location().range().end(),
+                },
+            ),
+        )
     }
 }

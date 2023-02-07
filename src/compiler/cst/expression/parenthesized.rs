@@ -13,7 +13,6 @@ pub struct Parenthesized<'source> {
     open_parenthesis: Token<'source>,
     expression: Box<Expression<'source>>,
     close_parenthesis: Token<'source>,
-    location: Location<'source>,
 }
 
 impl<'source> Parenthesized<'source> {
@@ -22,19 +21,10 @@ impl<'source> Parenthesized<'source> {
         expression: Expression<'source>,
         close_parenthesis: Token<'source>,
     ) -> Self {
-        let location = Location::new(
-            expression.location().source(),
-            Range::new(
-                open_parenthesis.location().range().start(),
-                close_parenthesis.location().range().end(),
-            ),
-        );
-
         Self {
             open_parenthesis,
             expression: Box::new(expression),
             close_parenthesis,
-            location,
         }
     }
 
@@ -52,7 +42,13 @@ impl<'source> Parenthesized<'source> {
 }
 
 impl<'source> Node<'source> for Parenthesized<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.expression.location().source(),
+            Range::new(
+                self.open_parenthesis.location().range().start(),
+                self.close_parenthesis.location().range().end(),
+            ),
+        )
     }
 }

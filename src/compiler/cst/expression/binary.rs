@@ -12,7 +12,6 @@ pub struct Binary<'source> {
     left: Box<Expression<'source>>,
     op: BinaryOperator<'source>,
     right: Box<Expression<'source>>,
-    location: Location<'source>,
 }
 
 impl<'source> Binary<'source> {
@@ -21,19 +20,10 @@ impl<'source> Binary<'source> {
         op: BinaryOperator<'source>,
         right: Expression<'source>,
     ) -> Self {
-        let location = Location::new(
-            op.location().source(),
-            Range::new(
-                left.location().range().start(),
-                right.location().range().end(),
-            ),
-        );
-
         Self {
             left: Box::new(left),
             op: op,
             right: Box::new(right),
-            location,
         }
     }
 
@@ -51,7 +41,13 @@ impl<'source> Binary<'source> {
 }
 
 impl<'source> Node<'source> for Binary<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.op.location().source(),
+            Range::new(
+                self.left.location().range().start(),
+                self.right.location().range().end(),
+            ),
+        )
     }
 }

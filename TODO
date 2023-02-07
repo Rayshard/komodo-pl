@@ -1,4 +1,1 @@
-☐ try changing Location for CST nodes to be values instead of references
-☐ fix parse errors
-☐ remove unecessary lifetimes
-☐ Make op of ast::expression::Binary a Node that has type Function
+☐ Make parse errors more informative

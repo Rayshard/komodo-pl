@@ -32,7 +32,7 @@ pub enum Expression<'source> {
 }
 
 impl<'source> Node<'source> for Expression<'source> {
-    fn location(&self) -> &Location<'source> {
+    fn location(&self) -> Location<'source> {
         match self {
             Expression::Literal(literal) => literal.location(),
             Expression::Identifier(identifier) => identifier.location(),

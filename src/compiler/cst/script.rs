@@ -8,7 +8,6 @@ use super::{statement::Statement, Node};
 pub struct Script<'source> {
     source: &'source TextSource,
     statements: Vec<Statement<'source>>,
-    location: Location<'source>,
 }
 
 impl<'source> Script<'source> {
@@ -16,7 +15,6 @@ impl<'source> Script<'source> {
         Self {
             source,
             statements,
-            location: source.as_location(),
         }
     }
 
@@ -30,7 +28,7 @@ impl<'source> Script<'source> {
 }
 
 impl<'source> Node<'source> for Script<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        self.source.as_location()
     }
 }

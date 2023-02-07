@@ -8,7 +8,7 @@ use super::Node;
 pub enum UnaryOperator {}
 
 impl<'source> Node<'source> for UnaryOperator {
-    fn location(&self) -> &Location<'source> {
+    fn location(&self) -> Location<'source> {
         todo!()
     }
 }

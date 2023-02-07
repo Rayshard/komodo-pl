@@ -7,8 +7,7 @@ use crate::compiler::{
         Node,
     },
     cst::statement::{
-        import::Import as CSTImport,
-        import_path::{ImportPath as CSTImportPath, ImportPathKind as CSTImportPathKind},
+        import::Import as CSTImport, import_path::ImportPath as CSTImportPath,
         Statement as CSTStatement, StatementKind as CSTStatementKind,
     },
     typesystem::{context::Context, ts_type::TSType},
@@ -23,11 +22,11 @@ pub fn typecheck_import_path<'source>(
     node: &CSTImportPath<'source>,
     ctx: &mut Context,
 ) -> TypecheckResult<'source, ASTImportPath<'source>> {
-    match node.kind() {
-        CSTImportPathKind::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
+    match node {
+        CSTImportPath::Simple(identifier) => Ok(ASTImportPath::Simple(typecheck_identifier(
             identifier, ctx,
         )?)),
-        CSTImportPathKind::Complex {
+        CSTImportPath::Complex {
             root,
             dot: _,
             member,
@@ -73,7 +72,7 @@ pub fn typecheck_import<'source>(
             }
             ts_type => Err(TypecheckError::new(
                 TypecheckErrorKind::ImportFromNonModule(ts_type.clone()),
-                from_path.location().clone(),
+                from_path.location(),
             )),
         }
     } else {

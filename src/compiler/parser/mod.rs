@@ -22,11 +22,7 @@ use super::{
             parenthesized::Parenthesized,
             unary_operator::UnaryOperator,
         },
-        statement::{
-            import::Import,
-            import_path::{ImportPath, ImportPathKind},
-            StatementKind,
-        },
+        statement::{import::Import, import_path::ImportPath, StatementKind},
     },
     utilities::range::Range,
 };
@@ -208,7 +204,7 @@ pub fn parse_primary_expression<'tokens, 'source>(
 
         match token.kind() {
             TokenKind::SymbolPeriod => {
-                let (member, next_state) = expect_token(TokenKind::Identifier, state.next())?;
+                let (member, next_state) = parse_identifier(state.next())?;
                 expression =
                     Expression::MemberAccess(MemberAccess::new(expression, token.clone(), member));
                 state = next_state;
@@ -293,7 +289,7 @@ pub fn parse_identifier<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Identifier<'source>> {
     let (token, state) = expect_token(TokenKind::Identifier, state)?;
-    Ok((token, state))
+    Ok((Identifier::new(token), state))
 }
 
 pub fn parse_parenthesized_expression<'tokens, 'source>(
@@ -318,18 +314,18 @@ pub fn parse_import_path<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, ImportPath<'source>> {
     let (mut path, mut state) = parse_identifier(state)
-        .map(|(identifier, state)| (ImportPath::new(ImportPathKind::Simple(identifier)), state))?;
+        .map(|(identifier, state)| (ImportPath::Simple(identifier), state))?;
 
     while let Ok((dot, next_state)) =
         expect_token(TokenKind::SymbolPeriod, skip_whitespace(state.clone()))
     {
         let (member, next_state) = parse_identifier(skip_whitespace(next_state))?;
 
-        path = ImportPath::new(ImportPathKind::Complex {
+        path = ImportPath::Complex {
             root: Box::new(path),
             dot,
             member,
-        });
+        };
         state = next_state;
     }
 

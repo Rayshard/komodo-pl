@@ -22,26 +22,13 @@ pub enum StatementKind<'source> {
 pub struct Statement<'source> {
     kind: StatementKind<'source>,
     semicolon: Token<'source>,
-    location: Location<'source>,
 }
 
 impl<'source> Statement<'source> {
     pub fn new(kind: StatementKind<'source>, semicolon: Token<'source>) -> Self {
-        let location = Location::new(
-            semicolon.location().source(),
-            Range::new(
-                match &kind {
-                    StatementKind::Import(import) => import.location().range().start(),
-                    StatementKind::Expression(expression) => expression.location().range().start(),
-                },
-                semicolon.location().range().end(),
-            ),
-        );
-
         Self {
             kind,
             semicolon,
-            location: location,
         }
     }
 
@@ -55,7 +42,16 @@ impl<'source> Statement<'source> {
 }
 
 impl<'source> Node<'source> for Statement<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.semicolon.location().source(),
+            Range::new(
+                match &self.kind {
+                    StatementKind::Import(import) => import.location().range().start(),
+                    StatementKind::Expression(expression) => expression.location().range().start(),
+                },
+                self.semicolon.location().range().end(),
+            ),
+        )
     }
 }

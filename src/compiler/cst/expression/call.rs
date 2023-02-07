@@ -14,7 +14,6 @@ pub struct Call<'source> {
     open_parenthesis: Token<'source>,
     args: Vec<Expression<'source>>,
     close_parenthesis: Token<'source>,
-    location: Location<'source>,
 }
 
 impl<'source> Call<'source> {
@@ -24,20 +23,11 @@ impl<'source> Call<'source> {
         args: Vec<Expression<'source>>,
         close_parenthesis: Token<'source>,
     ) -> Self {
-        let location = Location::new(
-            head.location().source(),
-            Range::new(
-                head.location().range().start(),
-                close_parenthesis.location().range().end(),
-            ),
-        );
-
         Self {
             head: Box::new(head),
             open_parenthesis,
             args,
             close_parenthesis,
-            location,
         }
     }
 
@@ -59,7 +49,13 @@ impl<'source> Call<'source> {
 }
 
 impl<'source> Node<'source> for Call<'source> {
-    fn location(&self) -> &Location<'source> {
-        &self.location
+    fn location(&self) -> Location<'source> {
+        Location::new(
+            self.head.location().source(),
+            Range::new(
+                self.head.location().range().start(),
+                self.close_parenthesis.location().range().end(),
+            ),
+        )
     }
 }

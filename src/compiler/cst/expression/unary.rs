@@ -11,7 +11,7 @@ pub struct Unary<'source> {
 }
 
 impl<'source> Node<'source> for Unary<'source> {
-    fn location(&self) -> &Location<'source> {
+    fn location(&self) -> Location<'source> {
         todo!()
     }
 }

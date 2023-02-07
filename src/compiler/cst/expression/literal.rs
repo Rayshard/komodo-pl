@@ -29,7 +29,7 @@ impl<'source> Literal<'source> {
 }
 
 impl<'source> Node<'source> for Literal<'source> {
-    fn location(&self) -> &Location<'source> {
-        self.token.location()
+    fn location(&self) -> Location<'source> {
+        self.token.location().clone()
     }
 }

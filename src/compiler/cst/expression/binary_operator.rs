@@ -70,8 +70,8 @@ impl BinaryOperatorKind {
 }
 
 impl<'source> Node<'source> for BinaryOperator<'source> {
-    fn location(&self) -> &Location<'source> {
-        self.token.location()
+    fn location(&self) -> Location<'source> {
+        self.token.location().clone()
     }
 }
 
