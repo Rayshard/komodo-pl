@@ -1,5 +1,3 @@
-use std::{fs, io};
-
 use serde::Serialize;
 
 use super::{location::Location, position::Position, range::Range};
@@ -86,11 +84,6 @@ impl TextSource {
 
     pub fn as_location(&self) -> Location {
         self.get_location(self.range()).unwrap()
-    }
-
-    pub fn from_file(path: &str) -> io::Result<TextSource> {
-        let text = fs::read_to_string(path)?;
-        Ok(TextSource::new(path.to_string(), text))
     }
 }
 
