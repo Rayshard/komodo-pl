@@ -74,8 +74,7 @@ impl TextSource {
     }
 
     pub fn get_terminal_link(&self, offset: usize) -> Option<String> {
-        let position = self.get_position(offset)?;
-        Some(format!("{}:{}", self.name, position))
+        Some(format!("{}:{}", self.name, self.get_position(offset)?))
     }
 
     pub fn text_from_range(&self, range: &Range) -> &str {

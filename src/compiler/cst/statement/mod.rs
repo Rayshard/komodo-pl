@@ -1,5 +1,4 @@
 pub mod import;
-pub mod import_path;
 
 use serde::Serialize;
 

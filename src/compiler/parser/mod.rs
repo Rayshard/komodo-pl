@@ -22,7 +22,10 @@ use super::{
             parenthesized::Parenthesized,
             unary_operator::UnaryOperator,
         },
-        statement::{import::Import, import_path::ImportPath, StatementKind},
+        statement::{
+            import::{from_qualifier::FromQualifier, import_path::ImportPath, Import},
+            StatementKind,
+        },
     },
     utilities::range::Range,
 };
@@ -332,21 +335,29 @@ pub fn parse_import_path<'tokens, 'source>(
     Ok((path, state))
 }
 
+pub fn parse_import_from_qualifier<'tokens, 'source>(
+    state: ParseState<'tokens, 'source>,
+) -> ParseResult<'tokens, 'source, FromQualifier<'source>> {
+    let (keyword_from, state) = expect_token(TokenKind::KeywordFrom, state)?;
+    let (path, state) = parse_import_path(skip_whitespace(state))?;
+
+    Ok((FromQualifier::new(keyword_from, path), state))
+}
+
 pub fn parse_import<'tokens, 'source>(
     state: ParseState<'tokens, 'source>,
 ) -> ParseResult<'tokens, 'source, Import<'source>> {
     let (keyword_import, state) = expect_token(TokenKind::KeywordImport, state)?;
     let (import_path, state) = parse_import_path(skip_whitespace(state))?;
-    let (from_path, state) = if let Ok((keyword_from, state)) =
-        expect_token(TokenKind::KeywordFrom, skip_whitespace(state.clone()))
-    {
-        let (path, state) = parse_import_path(skip_whitespace(state))?;
-        (Some((keyword_from, path)), state)
-    } else {
-        (None, state)
-    };
+    let (from_qualifier, state) = parse_import_from_qualifier(skip_whitespace(state)).map_or_else(
+        |(_, state)| (None, state),
+        |(from_qualifier, state)| (Some(from_qualifier), state),
+    );
 
-    Ok((Import::new(keyword_import, import_path, from_path), state))
+    Ok((
+        Import::new(keyword_import, import_path, from_qualifier),
+        state,
+    ))
 }
 
 pub fn parse_import_statement<'tokens, 'source>(

@@ -7,7 +7,7 @@ use crate::compiler::{
         Node,
     },
     cst::statement::{
-        import::Import as CSTImport, import_path::ImportPath as CSTImportPath,
+        import::{import_path::ImportPath as CSTImportPath, Import as CSTImport},
         Statement as CSTStatement, StatementKind as CSTStatementKind,
     },
     typesystem::{context::Context, ts_type::TSType},
@@ -51,8 +51,8 @@ pub fn typecheck_import<'source>(
     node: &CSTImport<'source>,
     ctx: &mut Context,
 ) -> TypecheckResult<'source, ASTImport<'source>> {
-    let (import_path, from_path) = if let Some((_, from_path)) = node.from_path() {
-        let from_path = typecheck_import_path(from_path, ctx)?;
+    let (import_path, from_path) = if let Some(from_qualifier) = node.from_qualifier() {
+        let from_path = typecheck_import_path(from_qualifier.path(), ctx)?;
 
         match from_path.ts_type() {
             TSType::Module {
@@ -66,7 +66,7 @@ pub fn typecheck_import<'source>(
                     })?;
 
                 Ok((
-                    typecheck_import_path(node.import_path(), &mut import_ctx)?,
+                    typecheck_import_path(node.path(), &mut import_ctx)?,
                     Some(from_path),
                 ))
             }
@@ -76,7 +76,7 @@ pub fn typecheck_import<'source>(
             )),
         }
     } else {
-        Ok((typecheck_import_path(node.import_path(), ctx)?, None))
+        Ok((typecheck_import_path(node.path(), ctx)?, None))
     }?;
 
     let name = match &import_path {

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::location::Location};
+use crate::compiler::{ast::Node, typesystem::ts_type::TSType, utilities::{location::Location, range::Range}};
 
 use super::{identifier::Identifier, Expression};
 
@@ -33,6 +33,12 @@ impl<'source> Node<'source> for MemberAccess<'source> {
     }
 
     fn location(&self) -> Location<'source> {
-        todo!()
+        Location::new(
+            self.root.location().source(),
+            Range::new(
+                self.root.location().range().start(),
+                self.member.location().range().end(),
+            ),
+        )
     }
 }

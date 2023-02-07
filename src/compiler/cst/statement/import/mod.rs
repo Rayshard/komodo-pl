@@ -1,3 +1,6 @@
+pub mod from_qualifier;
+pub mod import_path;
+
 use serde::Serialize;
 
 use crate::compiler::{
@@ -6,25 +9,25 @@ use crate::compiler::{
     utilities::{location::Location, range::Range},
 };
 
-use super::import_path::ImportPath;
+use self::{from_qualifier::FromQualifier, import_path::ImportPath};
 
 #[derive(Serialize, Clone)]
 pub struct Import<'source> {
     keyword_import: Token<'source>,
-    import_path: ImportPath<'source>,
-    from_path: Option<(Token<'source>, ImportPath<'source>)>,
+    path: ImportPath<'source>,
+    from_qualifier: Option<FromQualifier<'source>>,
 }
 
 impl<'source> Import<'source> {
     pub fn new(
         keyword_import: Token<'source>,
-        import_path: ImportPath<'source>,
-        from_path: Option<(Token<'source>, ImportPath<'source>)>,
+        path: ImportPath<'source>,
+        from_qualifier: Option<FromQualifier<'source>>,
     ) -> Self {
         Self {
             keyword_import,
-            import_path,
-            from_path,
+            path,
+            from_qualifier,
         }
     }
 
@@ -32,12 +35,12 @@ impl<'source> Import<'source> {
         &self.keyword_import
     }
 
-    pub fn import_path(&self) -> &ImportPath<'source> {
-        &self.import_path
+    pub fn path(&self) -> &ImportPath<'source> {
+        &self.path
     }
 
-    pub fn from_path(&self) -> &Option<(Token<'source>, ImportPath<'source>)> {
-        &self.from_path
+    pub fn from_qualifier(&self) -> &Option<FromQualifier<'source>> {
+        &self.from_qualifier
     }
 }
 
@@ -47,9 +50,9 @@ impl<'source> Node<'source> for Import<'source> {
             self.keyword_import.location().source(),
             Range::new(
                 self.keyword_import.location().range().start(),
-                match &self.from_path {
-                    Some((_, path)) => path.location().range().end(),
-                    None => self.import_path.location().range().end(),
+                match &self.from_qualifier {
+                    Some(from_qualifier) => from_qualifier.location().range().end(),
+                    None => self.path.location().range().end(),
                 },
             ),
         )
