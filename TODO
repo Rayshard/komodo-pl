@@ -1,0 +1,2 @@
+☐ Rename ImportPath in Path in both cst and ast and make import a subdir in ast like in cst
+☐ Make parse errors more informative

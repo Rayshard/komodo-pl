@@ -1,0 +1,20 @@
+{
+  "input": "(",
+  "expected_tokens": [
+    {
+      "kind": "SymbolOpenParenthesis",
+      "range": {
+        "start": 0,
+        "length": 1
+      }
+    },
+    {
+      "kind": "EOF",
+      "range": {
+        "start": 1,
+        "length": 0
+      }
+    }
+  ],
+  "expected_errors": []
+}

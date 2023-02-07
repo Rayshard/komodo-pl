@@ -1,0 +1,23 @@
+[package]
+name = "komodo-pl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+colored = "2.0.0"
+escape_string = "0.1.2"
+lazy_static = "1.4.0"
+regex = "1.7.1"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.91"
+serde_yaml = "0.9.17"
+
+[[bin]]
+name = "cli"
+path = "src/main.rs"
+
+[lib]
+name = "komodo"
+path = "src/lib.rs"

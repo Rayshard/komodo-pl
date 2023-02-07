@@ -1,0 +1,5 @@
+import stdout from std.io;
+
+stdout.print_line("Hello, World!");
+stdout.print_line(1 + 2);
+stdout.print_line("Rayshard" + " " + "Thompson");
